@@ -1848,9 +1848,40 @@ function WorkoutPage({workouts,setWorkouts}){
 }
 
 function ReadingPage({books,setBooks}){
-  const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300,notes:""});
-  const add=()=>{if(!form.title)return;setBooks(bs=>[...bs,{...form,id:Date.now(),cur:Number(form.cur||0),tot:Number(form.tot||300)}]);setForm({title:"",author:"",status:"reading",cur:0,tot:300,notes:""});setShowAdd(false);};
-  const setP=(id,v)=>setBooks(bs=>bs.map(b=>b.id===id?{...b,cur:Math.min(v,b.tot),status:v>=b.tot?"done":b.status}:b));
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300});
+  const[notePrompt,setNotePrompt]=useState(null); // {bookId, fromPage, toPage, text}
+  const[expandNotes,setExpandNotes]=useState({}); // bookId -> bool
+  const add=()=>{
+    if(!form.title)return;
+    setBooks(bs=>[...bs,{...form,id:Date.now(),cur:Number(form.cur||0),tot:Number(form.tot||300),readingNotes:[]}]);
+    setForm({title:"",author:"",status:"reading",cur:0,tot:300});
+    setShowAdd(false);
+  };
+  const addPages=(bookId,n)=>{
+    const book=(books||[]).find(b=>b.id===bookId);
+    if(!book)return;
+    const fromPage=book.cur;
+    const toPage=Math.min(book.cur+n,book.tot);
+    setBooks(bs=>bs.map(b=>b.id===bookId?{...b,cur:toPage,status:toPage>=b.tot?"done":b.status}:b));
+    setNotePrompt({bookId,fromPage,toPage,text:""});
+  };
+  const markFinished=(bookId)=>{
+    const book=(books||[]).find(b=>b.id===bookId);
+    if(!book)return;
+    const fromPage=book.cur;
+    setBooks(bs=>bs.map(b=>b.id===bookId?{...b,cur:b.tot,status:"done"}:b));
+    setNotePrompt({bookId,fromPage,toPage:book.tot,text:""});
+  };
+  const saveNote=()=>{
+    if(!notePrompt)return;
+    if(notePrompt.text.trim()){
+      const entry={id:Date.now(),date:todayStr(),fromPage:notePrompt.fromPage,toPage:notePrompt.toPage,text:notePrompt.text.trim()};
+      setBooks(bs=>bs.map(b=>b.id===notePrompt.bookId?{...b,readingNotes:[...(b.readingNotes||[]),entry]}:b));
+    }
+    setNotePrompt(null);
+  };
   const cats={reading:(books||[]).filter(b=>b.status==="reading"),next:(books||[]).filter(b=>b.status==="next"),done:(books||[]).filter(b=>b.status==="done")};
   const colMap={reading:t.GOLD,next:t.BLUE,done:t.GREEN};
   return (
@@ -1867,6 +1898,28 @@ function ReadingPage({books,setBooks}){
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
         ))}
       </div>
+
+      {notePrompt&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"66"}}>
+          <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Session Note</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>
+            {"Pages "+notePrompt.fromPage+" - "+notePrompt.toPage+" - What stood out?"}
+          </div>
+          <textarea
+            autoFocus
+            value={notePrompt.text}
+            onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
+            placeholder="Key idea, quote, or reflection... (optional)"
+            rows={3}
+            style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
+          />
+          <div style={{display:"flex",gap:8,marginTop:10}}>
+            <Btn onClick={saveNote}>Save Note</Btn>
+            <Btn onClick={()=>setNotePrompt(null)} variant="ghost">Skip</Btn>
+          </div>
+        </Card>
+      )}
+
       {showAdd&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
           <SectionLabel>Add Book</SectionLabel>
@@ -1884,11 +1937,11 @@ function ReadingPage({books,setBooks}){
               <Inp type="number" value={form.cur} onChange={e=>setForm(f=>({...f,cur:e.target.value}))} placeholder="Current page" style={{flex:1}}/>
               <Inp type="number" value={form.tot} onChange={e=>setForm(f=>({...f,tot:e.target.value}))} placeholder="Total pages" style={{flex:1}}/>
             </div>
-            <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Notes"/>
             <div style={{display:"flex",gap:8}}><Btn onClick={add}>Add</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn></div>
           </div>
         </Card>
       )}
+
       {[{key:"reading",label:"Currently Reading"},{key:"next",label:"Up Next"},{key:"done",label:"Completed"}].map(sec=>{
         const bs=cats[sec.key];if(!bs.length)return null;const col=colMap[sec.key];
         return (
@@ -1896,30 +1949,57 @@ function ReadingPage({books,setBooks}){
             <div style={{fontSize:9,letterSpacing:3,color:col,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:10}}>{sec.label}</div>
             {bs.map(b=>{
               const pct=Math.min(Math.round((b.cur/b.tot)*100),100);
+              const notes=b.readingNotes||[];
+              const showingNotes=!!expandNotes[b.id];
               return (
                 <Card key={b.id} style={{marginBottom:8,borderLeft:"3px solid "+col}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:b.status==="reading"?8:0}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:b.status==="reading"?8:4}}>
                     <div style={{flex:1,marginRight:10}}>
                       <div style={{fontSize:13,color:t.TEXT,marginBottom:2}}>{b.title}</div>
                       {b.author&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{b.author}</div>}
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
                       {b.status==="reading"&&<span style={{fontSize:11,color:col,fontFamily:"sans-serif",fontWeight:600}}>{pct+"%"}</span>}
-                      {b.status==="done"&&<span style={{color:t.GREEN}}>Done</span>}
+                      {b.status==="done"&&<span style={{fontSize:10,color:t.GREEN,fontFamily:"sans-serif"}}>Done</span>}
                       <button onClick={()=>setBooks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
                     </div>
                   </div>
+
                   {b.status==="reading"&&(
                     <>
                       <PB value={pct} color={col} height={4}/>
                       <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,marginBottom:6}}>{b.cur+" / "+b.tot+" pages"}</div>
                       <div style={{display:"flex",gap:5}}>
                         {[10,25,50].map(n=>(
-                          <Btn key={n} onClick={()=>setP(b.id,b.cur+n)} style={{flex:1,fontSize:10,padding:"4px"}}>{"+ "+n}</Btn>
+                          <Btn key={n} onClick={()=>addPages(b.id,n)} style={{flex:1,fontSize:10,padding:"4px"}}>{"+ "+n}</Btn>
                         ))}
-                        <Btn onClick={()=>setP(b.id,b.tot)} style={{flex:2,fontSize:10,padding:"4px"}}>Finished</Btn>
+                        <Btn onClick={()=>markFinished(b.id)} style={{flex:2,fontSize:10,padding:"4px"}}>Finished</Btn>
                       </div>
                     </>
+                  )}
+
+                  {notes.length>0&&(
+                    <div style={{marginTop:10}}>
+                      <button
+                        onClick={()=>setExpandNotes(x=>({...x,[b.id]:!x[b.id]}))}
+                        style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,padding:0,display:"flex",alignItems:"center",gap:4}}
+                      >
+                        <span style={{fontSize:10}}>{showingNotes?"v":">"}</span>
+                        {notes.length+" reading "+(notes.length===1?"note":"notes")}
+                      </button>
+                      {showingNotes&&(
+                        <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:8}}>
+                          {notes.map(n=>(
+                            <div key={n.id} style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,borderLeft:"2px solid "+col}}>
+                              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>
+                                {"p."+n.fromPage+" - p."+n.toPage+" - "+n.date}
+                              </div>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"Georgia,serif",lineHeight:1.7}}>{n.text}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </Card>
               );
