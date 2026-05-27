@@ -2403,8 +2403,8 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate};
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT,width:"100vw"}}>
-      <style>{"html,body{margin:0;padding:0;width:100%;} #root{width:100%;} *{box-sizing:border-box;margin:0;padding:0;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";}"}  </style>
+    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
+      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";}"}</style>
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
@@ -2416,7 +2416,7 @@ function App(){
             <button onClick={()=>setPage("profile")} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
         )}
-        <div style={{flex:1,overflowY:"auto",padding:"22px",width:"100%",boxSizing:"border-box"}}>
+        <div style={{flex:1,overflowY:"auto",padding:"22px 28px"}}>
           {page==="dashboard"&&<DashboardPage {...pg}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
