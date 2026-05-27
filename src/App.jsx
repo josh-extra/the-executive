@@ -343,9 +343,9 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const initials=(profile.firstName?.[0]||"")+(profile.lastName?.[0]||"");
   const groups=[
     ["Command",["dashboard","weekly","advisor"]],
-    ["Execute",["tasks","habits","goals","journal"]],
+    ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","projector","cashflow","bills","tax","debt","invest"]],
-    ["Health",["health","body","workout","reading"]],
+    ["Health",["health","body","workout"]],
     ["Settings",["profile"]]
   ];
   return (
