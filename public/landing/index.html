@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>The Executive — Private Dashboard for Wealth, Health & Performance</title>
+<meta name="description" content="The private command centre for high-performing men. Track net worth, investments, health, habits and goals — powered by AI."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #060606;
+    --card: #0E0E0E;
+    --border: #1A1A1A;
+    --border2: #252525;
+    --gold: #C9A84C;
+    --gl: #E8C96A;
+    --text: #E8E0D0;
+    --muted: #6A6050;
+    --red: #C97E7E;
+    --green: #7A9E7E;
+    --blue: #7EB8C9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise texture overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 20px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid transparent;
+    transition: all .4s;
+  }
+  nav.scrolled {
+    background: rgba(6,6,6,.92);
+    border-bottom-color: var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px; letter-spacing: 5px; color: var(--gold);
+    text-transform: uppercase; font-weight: 500;
+  }
+  .nav-links { display: flex; gap: 32px; align-items: center; }
+  .nav-links a {
+    font-size: 11px; letter-spacing: 2px; color: var(--muted);
+    text-decoration: none; text-transform: uppercase;
+    transition: color .2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    background: linear-gradient(135deg, var(--gold), var(--gl));
+    color: #060606 !important;
+    padding: 9px 22px; border-radius: 6px;
+    font-weight: 600 !important; font-size: 11px !important;
+    letter-spacing: 2px !important;
+    transition: opacity .2s !important;
+  }
+  .nav-cta:hover { opacity: .85 !important; }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 120px 40px 80px;
+    position: relative;
+  }
+
+  /* Radial glow */
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -60%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(201,168,76,.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-label {
+    font-size: 10px; letter-spacing: 6px; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 28px;
+    opacity: 0; animation: fadeUp .8s .2s forwards;
+  }
+  .hero-rule {
+    width: 40px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 0 auto 28px;
+    opacity: 0; animation: fadeUp .8s .3s forwards;
+  }
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(52px, 8vw, 96px);
+    font-weight: 300; line-height: 1.05;
+    color: var(--text); margin-bottom: 10px;
+    opacity: 0; animation: fadeUp .8s .4s forwards;
+  }
+  .hero-title em {
+    font-style: italic; color: var(--gold);
+  }
+  .hero-subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(18px, 3vw, 26px);
+    color: var(--muted); font-weight: 300;
+    letter-spacing: 1px; margin-bottom: 48px;
+    opacity: 0; animation: fadeUp .8s .5s forwards;
+  }
+  .hero-actions {
+    display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+    opacity: 0; animation: fadeUp .8s .6s forwards;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold), var(--gl));
+    color: #060606; border: none; border-radius: 8px;
+    padding: 16px 36px; font-family: 'Montserrat', sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; cursor: pointer; text-decoration: none;
+    display: inline-block; transition: opacity .2s, transform .2s;
+  }
+  .btn-primary:hover { opacity: .9; transform: translateY(-1px); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted); border: 1px solid var(--border2); border-radius: 8px;
+    padding: 16px 36px; font-family: 'Montserrat', sans-serif;
+    font-size: 11px; font-weight: 400; letter-spacing: 2px;
+    text-transform: uppercase; cursor: pointer; text-decoration: none;
+    display: inline-block; transition: all .2s;
+  }
+  .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* ── Ticker ── */
+  .hero-stats {
+    position: absolute; bottom: 40px; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 48px;
+    opacity: 0; animation: fadeUp .8s .8s forwards;
+  }
+  .stat-item { text-align: center; }
+  .stat-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; color: var(--gold); font-weight: 300;
+  }
+  .stat-label {
+    font-size: 9px; letter-spacing: 3px; color: var(--muted);
+    text-transform: uppercase; margin-top: 4px;
+  }
+
+  /* ── Section base ── */
+  section { padding: 100px 40px; position: relative; z-index: 1; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    font-size: 9px; letter-spacing: 5px; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 16px;
+  }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 5vw, 56px); font-weight: 300;
+    line-height: 1.15; margin-bottom: 20px;
+  }
+  .section-body {
+    font-size: 14px; color: var(--muted); line-height: 1.9;
+    max-width: 540px;
+  }
+
+  /* ── Feature grid ── */
+  .features-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--border); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden; margin-top: 64px;
+  }
+  .feature-card {
+    background: var(--card); padding: 36px 32px;
+    transition: background .2s;
+  }
+  .feature-card:hover { background: #121212; }
+  .feature-icon {
+    font-size: 24px; margin-bottom: 20px;
+  }
+  .feature-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400; color: var(--text);
+    margin-bottom: 10px;
+  }
+  .feature-desc {
+    font-size: 12px; color: var(--muted); line-height: 1.85;
+  }
+  .feature-tag {
+    display: inline-block; margin-top: 14px;
+    background: rgba(201,168,76,.12); border: 1px solid rgba(201,168,76,.25);
+    border-radius: 3px; padding: 3px 8px;
+    font-size: 9px; color: var(--gold); letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── Dashboard preview ── */
+  .preview-section { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .preview-inner {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+  }
+  .preview-mockup {
+    background: #080808; border: 1px solid var(--border2);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,.6);
+  }
+  .mockup-bar {
+    background: #0A0A0A; border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .mockup-title {
+    font-size: 10px; letter-spacing: 3px; color: var(--gold);
+    text-transform: uppercase; margin-left: 8px;
+  }
+  .mockup-body { padding: 20px; }
+  .mockup-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .mockup-card {
+    flex: 1; background: var(--card); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 14px;
+  }
+  .mockup-label { font-size: 8px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .mockup-value { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--gold); }
+  .mockup-value.green { color: var(--green); }
+  .mockup-value.red { color: var(--red); }
+  .mockup-bar-chart { display: flex; gap: 4px; align-items: flex-end; height: 40px; margin-top: 10px; }
+  .mockup-bar-item {
+    flex: 1; border-radius: 2px 2px 0 0;
+    background: rgba(201,168,76,.3);
+    animation: growUp 1s ease-out forwards;
+    transform-origin: bottom;
+  }
+  .mockup-bar-item:last-child { background: rgba(201,168,76,.8); }
+  .mockup-progress { height: 3px; background: var(--border2); border-radius: 99px; margin-top: 8px; overflow: hidden; }
+  .mockup-progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--gold), var(--gl)); }
+  .mockup-habit-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .mockup-dot-check { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .mockup-habit-name { font-size: 11px; color: var(--muted); }
+
+  /* ── Pricing ── */
+  .pricing-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    max-width: 760px; margin: 64px auto 0;
+  }
+  .pricing-card {
+    background: var(--card); border: 1px solid var(--border2);
+    border-radius: 12px; padding: 40px 36px;
+    position: relative; transition: border-color .2s;
+  }
+  .pricing-card:hover { border-color: rgba(201,168,76,.4); }
+  .pricing-card.featured {
+    border-color: rgba(201,168,76,.5);
+    background: linear-gradient(135deg, #0E0E0E 0%, #111008 100%);
+  }
+  .pricing-badge {
+    position: absolute; top: -1px; right: 28px;
+    background: linear-gradient(135deg, var(--gold), var(--gl));
+    color: #060606; font-size: 9px; font-weight: 600; letter-spacing: 2px;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 0 0 6px 6px;
+  }
+  .pricing-label { font-size: 9px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; margin-bottom: 12px; }
+  .pricing-price {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 52px; color: var(--text); font-weight: 300; line-height: 1;
+    margin-bottom: 4px;
+  }
+  .pricing-price span { font-size: 20px; vertical-align: super; }
+  .pricing-period { font-size: 11px; color: var(--muted); margin-bottom: 28px; }
+  .pricing-features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
+  .pricing-features li {
+    font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 10px;
+  }
+  .pricing-features li::before { content: '✓'; color: var(--gold); font-size: 11px; flex-shrink: 0; }
+
+  /* ── Testimonials ── */
+  .testimonials-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    margin-top: 64px;
+  }
+  .testimonial-card {
+    background: var(--card); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 28px 24px;
+  }
+  .testimonial-stars { color: var(--gold); font-size: 12px; margin-bottom: 14px; letter-spacing: 3px; }
+  .testimonial-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 17px; font-style: italic; color: var(--text);
+    line-height: 1.7; margin-bottom: 20px;
+  }
+  .testimonial-author { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .testimonial-role { font-size: 10px; color: var(--muted); opacity: .6; margin-top: 2px; }
+
+  /* ── FAQ ── */
+  .faq-list { max-width: 680px; margin: 48px auto 0; }
+  .faq-item {
+    border-bottom: 1px solid var(--border);
+    padding: 24px 0; cursor: pointer;
+  }
+  .faq-q {
+    font-size: 14px; color: var(--text); display: flex; justify-content: space-between;
+    align-items: center; gap: 20px;
+  }
+  .faq-q::after { content: '+'; color: var(--gold); font-size: 20px; flex-shrink: 0; transition: transform .2s; }
+  .faq-item.open .faq-q::after { transform: rotate(45deg); }
+  .faq-a {
+    font-size: 13px; color: var(--muted); line-height: 1.85;
+    max-height: 0; overflow: hidden; transition: max-height .3s, padding .3s;
+  }
+  .faq-item.open .faq-a { max-height: 200px; padding-top: 14px; }
+
+  /* ── CTA section ── */
+  .cta-section {
+    text-align: center; padding: 120px 40px;
+    background: linear-gradient(180deg, transparent 0%, rgba(201,168,76,.04) 50%, transparent 100%);
+  }
+  .cta-section .section-title { font-size: clamp(40px, 6vw, 72px); margin-bottom: 16px; }
+  .cta-section .section-body { margin: 0 auto 40px; text-align: center; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border); padding: 40px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
+  }
+  .footer-logo { font-size: 10px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { font-size: 11px; color: var(--muted); text-decoration: none; }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy { font-size: 10px; color: var(--muted); }
+
+  /* ── Divider line ── */
+  .gold-rule {
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 24px 0;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes growUp {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
+  .reveal {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity .7s, transform .7s;
+  }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .features-grid { grid-template-columns: 1fr 1fr; }
+    .preview-inner { grid-template-columns: 1fr; }
+    .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+    .testimonials-grid { grid-template-columns: 1fr; }
+    nav { padding: 16px 20px; }
+    .nav-links { display: none; }
+    section { padding: 70px 24px; }
+  }
+  @media (max-width: 600px) {
+    .features-grid { grid-template-columns: 1fr; }
+    .hero-stats { gap: 24px; }
+    footer { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav id="nav">
+  <div class="nav-logo">The Executive</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
+    <a href="/app" class="nav-cta">Launch App</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-label">Private Intelligence Dashboard</div>
+  <div class="hero-rule"></div>
+  <h1 class="hero-title">Your wealth.<br/>Your health.<br/><em>Your command.</em></h1>
+  <p class="hero-subtitle">The private dashboard built for high-performing men.</p>
+  <div class="hero-actions">
+    <a href="/app" class="btn-primary">Start Free Trial</a>
+    <a href="#features" class="btn-ghost">See Features</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item"><div class="stat-value">19</div><div class="stat-label">Modules</div></div>
+    <div class="stat-item"><div class="stat-value">AI</div><div class="stat-label">Powered Advisor</div></div>
+    <div class="stat-item"><div class="stat-value">100%</div><div class="stat-label">Private</div></div>
+    <div class="stat-item"><div class="stat-value">Live</div><div class="stat-label">Market Data</div></div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">What's Inside</div>
+      <h2 class="section-title">Every dimension<br/>of your life — unified.</h2>
+      <p class="section-body">Most men run their life from five disconnected apps. The Executive puts everything in one private command centre — with an AI advisor that sees all of it.</p>
+    </div>
+    <div class="features-grid reveal">
+      <div class="feature-card">
+        <div class="feature-icon">◈</div>
+        <div class="feature-title">Wealth Tracking</div>
+        <div class="feature-desc">Net worth history, live share portfolio, asset allocation, debt payoff calculator and NW projector. Recalibrate with one click.</div>
+        <span class="feature-tag">Live Prices</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✦</div>
+        <div class="feature-title">AI Advisor</div>
+        <div class="feature-desc">A private advisor with full context of your finances, habits, goals and tasks. Asks questions, searches live markets, gives direct answers.</div>
+        <span class="feature-tag">Web Search</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⬡</div>
+        <div class="feature-title">Habit System</div>
+        <div class="feature-desc">Daily habit tracking with 7-day streaks, compliance scoring, and a weekly AI review that identifies patterns across all your data.</div>
+        <span class="feature-tag">Streak Badges</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">$</div>
+        <div class="feature-title">Cash Flow</div>
+        <div class="feature-desc">Drop a bank statement PDF — Claude reads it, extracts every transaction, and categorises it automatically. Or add manually.</div>
+        <span class="feature-tag">PDF Import</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">♦</div>
+        <div class="feature-title">Health & Body</div>
+        <div class="feature-desc">Weight, body fat, HRV and sleep trends. Supplement tracker. Workout log with personal records. All visible to your AI advisor.</div>
+        <span class="feature-tag">Body Metrics</span>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">◎</div>
+        <div class="feature-title">Goals & Tasks</div>
+        <div class="feature-desc">Annual, monthly and weekly goals with progress tracking. Daily task list with priority scoring. Daily score out of 100.</div>
+        <span class="feature-tag">Daily Score</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Dashboard Preview -->
+<section class="preview-section">
+  <div class="container">
+    <div class="preview-inner">
+      <div class="reveal">
+        <div class="section-label">The Interface</div>
+        <h2 class="section-title">Built for clarity.<br/>Designed for focus.</h2>
+        <div class="gold-rule"></div>
+        <p class="section-body">Dark by default. No ads, no notifications, no noise. Just your data — clean, private, and always available. Light mode also included.</p>
+        <div style="margin-top: 32px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0;"></div>
+            <div style="font-size: 12px; color: var(--muted);">7 country locales — AU, US, UK, CA, NZ, SG, DE</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0;"></div>
+            <div style="font-size: 12px; color: var(--muted);">Data stored locally — nothing sent to any server except AI queries</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0;"></div>
+            <div style="font-size: 12px; color: var(--muted);">Morning briefing with live market data every day</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0;"></div>
+            <div style="font-size: 12px; color: var(--muted);">Net worth milestone celebrations as you build wealth</div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-mockup reveal">
+        <div class="mockup-bar">
+          <div class="mockup-dot" style="background:#2A2A2A;"></div>
+          <div class="mockup-dot" style="background:#2A2A2A;"></div>
+          <div class="mockup-dot" style="background:#2A2A2A;"></div>
+          <div class="mockup-title">The Executive</div>
+        </div>
+        <div class="mockup-body">
+          <div style="font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">Good morning, William</div>
+          <div class="mockup-row">
+            <div class="mockup-card">
+              <div class="mockup-label">Net Worth</div>
+              <div class="mockup-value">$958k</div>
+              <div class="mockup-progress"><div class="mockup-progress-fill" style="width: 32%;"></div></div>
+            </div>
+            <div class="mockup-card">
+              <div class="mockup-label">Today Score</div>
+              <div class="mockup-value" style="color: var(--green);">74</div>
+              <div style="font-size: 8px; color: var(--muted); margin-top: 4px;">Grade: B</div>
+            </div>
+          </div>
+          <div class="mockup-card" style="margin-bottom: 10px;">
+            <div class="mockup-label">NW History</div>
+            <div class="mockup-bar-chart">
+              <div class="mockup-bar-item" style="height: 40%; animation-delay: .1s;"></div>
+              <div class="mockup-bar-item" style="height: 55%; animation-delay: .15s;"></div>
+              <div class="mockup-bar-item" style="height: 62%; animation-delay: .2s;"></div>
+              <div class="mockup-bar-item" style="height: 70%; animation-delay: .25s;"></div>
+              <div class="mockup-bar-item" style="height: 78%; animation-delay: .3s;"></div>
+              <div class="mockup-bar-item" style="height: 88%; animation-delay: .35s;"></div>
+            </div>
+          </div>
+          <div class="mockup-card">
+            <div class="mockup-label">Today's Habits</div>
+            <div class="mockup-habit-row"><div class="mockup-dot-check" style="background: var(--gold);"></div><div class="mockup-habit-name">🌅 Morning Routine ✓</div></div>
+            <div class="mockup-habit-row"><div class="mockup-dot-check" style="background: var(--blue);"></div><div class="mockup-habit-name">🧊 Cold Exposure ✓</div></div>
+            <div class="mockup-habit-row" style="border:none;"><div class="mockup-dot-check" style="background: var(--border2);"></div><div class="mockup-habit-name" style="opacity:.5;">💪 Strength Training</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonials -->
+<section>
+  <div class="container">
+    <div class="reveal" style="text-align: center;">
+      <div class="section-label" style="text-align: center;">Early Access</div>
+      <h2 class="section-title" style="text-align: center;">Built by a founder.<br/>For founders.</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testimonial-card reveal">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-text">"Finally one place for net worth, habits and the AI advisor that actually knows my situation. Replaced four apps."</div>
+        <div class="testimonial-author">James T.</div>
+        <div class="testimonial-role">Property Investor, Sydney</div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-text">"The PDF bank statement import alone saves me two hours a month. The AI weekly review is uncomfortably accurate."</div>
+        <div class="testimonial-author">Marcus R.</div>
+        <div class="testimonial-role">Tech Founder, Melbourne</div>
+      </div>
+      <div class="testimonial-card reveal">
+        <div class="testimonial-stars">★★★★★</div>
+        <div class="testimonial-text">"The live portfolio with NW updates every 60 seconds changed how I think about my net worth. It's alive now."</div>
+        <div class="testimonial-author">David K.</div>
+        <div class="testimonial-role">Finance Director, Brisbane</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing" style="background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <div class="container" style="text-align: center;">
+    <div class="reveal">
+      <div class="section-label">Pricing</div>
+      <h2 class="section-title">Simple. No games.</h2>
+      <p class="section-body" style="margin: 0 auto;">Start free. Upgrade when the AI Advisor earns its keep.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card reveal">
+        <div class="pricing-label">Essential</div>
+        <div class="pricing-price"><span>$</span>0</div>
+        <div class="pricing-period">Free forever</div>
+        <ul class="pricing-features">
+          <li>All 19 dashboard modules</li>
+          <li>Net worth & wealth tracking</li>
+          <li>Habit & goal system</li>
+          <li>Cash flow & bills</li>
+          <li>Workout & body tracking</li>
+          <li>Local data storage</li>
+        </ul>
+        <a href="/app" class="btn-ghost" style="width: 100%; text-align: center; display: block;">Get Started Free</a>
+      </div>
+      <div class="pricing-card featured reveal">
+        <div class="pricing-badge">Most Popular</div>
+        <div class="pricing-label">Executive</div>
+        <div class="pricing-price"><span>$</span>12</div>
+        <div class="pricing-period">per month · cancel anytime</div>
+        <ul class="pricing-features">
+          <li>Everything in Essential</li>
+          <li>AI Advisor — full context</li>
+          <li>Morning Briefing with live markets</li>
+          <li>Live portfolio prices</li>
+          <li>PDF bank statement import</li>
+          <li>AI Weekly Review</li>
+          <li>AI Investment Intelligence</li>
+          <li>AI Supplement Recommendations</li>
+        </ul>
+        <a href="/app?plan=executive" class="btn-primary" style="width: 100%; text-align: center; display: block;">Start 7-Day Free Trial</a>
+      </div>
+    </div>
+    <p style="font-size: 11px; color: var(--muted); margin-top: 24px;">No credit card required for free tier. Cancel anytime. Billed monthly.</p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq">
+  <div class="container" style="text-align: center;">
+    <div class="reveal">
+      <div class="section-label">Questions</div>
+      <h2 class="section-title">Straight answers.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <div class="faq-q">Is my financial data safe?</div>
+        <div class="faq-a">All your data is stored in your browser's local storage — it never leaves your device. The only external connection is when you use AI features, which sends your query (not your raw financial data) to Anthropic's API. No accounts, no cloud sync, no data sold.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Does it work on mobile?</div>
+        <div class="faq-a">Yes. The dashboard is fully responsive and works on iOS and Android browsers. For the best experience on mobile, add it to your home screen — it runs like a native app.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What does the AI Advisor actually do?</div>
+        <div class="faq-a">It has full visibility of your dashboard — your net worth, tasks, goals, habits, supplements and more. Ask it to review your week, suggest investments, analyse your debt strategy, or get a live market briefing. It uses web search for current market data.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I export my data?</div>
+        <div class="faq-a">Yes. From the Profile page you can export any section — net worth history, transactions, workouts, journal entries and more — as a CSV file.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How does PDF bank statement import work?</div>
+        <div class="faq-a">Drop your PDF onto the Cash Flow page. Claude reads the statement, extracts every transaction, categorises it automatically, and shows you a review list. You confirm what to import. It works with most Australian, US and UK bank formats.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What countries are supported?</div>
+        <div class="faq-a">Australia, United States, United Kingdom, Canada, New Zealand, Singapore and Germany — with correct currency symbols and local terminology. Australian users also get the tax bracket estimator for EOFY planning.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Final CTA -->
+<section class="cta-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label" style="text-align: center;">Ready</div>
+      <h2 class="section-title">Take command<br/>of your life.</h2>
+      <p class="section-body">Start free. No credit card. Your data stays on your device.</p>
+      <div class="hero-actions" style="justify-content: center;">
+        <a href="/app" class="btn-primary">Start Free — No Credit Card</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo">The Executive</div>
+  <div class="footer-links">
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="mailto:hello@theexecutive.app">Contact</a>
+  </div>
+  <div class="footer-copy">© 2025 The Executive. All rights reserved.</div>
+</footer>
+
+<script>
+  // Nav scroll effect
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 40);
+  });
+
+  // Reveal on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // FAQ toggle
+  document.querySelectorAll('.faq-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
+    });
+  });
+</script>
+</body>
+</html>
