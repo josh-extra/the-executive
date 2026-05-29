@@ -992,7 +992,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Overview</div>
           <div style={{display:"flex",alignItems:"baseline",gap:10}}>
             <div style={{fontSize:32,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt(nw)}</div>
-            {safeH.length>0&&sP.dayChange!==0&&<span style={{fontSize:12,color:sP.dayChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(sP.dayChange>=0?"+ ":"- ")+fmt(Math.abs(sP.dayChange))+" today"}</span>}
+            {safeH.length>0&&sP.totalGain!==0&&<span style={{fontSize:12,color:sP.totalGain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(sP.totalGain>=0?"+ ":"- ")+fmt(Math.abs(sP.totalGain))+" gain"}</span>}
           </div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{"Target: "+fmt(nwT)}</div>
         </div>
@@ -1048,7 +1048,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
         )}
         {safeH.length>0&&sP.totalValue>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
-            {[{l:"Live Value",v:fmt(sP.totalValue),c:t.GOLD},{l:"Day P&L",v:(sP.dayChange>=0?"+":"")+fmt(sP.dayChange),c:sP.dayChange>=0?t.GREEN:t.RED},{l:"Total Return",v:(sP.totalGainPct>=0?"+":"")+sP.totalGainPct.toFixed(1)+"%",c:sP.totalGain>=0?t.GREEN:t.RED}].map(s=>(
+            {[{l:"Current Value",v:fmt(sP.totalValue),c:t.GOLD},{l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain),c:sP.totalGain>=0?t.GREEN:t.RED},{l:"Return",v:(sP.totalGainPct>=0?"+":"")+sP.totalGainPct.toFixed(1)+"%",c:sP.totalGainPct>=0?t.GREEN:t.RED}].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
                 <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
@@ -1088,14 +1088,11 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
                       {h.name!==h.ticker&&<span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>}
                       <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.shares.toLocaleString()+" shares"}</span>
                     </div>
-                    {p&&!p.error&&p.price&&(
-                      <div style={{display:"flex",gap:7}}>
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{p.price.toFixed(2)}</span>
-                        <span style={{fontSize:10,color:p.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(p.pct>=0?"+ ":"- ")+Math.abs(p.pct).toFixed(2)+"%"}</span>
-                        {gain!==null&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
-                      </div>
-                    )}
-                    {p?.error&&<div style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Price unavailable</div>}
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Price:</span>
+                      <input type="number" defaultValue={h.currentPrice||h.avgCost||""} onBlur={e=>{const v=parseFloat(e.target.value);if(v>0)setHoldings(hs=>(hs||[]).map(x=>x.id===h.id?{...x,currentPrice:v}:x));}} placeholder="Enter price" style={{width:80,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.TEXT,fontSize:11,fontFamily:"sans-serif",outline:"none"}}/>
+                      {gain!==null&&h.currentPrice&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                    </div>
                   </div>
                   <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
                   <button onClick={()=>{setEditShareId(h.id);setEditShareForm({ticker:h.ticker,shares:h.shares,avgCost:h.avgCost||"",name:h.name});}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
@@ -1214,14 +1211,11 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
                       <Tag color={t.PURPLE}>{h.ticker}</Tag>
                       <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.amount+" "+h.ticker}</span>
                     </div>
-                    {p&&!p.error&&p.price&&(
-                      <div style={{display:"flex",gap:7}}>
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(p.price)}</span>
-                        <span style={{fontSize:10,color:p.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(p.pct>=0?"+ ":"- ")+Math.abs(p.pct||0).toFixed(2)+"% 24h"}</span>
-                        {gain!==null&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
-                      </div>
-                    )}
-                    {p?.error&&<div style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Price unavailable - check coin ID</div>}
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Price (AUD):</span>
+                      <input type="number" defaultValue={h.currentPrice||h.avgCost||""} onBlur={e=>{const v=parseFloat(e.target.value);if(v>0)setCryptoHoldings(cs=>(cs||[]).map(x=>x.ticker===h.ticker?{...x,currentPrice:v}:x));}} placeholder="Enter price" style={{width:90,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.TEXT,fontSize:11,fontFamily:"sans-serif",outline:"none"}}/>
+                      {gain!==null&&h.currentPrice&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                    </div>
                   </div>
                   <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
                   <button onClick={()=>{setEditCryptoIdx(i);setEditCryptoForm({id:h.id,amount:h.amount,avgCost:h.avgCost||"",name:h.name||h.id});}} style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"33",borderRadius:5,padding:"3px 8px",color:t.PURPLE,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
