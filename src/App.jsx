@@ -63,24 +63,7 @@ const POPULAR_COINS=[
   {ticker:"INJ",name:"Injective"},{ticker:"SUI",name:"Sui"}
 ];
 
-const priceFetch=async sym=>{
-  const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym));
-  const j=await r.json();
-  if(j.error)throw new Error(j.error);
-  return{price:j.price,change:j.change,pct:j.pct};
-};
-const cryptoPriceFetch=async sym=>{
-  // Convert BTC -> BINANCE:BTCUSDT for Finnhub, then get AUD rate
-  const [cr,fx]=await Promise.all([
-    fetch("/api/quote?symbol=BINANCE:"+sym+"USDT").then(r=>r.json()),
-    fetch("/api/quote?symbol=OANDA:USD_AUD").then(r=>r.json())
-  ]);
-  if(cr.error)throw new Error(cr.error);
-  const audRate=fx.price||1.55;
-  const price=cr.price*audRate;
-  const prev=(cr.price-cr.change)*audRate;
-  return{price,change:price-prev,pct:cr.pct};
-};
+// Price fetching removed - manual price updates used instead
 
 const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
@@ -138,68 +121,47 @@ const D_HABITS=[
 
 function useMarket(){
   const[data,setData]=useState({sp500:{price:null,pct:null,loading:true},asx:{price:null,pct:null,loading:true},audusd:{price:null,pct:null,loading:true},lastUpdated:null});
-  const f1=async(sym,fb)=>{
-    try{
-      const d=await priceFetch(sym);
-      return{price:d.price,pct:d.pct,loading:false,error:false};
-    }catch{return{...fb,loading:false,error:true};}
-  };
   const fetchAll=useCallback(async()=>{
-    const[s,a,u]=await Promise.all([
-      f1("^GSPC",{price:5801,pct:.77}),
-      f1("^AXJO",{price:8320,pct:.51}),
-      f1("AUDUSD=X",{price:.6412,pct:.19})
-    ]);
-    setData({sp500:s,asx:a,audusd:u,lastUpdated:new Date()});
+    try{
+      const r=await fetch("/api/quote?symbol=^GSPC");
+      const j=await r.json();
+      if(!j.error){
+        const[a,u]=await Promise.all([
+          fetch("/api/quote?symbol=^AXJO").then(r=>r.json()),
+          fetch("/api/quote?symbol=OANDA:AUD_USD").then(r=>r.json())
+        ]);
+        setData({
+          sp500:{price:j.price,pct:j.pct,loading:false,error:false},
+          asx:{price:a.price,pct:a.pct,loading:false,error:!!a.error},
+          audusd:{price:u.price,pct:u.pct,loading:false,error:!!u.error},
+          lastUpdated:new Date()
+        });
+        return;
+      }
+    }catch(e){}
+    setData({
+      sp500:{price:5801,pct:.77,loading:false,error:true},
+      asx:{price:8320,pct:.51,loading:false,error:true},
+      audusd:{price:.6412,pct:.19,loading:false,error:true},
+      lastUpdated:new Date()
+    });
   },[]);
-  useEffect(()=>{fetchAll();const id=setInterval(fetchAll,60000);return()=>clearInterval(id);},[]);
+  useEffect(()=>{fetchAll();const id=setInterval(fetchAll,300000);return()=>clearInterval(id);},[]);
   return{...data,refresh:fetchAll};
 }
 
 function usePortfolio(holdings){
-  const[prices,setPrices]=useState({});
-  const[lastUpdated,setLastUpdated]=useState(null);
-  const tickers=(holdings||[]).map(h=>h.ticker).join(",");
-  const fetchPrices=useCallback(async()=>{
-    if(!holdings||!holdings.length)return;
-    const results={};
-    await Promise.all((holdings||[]).map(async h=>{
-      try{
-        const d=await priceFetch(h.ticker);
-        results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
-      }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
-    }));
-    setPrices(results);setLastUpdated(new Date());
-  },[tickers]);
-  useEffect(()=>{fetchPrices();const id=setInterval(fetchPrices,60000);return()=>clearInterval(id);},[fetchPrices]);
   const safeH=holdings||[];
-  const totalValue=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.price?p.price*h.shares:(h.avgCost?h.avgCost*h.shares:0));},0);
+  const totalValue=safeH.reduce((s,h)=>s+(h.currentPrice?h.currentPrice*h.shares:h.avgCost?h.avgCost*h.shares:0),0);
   const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.shares:0),0);
-  const dayChange=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.change?p.change*h.shares:0);},0);
-  return{prices,lastUpdated,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange,refresh:fetchPrices};
+  return{prices:{},lastUpdated:null,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange:0,refresh:()=>{}};
 }
 
 function useCrypto(holdings){
-  const[prices,setPrices]=useState({});
-  const[lastUpdated,setLastUpdated]=useState(null);
-  const tickers=(holdings||[]).map(h=>h.ticker).join(",");
-  const fetchPrices=useCallback(async()=>{
-    if(!holdings||!holdings.length)return;
-    const results={};
-    await Promise.all((holdings||[]).map(async h=>{
-      try{
-        const d=await cryptoPriceFetch(h.ticker);
-        results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
-      }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
-    }));
-    setPrices(results);setLastUpdated(new Date());
-  },[tickers]);
-  useEffect(()=>{fetchPrices();const id=setInterval(fetchPrices,60000);return()=>clearInterval(id);},[fetchPrices]);
   const safeH=holdings||[];
-  const totalValue=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.price?p.price*h.amount:(h.avgCost?h.avgCost*h.amount:0));},0);
+  const totalValue=safeH.reduce((s,h)=>s+(h.currentPrice?h.currentPrice*h.amount:h.avgCost?h.avgCost*h.amount:0),0);
   const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.amount:0),0);
-  const dayChange=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.change?p.change*h.amount:0);},0);
-  return{prices,lastUpdated,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange,refresh:fetchPrices};
+  return{prices:{},lastUpdated:null,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange:0,refresh:()=>{}};
 }
 
 class ErrorBoundary extends Component{
@@ -1095,8 +1057,8 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </div>
         )}
         {safeH.map((h,i)=>{
-          const p=sP.prices[h.ticker];
-          const lv=p?.price?p.price*h.shares:null;
+          const currentP=h.currentPrice||h.avgCost||0;
+          const lv=currentP?currentP*h.shares:null;
           const cb=h.avgCost?h.avgCost*h.shares:null;
           const gain=lv&&cb?lv-cb:null;
           const gainPct=gain&&cb?gain/cb*100:null;
@@ -1210,8 +1172,8 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
         {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.totalValue>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[
-              {l:"Live Value",v:fmt(cryptoPortfolio.totalValue),c:t.PURPLE},
-              {l:"24h Change",v:(cryptoPortfolio.dayChange>=0?"+":"")+fmt(cryptoPortfolio.dayChange),c:cryptoPortfolio.dayChange>=0?t.GREEN:t.RED},
+              {l:"Current Value",v:fmt(cryptoPortfolio.totalValue),c:t.PURPLE},
+              {l:"Total Gain",v:(cryptoPortfolio.totalGain>=0?"+":"")+fmt(cryptoPortfolio.totalGain),c:cryptoPortfolio.totalGain>=0?t.GREEN:t.RED},
               {l:"Total Return",v:(cryptoPortfolio.totalGainPct>=0?"+":"")+cryptoPortfolio.totalGainPct.toFixed(1)+"%",c:cryptoPortfolio.totalGain>=0?t.GREEN:t.RED}
             ].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
@@ -1222,8 +1184,8 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </div>
         )}
         {(cryptoHoldings||[]).map((h,i)=>{
-          const p=cryptoPortfolio?.prices[h.ticker];
-          const lv=p?.price?p.price*h.amount:null;
+          const currentP=h.currentPrice||h.avgCost||0;
+          const lv=currentP?currentP*h.amount:null;
           const cb=h.avgCost?h.avgCost*h.amount:null;
           const gain=lv&&cb?lv-cb:null;
           const gainPct=gain&&cb?gain/cb*100:null;
