@@ -44,7 +44,7 @@ const JP=["What is my number 1 priority today?","What am I grateful for?","What 
 const NAV=[
   ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
-  ["wealth","💸","Wealth"],["projector","📈","Projector"],["cashflow","💰","Cash Flow"],
+  ["wealth","💸","Wealth"],["projector","📈","Wealth Forecast"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],["tax","📋","Tax"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
@@ -70,7 +70,8 @@ const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
 const applyDailyReset=(saved,today)=>{
   if(!saved.lastSavedDate||saved.lastSavedDate!==today)
-    return{...saved,lastSavedDate:today,tasks:(saved.tasks||[]).map(t=>({...t,done:false})),supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
+    const resetTasks=(saved.tasks||[]).filter(t=>t.recurring||!t.done||true).map(t=>({...t,done:false}));
+    return{...saved,lastSavedDate:today,tasks:resetTasks,supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
   return saved;
 };
 const DEMO={
@@ -455,6 +456,12 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
     {pct:(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0,c:t.GOLD,label:"Habits",sub:hDone+"/"+((habits||[]).length),page:"habits"},
     {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"}
   ];
+  const tS=tasks.length?Math.round(tDone/tasks.length*40):0;
+  const hbS=(habits||[]).length?Math.round(hDone/(habits||[]).length*30):0;
+  const sS2=supplements.length?Math.round(sDone/supplements.length*30):0;
+  const todayScore=tS+hbS+sS2;
+  const scoreGrade=todayScore>=90?"S":todayScore>=75?"A":todayScore>=60?"B":todayScore>=45?"C":"D";
+  const scoreColor=todayScore>=90?t.GOLD:todayScore>=75?t.GREEN:todayScore>=60?t.BLUE:todayScore>=45?t.MUTED:t.RED;
   const r=32,circ=2*Math.PI*r;
   const mktRows=[{l:"S&P 500",d:market.sp500,fx:false},{l:"ASX 200",d:market.asx,fx:false},{l:"AUD/USD",d:market.audusd,fx:true}];
   const goalPeriods=["year","month","week"];
@@ -474,6 +481,37 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
       <div style={{padding:"9px 13px",background:t.CARD2,borderRadius:7,borderLeft:"3px solid "+t.GOLD+"33"}}>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic"}}>"{quote}"</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
+        <Card style={{gridColumn:"span 1",background:t.CARD2,border:"1px solid "+scoreColor+"44",textAlign:"center",padding:"14px 10px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
+          <div style={{fontSize:42,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>out of 100</div>
+          <div style={{marginTop:8}}><PB value={todayScore} color={scoreColor} height={4}/></div>
+        </Card>
+        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>GRADE</div>
+          <div style={{fontSize:42,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{scoreGrade}</div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
+        </Card>
+        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>BREAKDOWN</div>
+          <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
+            {[{l:"Tasks",v:tS,m:40,c:t.GREEN},{l:"Habits",v:hbS,m:30,c:t.GOLD},{l:"Supps",v:sS2,m:30,c:t.BLUE}].map(x=>(
+              <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:36}}>{x.l}</div>
+                <div style={{flex:1}}><PB value={Math.round(x.v/x.m*100)} color={x.c} height={4}/></div>
+                <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"/"+x.m}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>NET WORTH</div>
+          <div style={{fontSize:18,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1.2}}>{fmt(nw)}</div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2,marginBottom:6}}>{nwPct+"% of target"}</div>
+          <PB value={nwPct} color={t.GOLD} height={4}/>
+        </Card>
       </div>
       {upcoming.length>0&&(
         <div style={{padding:"9px 13px",background:t.RED+"14",border:"1px solid "+t.RED+"33",borderRadius:7,display:"flex",alignItems:"center",gap:10}}>
@@ -635,9 +673,16 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
 }
 
 function TasksPage({tasks,setTasks}){
-  const t=T();const[newTask,setNewTask]=useState("");const[pri,setPri]=useState("medium");
+  const t=T();
+  const[newTask,setNewTask]=useState("");
+  const[pri,setPri]=useState("medium");
+  const[recurring,setRecurring]=useState(false);
   const done=tasks.filter(tk=>tk.done).length;
-  const add=()=>{if(!newTask.trim())return;setTasks(ts=>[...ts,{id:Date.now(),text:newTask,done:false,priority:pri}]);setNewTask("");};
+  const add=()=>{
+    if(!newTask.trim())return;
+    setTasks(ts=>[...ts,{id:Date.now(),text:newTask,done:false,priority:pri,recurring}]);
+    setNewTask("");
+  };
   const priColors={high:t.RED,medium:t.GOLD,low:t.MUTED};
   const priLabels={high:"High Priority",medium:"Standard",low:"Low Priority"};
   return (
@@ -656,6 +701,9 @@ function TasksPage({tasks,setTasks}){
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </Sel>
+          <button onClick={()=>setRecurring(r=>!r)} style={{background:recurring?t.GOLD+"22":"transparent",border:"1px solid "+(recurring?t.GOLD:t.BORDER),borderRadius:6,padding:"6px 10px",color:recurring?t.GOLD:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+            {recurring?"Daily":"Once"}
+          </button>
           <Btn onClick={add}>Add</Btn>
         </div>
       </Card>
@@ -676,6 +724,7 @@ function TasksPage({tasks,setTasks}){
                       {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
                     </div>
                     <span style={{flex:1,fontSize:13,color:tk.done?t.MUTED:t.TEXT,textDecoration:tk.done?"line-through":"none",fontFamily:"sans-serif"}}>{tk.text}</span>
+                    {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>daily</span>}
                     <button onClick={e=>{e.stopPropagation();setTasks(ts=>ts.filter(x=>x.id!==tk.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
                   </div>
                 </div>
@@ -1287,7 +1336,7 @@ function ProjectorPage({profile}){
   return (
     <div style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Planning</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>NW Projector</div>
+      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Wealth Forecast</div>
       <Card style={{marginBottom:14}}>
         {controls.map(ctrl=>(
           <div key={ctrl.l} style={{marginBottom:14}}>
@@ -2543,13 +2592,14 @@ function App(){
       if(saved.nwHistory)setNwHistory(prev=>({...prev,...saved.nwHistory}));
       if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
+      if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
     setHydrated(true);
   },[]);
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40)});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
