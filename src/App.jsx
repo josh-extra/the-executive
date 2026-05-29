@@ -63,6 +63,19 @@ const POPULAR_COINS=[
   {ticker:"INJ",name:"Injective"},{ticker:"SUI",name:"Sui"}
 ];
 
+const YF_HEADERS={
+  "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept":"*/*",
+  "Accept-Language":"en-US,en;q=0.9",
+  "Referer":"https://finance.yahoo.com"
+};
+const yfFetch=async sym=>{
+  const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym));
+  const j=await r.json();
+  if(j.error)throw new Error(j.error);
+  return{price:j.price,change:j.change,pct:j.pct};
+};
+
 const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
@@ -121,11 +134,8 @@ function useMarket(){
   const[data,setData]=useState({sp500:{price:null,pct:null,loading:true},asx:{price:null,pct:null,loading:true},audusd:{price:null,pct:null,loading:true},lastUpdated:null});
   const f1=async(sym,fb)=>{
     try{
-      const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?interval=1d&range=2d");
-      const j=await r.json();
-      const cl=j.chart.result[0].indicators.quote[0].close;
-      const p=cl[cl.length-1],pv=cl[cl.length-2];
-      return{price:p,pct:((p-pv)/pv)*100,loading:false,error:false};
+      const d=await yfFetch(sym);
+      return{price:d.price,pct:d.pct,loading:false,error:false};
     }catch{return{...fb,loading:false,error:true};}
   };
   const fetchAll=useCallback(async()=>{
@@ -145,11 +155,8 @@ function usePortfolio(holdings){
     const results={};
     await Promise.all((holdings||[]).map(async h=>{
       try{
-        const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(h.ticker)+"?interval=1d&range=2d");
-        const j=await r.json();
-        const cl=j.chart.result[0].indicators.quote[0].close;
-        const price=cl[cl.length-1],prev=cl[cl.length-2];
-        results[h.ticker]={price,change:price-prev,pct:((price-prev)/prev)*100,error:false};
+        const d=await yfFetch(h.ticker);
+        results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
       }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
     }));
     setPrices(results);setLastUpdated(new Date());
@@ -172,11 +179,8 @@ function useCrypto(holdings){
     await Promise.all((holdings||[]).map(async h=>{
       try{
         const sym=h.ticker.includes("-AUD")?h.ticker:h.ticker+"-AUD";
-        const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?interval=1d&range=2d");
-        const j=await r.json();
-        const cl=j.chart.result[0].indicators.quote[0].close;
-        const price=cl[cl.length-1],prev=cl[cl.length-2];
-        results[h.ticker]={price,change:price-prev,pct:((price-prev)/prev)*100,error:false};
+        const d=await yfFetch(sym);
+        results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
       }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
     }));
     setPrices(results);setLastUpdated(new Date());
