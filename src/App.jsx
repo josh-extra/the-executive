@@ -70,8 +70,7 @@ const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
 const applyDailyReset=(saved,today)=>{
   if(!saved.lastSavedDate||saved.lastSavedDate!==today)
-    const resetTasks=(saved.tasks||[]).filter(t=>t.recurring||!t.done||true).map(t=>({...t,done:false}));
-    return{...saved,lastSavedDate:today,tasks:resetTasks,supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
+    return{...saved,lastSavedDate:today,tasks:(saved.tasks||[]).map(t=>({...t,done:false})),supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
   return saved;
 };
 const DEMO={
