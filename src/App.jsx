@@ -42,14 +42,27 @@ const WTYPES=["Strength","Hypertrophy","Cardio","HIIT","Mobility","Sport"];
 const WCOLORS={Strength:"#C9A84C",Hypertrophy:"#B07EC9",Cardio:"#7A9E7E",HIIT:"#C97E7E",Mobility:"#7EB8C9",Sport:"#D4956A"};
 const JP=["What is my number 1 priority today?","What am I grateful for?","What would make today a win?","What obstacle must I overcome?","What did I learn yesterday?"];
 const NAV=[
-  ["dashboard","H","Dashboard"],["tasks","T","Tasks"],["habits","Hb","Habits"],
-  ["goals","G","Goals"],["journal","J","Journal"],["wealth","W","Wealth"],
-  ["projector","P","Projector"],["cashflow","$","Cash Flow"],["bills","B","Bills"],
-  ["tax","Tax","Tax"],["debt","D","Debt"],["invest","I","Invest"],
-  ["health","Ht","Health"],["body","Bd","Body"],["workout","Wk","Workout"],
-  ["reading","R","Reading"],["weekly","Ww","Weekly"],["advisor","AI","AI Advisor"],
-  ["profile","Pr","Profile"]
+  ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
+  ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
+  ["wealth","💸","Wealth"],["projector","📈","Projector"],["cashflow","💰","Cash Flow"],
+  ["bills","🔁","Bills"],["tax","📋","Tax"],["debt","📉","Debt"],
+  ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
+  ["workout","🏋","Workout"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
+  ["profile","👤","Profile"]
 ];
+const POPULAR_COINS=[
+  {ticker:"BTC",name:"Bitcoin"},{ticker:"ETH",name:"Ethereum"},
+  {ticker:"SOL",name:"Solana"},{ticker:"XRP",name:"XRP"},
+  {ticker:"ADA",name:"Cardano"},{ticker:"DOGE",name:"Dogecoin"},
+  {ticker:"DOT",name:"Polkadot"},{ticker:"LINK",name:"Chainlink"},
+  {ticker:"AVAX",name:"Avalanche"},{ticker:"MATIC",name:"Polygon"},
+  {ticker:"LTC",name:"Litecoin"},{ticker:"ATOM",name:"Cosmos"},
+  {ticker:"UNI",name:"Uniswap"},{ticker:"BCH",name:"Bitcoin Cash"},
+  {ticker:"NEAR",name:"NEAR Protocol"},{ticker:"APT",name:"Aptos"},
+  {ticker:"ARB",name:"Arbitrum"},{ticker:"OP",name:"Optimism"},
+  {ticker:"INJ",name:"Injective"},{ticker:"SUI",name:"Sui"}
+];
+
 const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
@@ -149,6 +162,33 @@ function usePortfolio(holdings){
   return{prices,lastUpdated,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange,refresh:fetchPrices};
 }
 
+function useCrypto(holdings){
+  const[prices,setPrices]=useState({});
+  const[lastUpdated,setLastUpdated]=useState(null);
+  const tickers=(holdings||[]).map(h=>h.ticker).join(",");
+  const fetchPrices=useCallback(async()=>{
+    if(!holdings||!holdings.length)return;
+    const results={};
+    await Promise.all((holdings||[]).map(async h=>{
+      try{
+        const sym=h.ticker.includes("-AUD")?h.ticker:h.ticker+"-AUD";
+        const r=await fetch("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(sym)+"?interval=1d&range=2d");
+        const j=await r.json();
+        const cl=j.chart.result[0].indicators.quote[0].close;
+        const price=cl[cl.length-1],prev=cl[cl.length-2];
+        results[h.ticker]={price,change:price-prev,pct:((price-prev)/prev)*100,error:false};
+      }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
+    }));
+    setPrices(results);setLastUpdated(new Date());
+  },[tickers]);
+  useEffect(()=>{fetchPrices();const id=setInterval(fetchPrices,60000);return()=>clearInterval(id);},[fetchPrices]);
+  const safeH=holdings||[];
+  const totalValue=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.price?p.price*h.amount:(h.avgCost?h.avgCost*h.amount:0));},0);
+  const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.amount:0),0);
+  const dayChange=safeH.reduce((s,h)=>{const p=prices[h.ticker];return s+(p?.change?p.change*h.amount:0);},0);
+  return{prices,lastUpdated,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange,refresh:fetchPrices};
+}
+
 class ErrorBoundary extends Component{
   constructor(p){super(p);this.state={error:null};}
   static getDerivedStateFromError(e){return{error:e};}
@@ -224,7 +264,9 @@ function Btn({onClick,children,style,disabled,variant}){
   if(variant==="ghost")return <button onClick={onClick} disabled={!!disabled} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 16px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,...style}}>{children}</button>;
   return <button onClick={onClick} disabled={!!disabled} style={{background:disabled?t.BORDER2:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:7,padding:"9px 16px",color:disabled?t.MUTED:"#080808",cursor:disabled?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,...style}}>{children}</button>;
 }
-function SparkLine({data,color,height=48}){
+function SparkLine({data,color,height=48,labels}){
+  const[hover,setHover]=useState(null);
+  const t=T();
   if(!data||data.length<2)return null;
   const W=300,H=height,p=3;
   const mn=Math.min(...data)*.97,mx=Math.max(...data)*1.03,rng=mx-mn||1;
@@ -232,18 +274,40 @@ function SparkLine({data,color,height=48}){
   const py=v=>H-p-((v-mn)/rng)*(H-p*2);
   const pts=data.map((v,i)=>px(i)+","+py(v)).join(" ");
   const polyPts=pts+" "+px(data.length-1)+","+H+" "+px(0)+","+H;
+  const handleMove=e=>{
+    if(!labels)return;
+    const rect=e.currentTarget.getBoundingClientRect();
+    const x=(e.clientX-rect.left)/rect.width;
+    const idx=Math.min(Math.round(x*(data.length-1)),data.length-1);
+    setHover({idx,x:px(idx),y:py(data[idx]),val:data[idx],label:labels[idx]});
+  };
+  const tipLeft=Math.min(Math.max(hover?(hover.x/W*100):50,12),80);
   return (
-    <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H}}>
-      <defs>
-        <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity=".2"/>
-          <stop offset="100%" stopColor={color} stopOpacity="0"/>
-        </linearGradient>
-      </defs>
-      <polygon points={polyPts} fill="url(#sg)"/>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
-      <circle cx={px(data.length-1)} cy={py(data[data.length-1])} r="3" fill={color}/>
-    </svg>
+    <div style={{position:"relative"}}>
+      {hover&&labels&&(
+        <div style={{position:"absolute",left:tipLeft+"%",top:0,transform:"translateX(-50%)",background:t.CARD,border:"1px solid "+color+"66",borderRadius:6,padding:"4px 8px",pointerEvents:"none",zIndex:10,whiteSpace:"nowrap"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{hover.label}</div>
+          <div style={{fontSize:13,color:color,fontFamily:"sans-serif",fontWeight:700}}>{fmt(hover.val)}</div>
+        </div>
+      )}
+      <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H,cursor:labels?"crosshair":"default"}} onMouseMove={handleMove} onMouseLeave={()=>setHover(null)}>
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity=".2"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points={polyPts} fill="url(#sg)"/>
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
+        {hover&&labels&&(
+          <>
+            <line x1={hover.x} y1={p} x2={hover.x} y2={H-p} stroke={color} strokeWidth="1" strokeDasharray="3,2" opacity=".6"/>
+            <circle cx={hover.x} cy={hover.y} r="4" fill={color} stroke={t.CARD} strokeWidth="1.5"/>
+          </>
+        )}
+        {!hover&&<circle cx={px(data.length-1)} cy={py(data[data.length-1])} r="3" fill={color}/>}
+      </svg>
+    </div>
   );
 }
 function Modal({children,onClose,title}){
@@ -364,7 +428,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               const active=page===id;
               return (
                 <button key={id} onClick={()=>setPage(id)} title={nav[2]} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:collapsed?"9px 0":"6px 14px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textAlign:"left",justifyContent:collapsed?"center":"flex-start",transition:"all .15s"}}>
-                  <span style={{fontSize:11,flexShrink:0,fontWeight:600}}>{nav[1]}</span>
+                  <span style={{fontSize:14,flexShrink:0,lineHeight:1}}>{nav[1]}</span>
                   {!collapsed&&<span style={{whiteSpace:"nowrap"}}>{nav[2]}</span>}
                 </button>
               );
@@ -402,7 +466,9 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const nw=profile.netWorth||0;
   const nwT=Number(profile.netWorthTarget||3000000);
   const nwPct=Math.min(Math.round(nw/nwT*100),100);
-  const nwVals=Object.entries(nwHistory).sort((a,b)=>a[0].localeCompare(b[0])).map(e=>e[1]);
+  const nwEntries=Object.entries(nwHistory).sort((a,b)=>a[0].localeCompare(b[0]));
+  const nwVals=nwEntries.map(e=>e[1]);
+  const nwLabels=[...nwEntries.map(e=>e[0]),todayStr()];
   const togTask=id=>setTasks(ts=>ts.map(tk=>tk.id===id?{...tk,done:!tk.done}:tk));
   const togHabit=id=>setHabitLog(l=>({...l,[id+"_"+todayStr()]:!l[id+"_"+todayStr()]}));
   const quotes=["Wealth is the slave of a wise man.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest.","Do not save what is left after spending.","Discipline is the bridge between goals and accomplishment.","Fortune favours the prepared mind.","Either you run the day or the day runs you.","The goal is living life on your own terms."];
@@ -473,7 +539,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           <SectionLabel action={<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Details</span>}>Net Worth</SectionLabel>
           <div style={{fontSize:30,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,marginBottom:2}}>{fmt(nw)}</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{"Target: "+fmt(nwT)+" - "+nwPct+"%"}</div>
-          <SparkLine data={[...nwVals,nw]} color={t.GOLD} height={48}/>
+          <SparkLine data={[...nwVals,nw]} color={t.GOLD} height={48} labels={nwLabels}/>
           <div style={{marginTop:8}}><PB value={nwPct} color={t.GOLD} height={3}/></div>
         </Card>
       </div>
@@ -898,8 +964,33 @@ function JournalPage({entries,setEntries}){
   );
 }
 
-function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio}){
-  const t=T();const[showAdd,setShowAdd]=useState(false);const[hForm,setHForm]=useState({ticker:"",shares:"",avgCost:"",name:""});
+function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio}){
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[hForm,setHForm]=useState({ticker:"",shares:"",avgCost:"",name:""});
+  const[showCryptoAdd,setShowCryptoAdd]=useState(false);
+  const[cSelected,setCSelected]=useState(null);
+  const[cAmount,setCAmount]=useState("");
+  const[cAvgCost,setCAvgCost]=useState("");
+  const[cSearch,setCSearch]=useState("");
+  const[editShareId,setEditShareId]=useState(null);
+  const[editShareForm,setEditShareForm]=useState({});
+  const[editCryptoIdx,setEditCryptoIdx]=useState(null);
+  const[editCryptoForm,setEditCryptoForm]=useState({});
+  const saveShareEdit=(id)=>{
+    setHoldings(hs=>(hs||[]).map(h=>h.id!==id?h:{...h,ticker:editShareForm.ticker||h.ticker,shares:parseFloat(editShareForm.shares)||h.shares,avgCost:parseFloat(editShareForm.avgCost)||null,name:editShareForm.name||h.name}));
+    setEditShareId(null);
+  };
+  const saveCryptoEdit=(idx)=>{
+    setCryptoHoldings(cs=>(cs||[]).map((h,i)=>i!==idx?h:{...h,id:editCryptoForm.id||h.id,amount:parseFloat(editCryptoForm.amount)||h.amount,avgCost:parseFloat(editCryptoForm.avgCost)||null,name:editCryptoForm.name||h.name}));
+    setEditCryptoIdx(null);
+  };
+  const addCrypto=()=>{
+    if(!cSelected||!cAmount)return;
+    setCryptoHoldings(cs=>[...(cs||[]).filter(h=>h.ticker!==cSelected.ticker),{ticker:cSelected.ticker,amount:parseFloat(cAmount),avgCost:parseFloat(cAvgCost)||null,name:cSelected.name}]);
+    setCSelected(null);setCAmount("");setCAvgCost("");setCSearch("");
+    setShowCryptoAdd(false);
+  };
   const nw=profile.netWorth||0,nwT=Number(profile.netWorthTarget||3000000);
   const nwHistFull={...nwHistory,[monthStr()]:nw};
   const assets=[
@@ -916,7 +1007,9 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
     setHoldings(hs=>[...(hs||[]).filter(h=>h.ticker!==ticker),{id:Date.now(),ticker,shares:parseFloat(hForm.shares),avgCost:parseFloat(hForm.avgCost)||null,name:hForm.name||ticker}]);
     setHForm({ticker:"",shares:"",avgCost:"",name:""});setShowAdd(false);
   };
-  const nwVals=Object.entries(nwHistFull).sort((a,b)=>a[0].localeCompare(b[0])).map(e=>e[1]);
+  const nwEntries2=Object.entries(nwHistFull).sort((a,b)=>a[0].localeCompare(b[0]));
+  const nwVals=nwEntries2.map(e=>e[1]);
+  const nwLabels2=nwEntries2.map(e=>e[0]);
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
@@ -933,7 +1026,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <Card>
           <SectionLabel>Net Worth History</SectionLabel>
-          <SparkLine data={nwVals} color={t.GOLD} height={60}/>
+          <SparkLine data={nwVals} color={t.GOLD} height={60} labels={nwLabels2}/>
           <div style={{marginTop:10}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
               <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{Math.min(Math.round(nw/nwT*100),100)+"% of target"}</span>
@@ -997,25 +1090,169 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           return (
             <div key={h.id}>
               {i>0&&<Divider/>}
-              <div style={{padding:"8px 0",display:"flex",alignItems:"center"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                    <Tag>{h.ticker}</Tag>
-                    {h.name!==h.ticker&&<span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>}
-                    <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.shares.toLocaleString()+" shares"}</span>
+              {editShareId===h.id?(
+                <div style={{padding:"10px 0"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
+                    {[["Ticker","ticker",h.ticker],["Shares","shares",h.shares],["Avg Cost","avgCost",h.avgCost||""],["Label","name",h.name]].map(([l,k,def])=>(
+                      <div key={k}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
+                        <Inp value={editShareForm[k]??def} onChange={e=>setEditShareForm(f=>({...f,[k]:e.target.value}))} style={{fontSize:12,padding:"7px 9px"}}/>
+                      </div>
+                    ))}
                   </div>
-                  {p&&!p.error&&p.price&&(
-                    <div style={{display:"flex",gap:7}}>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{p.price.toFixed(2)}</span>
-                      <span style={{fontSize:10,color:p.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(p.pct>=0?"+ ":"- ")+Math.abs(p.pct).toFixed(2)+"%"}</span>
-                      {gain!==null&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
-                    </div>
-                  )}
-                  {p?.error&&<div style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Price unavailable</div>}
+                  <div style={{display:"flex",gap:7}}>
+                    <Btn onClick={()=>saveShareEdit(h.id)} style={{fontSize:11}}>Save</Btn>
+                    <Btn onClick={()=>setEditShareId(null)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                  </div>
                 </div>
-                <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
-                <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:8,opacity:.5}}>X</button>
+              ):(
+                <div style={{padding:"8px 0",display:"flex",alignItems:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <Tag>{h.ticker}</Tag>
+                      {h.name!==h.ticker&&<span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>}
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.shares.toLocaleString()+" shares"}</span>
+                    </div>
+                    {p&&!p.error&&p.price&&(
+                      <div style={{display:"flex",gap:7}}>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{p.price.toFixed(2)}</span>
+                        <span style={{fontSize:10,color:p.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(p.pct>=0?"+ ":"- ")+Math.abs(p.pct).toFixed(2)+"%"}</span>
+                        {gain!==null&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                      </div>
+                    )}
+                    {p?.error&&<div style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Price unavailable</div>}
+                  </div>
+                  <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
+                  <button onClick={()=>{setEditShareId(h.id);setEditShareForm({ticker:h.ticker,shares:h.shares,avgCost:h.avgCost||"",name:h.name});}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
+                  <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+
+      <Card style={{marginBottom:14}}>
+        <SectionLabel action={
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{cryptoPortfolio.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
+            {(cryptoHoldings||[]).length>0&&<button onClick={cryptoPortfolio?.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>Refresh</button>}
+            <button onClick={()=>setShowCryptoAdd(s=>!s)} style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"44",borderRadius:6,padding:"3px 8px",color:t.PURPLE,cursor:"pointer",fontSize:10}}>+ Add</button>
+          </div>
+        }>Crypto Portfolio - Live</SectionLabel>
+        {showCryptoAdd&&(
+          <div style={{padding:12,background:t.CARD2,borderRadius:7,border:"1px solid "+t.BORDER,marginBottom:12}}>
+            {!cSelected?(
+              <>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Select Coin</div>
+                <Inp value={cSearch} onChange={e=>setCSearch(e.target.value)} placeholder="Filter coins..." style={{marginBottom:8,fontSize:12}}/>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,maxHeight:200,overflowY:"auto"}}>
+                  {POPULAR_COINS.filter(c=>!cSearch||c.name.toLowerCase().includes(cSearch.toLowerCase())||c.ticker.toLowerCase().includes(cSearch.toLowerCase())).map(coin=>(
+                    <div key={coin.ticker} onClick={()=>setCSelected(coin)} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",background:t.CARD,borderRadius:6,border:"1px solid "+t.BORDER,cursor:"pointer"}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:t.PURPLE+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:t.PURPLE,fontWeight:700,flexShrink:0}}>{coin.ticker.slice(0,3)}</div>
+                      <div>
+                        <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{coin.ticker}</div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{coin.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:8}}><Btn onClick={()=>setShowCryptoAdd(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn></div>
+              </>
+            ):(
+              <>
+                <div style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",background:t.CARD,borderRadius:6,border:"1px solid "+t.PURPLE+"44",marginBottom:10}}>
+                  <div style={{width:32,height:32,borderRadius:"50%",background:t.PURPLE+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.PURPLE,fontWeight:700,flexShrink:0}}>{cSelected.ticker}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{cSelected.name}</div>
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{cSelected.ticker+"-AUD via Yahoo Finance"}</div>
+                  </div>
+                  <button onClick={()=>setCSelected(null)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11}}>Change</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
+                  <div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Amount</div>
+                    <Inp type="number" value={cAmount} onChange={e=>setCAmount(e.target.value)} placeholder="0.5" style={{fontSize:12,padding:"7px 9px"}}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Avg Cost (AUD)</div>
+                    <Inp type="number" value={cAvgCost} onChange={e=>setCAvgCost(e.target.value)} placeholder="Optional" style={{fontSize:12,padding:"7px 9px"}}/>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:7}}>
+                  <Btn onClick={addCrypto} disabled={!cAmount} style={{fontSize:11}}>{"Add "+cSelected.name}</Btn>
+                  <Btn onClick={()=>setShowCryptoAdd(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {!(cryptoHoldings||[]).length&&!showCryptoAdd&&(
+          <div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif"}}>
+            <div style={{fontSize:28,marginBottom:8}}>₿</div>
+            <div style={{fontSize:12,color:t.TEXT,marginBottom:4}}>No crypto holdings yet</div>
+            <div style={{fontSize:11}}>Add coins to track live AUD prices</div>
+          </div>
+        )}
+        {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.totalValue>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+            {[
+              {l:"Live Value",v:fmt(cryptoPortfolio.totalValue),c:t.PURPLE},
+              {l:"24h Change",v:(cryptoPortfolio.dayChange>=0?"+":"")+fmt(cryptoPortfolio.dayChange),c:cryptoPortfolio.dayChange>=0?t.GREEN:t.RED},
+              {l:"Total Return",v:(cryptoPortfolio.totalGainPct>=0?"+":"")+cryptoPortfolio.totalGainPct.toFixed(1)+"%",c:cryptoPortfolio.totalGain>=0?t.GREEN:t.RED}
+            ].map(s=>(
+              <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
+                <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
               </div>
+            ))}
+          </div>
+        )}
+        {(cryptoHoldings||[]).map((h,i)=>{
+          const p=cryptoPortfolio?.prices[h.ticker];
+          const lv=p?.price?p.price*h.amount:null;
+          const cb=h.avgCost?h.avgCost*h.amount:null;
+          const gain=lv&&cb?lv-cb:null;
+          const gainPct=gain&&cb?gain/cb*100:null;
+          return (
+            <div key={h.id+i}>
+              {i>0&&<Divider/>}
+              {editCryptoIdx===i?(
+                <div style={{padding:"10px 0"}}>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
+                    {[["Coin ID","id",h.id],["Amount","amount",h.amount],["Avg Cost (AUD)","avgCost",h.avgCost||""],["Label","name",h.name||h.id]].map(([l,k,def])=>(
+                      <div key={k}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
+                        <Inp value={editCryptoForm[k]??def} onChange={e=>setEditCryptoForm(f=>({...f,[k]:e.target.value}))} style={{fontSize:12,padding:"7px 9px"}}/>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:7}}>
+                    <Btn onClick={()=>saveCryptoEdit(i)} style={{fontSize:11}}>Save</Btn>
+                    <Btn onClick={()=>setEditCryptoIdx(null)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                  </div>
+                </div>
+              ):(
+                <div style={{padding:"8px 0",display:"flex",alignItems:"center"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <Tag color={t.PURPLE}>{h.ticker}</Tag>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.amount+" "+h.ticker}</span>
+                    </div>
+                    {p&&!p.error&&p.price&&(
+                      <div style={{display:"flex",gap:7}}>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(p.price)}</span>
+                        <span style={{fontSize:10,color:p.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(p.pct>=0?"+ ":"- ")+Math.abs(p.pct||0).toFixed(2)+"% 24h"}</span>
+                        {gain!==null&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                      </div>
+                    )}
+                    {p?.error&&<div style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Price unavailable - check coin ID</div>}
+                  </div>
+                  <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
+                  <button onClick={()=>{setEditCryptoIdx(i);setEditCryptoForm({id:h.id,amount:h.amount,avgCost:h.avgCost||"",name:h.name||h.id});}} style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"33",borderRadius:5,padding:"3px 8px",color:t.PURPLE,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
+                  <button onClick={()=>setCryptoHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -2294,6 +2531,7 @@ function App(){
   const[habits,setHabits]=useState(D_HABITS);
   const[habitLog,setHabitLog]=useState({});
   const[holdings,setHoldings]=useState([]);
+  const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({
@@ -2309,6 +2547,7 @@ function App(){
   const[showRecalibrate,setShowRecalibrate]=useState(false);
   const market=useMarket();
   const portfolio=usePortfolio(holdings);
+  const cryptoPortfolio=useCrypto(cryptoHoldings);
 
   useEffect(()=>{
     const today=todayStr();
@@ -2331,6 +2570,7 @@ function App(){
       if(saved.habits)setHabits(saved.habits);
       if(saved.habitLog)setHabitLog(saved.habitLog);
       if(saved.holdings)setHoldings(saved.holdings);
+      if(saved.cryptoHoldings)setCryptoHoldings(saved.cryptoHoldings);
       if(saved.nwHistory)setNwHistory(prev=>({...prev,...saved.nwHistory}));
       if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
@@ -2340,7 +2580,7 @@ function App(){
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -2396,11 +2636,13 @@ function App(){
   const activeProfile=profile||DEMO;
   if(activeProfile.locale)_locale=activeProfile.locale;
   const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
-  const liveAssets=(parseFloat(activeProfile.propertyValue)||0)+(parseFloat(activeProfile.cashSavings)||0)+(parseFloat(activeProfile.superBalance)||0)+(parseFloat(activeProfile.cryptoValue)||0)+liveShareValue;
-  const liveProfile=holdings.length>0&&portfolio.totalValue>0?{...activeProfile,shareValue:liveShareValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
+  const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
+  const liveAssets=(parseFloat(activeProfile.propertyValue)||0)+(parseFloat(activeProfile.cashSavings)||0)+(parseFloat(activeProfile.superBalance)||0)+liveCryptoValue+liveShareValue;
+  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0);
+  const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
@@ -2422,7 +2664,7 @@ function App(){
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
-          {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio}/>}
+          {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
