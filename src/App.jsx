@@ -63,17 +63,24 @@ const POPULAR_COINS=[
   {ticker:"INJ",name:"Injective"},{ticker:"SUI",name:"Sui"}
 ];
 
-const YF_HEADERS={
-  "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Accept":"*/*",
-  "Accept-Language":"en-US,en;q=0.9",
-  "Referer":"https://finance.yahoo.com"
-};
-const yfFetch=async sym=>{
-  const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym));
+const FH_KEY="d8cmivhr01qidic8koq0d8cmivhr01qidic8koqg";
+const fhFetch=async sym=>{
+  const r=await fetch("https://finnhub.io/api/v1/quote?symbol="+encodeURIComponent(sym)+"&token="+FH_KEY);
   const j=await r.json();
-  if(j.error)throw new Error(j.error);
-  return{price:j.price,change:j.change,pct:j.pct};
+  if(!j.c||j.c===0)throw new Error("no data");
+  return{price:j.c,change:j.d,pct:j.dp};
+};
+const fhCryptoFetch=async sym=>{
+  // sym = "BTC" -> use BINANCE:BTCUSDT, get USDT price, multiply by AUD/USD
+  const [cr,fx]=await Promise.all([
+    fetch("https://finnhub.io/api/v1/quote?symbol=BINANCE:"+sym+"USDT&token="+FH_KEY).then(r=>r.json()),
+    fetch("https://finnhub.io/api/v1/quote?symbol=OANDA:USD_AUD&token="+FH_KEY).then(r=>r.json())
+  ]);
+  if(!cr.c||cr.c===0)throw new Error("no data");
+  const audRate=fx.c||1.55;
+  const priceAud=cr.c*audRate;
+  const prevAud=cr.pc*audRate;
+  return{price:priceAud,change:priceAud-prevAud,pct:cr.dp};
 };
 
 const SK="exec_v1";
@@ -134,12 +141,16 @@ function useMarket(){
   const[data,setData]=useState({sp500:{price:null,pct:null,loading:true},asx:{price:null,pct:null,loading:true},audusd:{price:null,pct:null,loading:true},lastUpdated:null});
   const f1=async(sym,fb)=>{
     try{
-      const d=await yfFetch(sym);
+      const d=await fhFetch(sym);
       return{price:d.price,pct:d.pct,loading:false,error:false};
     }catch{return{...fb,loading:false,error:true};}
   };
   const fetchAll=useCallback(async()=>{
-    const[s,a,u]=await Promise.all([f1("^GSPC",{price:5801,pct:.77}),f1("^AXJO",{price:8320,pct:.51}),f1("AUDUSD=X",{price:.6412,pct:.19})]);
+    const[s,a,u]=await Promise.all([
+      f1("^GSPC",{price:5801,pct:.77}),
+      f1("^AXJO",{price:8320,pct:.51}),
+      f1("OANDA:AUD_USD",{price:.6412,pct:.19})
+    ]);
     setData({sp500:s,asx:a,audusd:u,lastUpdated:new Date()});
   },[]);
   useEffect(()=>{fetchAll();const id=setInterval(fetchAll,60000);return()=>clearInterval(id);},[]);
@@ -155,7 +166,7 @@ function usePortfolio(holdings){
     const results={};
     await Promise.all((holdings||[]).map(async h=>{
       try{
-        const d=await yfFetch(h.ticker);
+        const d=await fhFetch(h.ticker);
         results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
       }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
     }));
@@ -178,8 +189,7 @@ function useCrypto(holdings){
     const results={};
     await Promise.all((holdings||[]).map(async h=>{
       try{
-        const sym=h.ticker.includes("-AUD")?h.ticker:h.ticker+"-AUD";
-        const d=await yfFetch(sym);
+        const d=await fhCryptoFetch(h.ticker);
         results[h.ticker]={price:d.price,change:d.change,pct:d.pct,error:false};
       }catch{results[h.ticker]={price:null,pct:null,change:null,error:true};}
     }));
@@ -1064,7 +1074,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
                 </div>
               ))}
             </div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:7}}>ASX: add .AX (BHP.AX) - US: ticker only (AAPL)</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:7}}>ASX: use .AX suffix (BHP.AX, CBA.AX) - US: ticker only (AAPL, TSLA)</div>
             <div style={{display:"flex",gap:7}}><Btn onClick={addH} style={{fontSize:11}}>Add</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn></div>
           </div>
         )}
