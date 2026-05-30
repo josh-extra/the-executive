@@ -45,7 +45,8 @@ const NAV=[
   ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
   ["wealth","💸","Wealth"],["projector","📈","Wealth Forecast"],["cashflow","💰","Cash Flow"],
-  ["bills","🔁","Bills"],["tax","📋","Tax"],["debt","📉","Debt"],
+  ["bills","🔁","Bills"],
+  ["budget","📊","Budget"],["tax","📋","Tax"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["profile","👤","Profile"]
@@ -389,7 +390,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","weekly","advisor"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","projector","cashflow","bills","tax","debt","invest"]],
+    ["Wealth",["wealth","projector","cashflow","bills","budget","tax","debt","invest"]],
     ["Health",["health","body","workout"]],
     ["Settings",["profile"]]
   ];
@@ -561,13 +562,24 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           )}
         </Card>
       </div>
-      {upcoming.length>0&&(
-        <div style={{padding:"9px 13px",background:t.RED+"14",border:"1px solid "+t.RED+"33",borderRadius:7,display:"flex",alignItems:"center",gap:10}}>
-          <span>!</span>
-          <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{"Bills due: "+upcoming.map(b=>b.name).join(", ")}</div>
-          <button onClick={()=>setPage("bills")} style={{marginLeft:"auto",background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 8px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",flexShrink:0}}>View</button>
-        </div>
-      )}
+{(()=>{
+        const alerts=[];
+        if(upcoming.length>0) alerts.push({type:"bill",msg:"Bill due: "+upcoming[0].name+" ("+fmt(upcoming[0].amount)+")",page:"bills",color:t.RED});
+        const behindGoals=(goals||[]).filter(g=>g.progress<30&&g.period!=="year");
+        if(behindGoals.length>0) alerts.push({type:"goal",msg:"Goal behind: "+behindGoals[0].title+" at "+behindGoals[0].progress+"%",page:"goals",color:t.GOLD});
+        const missedSupps=(supplements||[]).filter(s=>!s.taken);
+        const hour=new Date().getHours();
+        if(hour>=18&&missedSupps.length>0) alerts.push({type:"supp",msg:missedSupps.length+" supplement"+(missedSupps.length>1?"s":"")+" not taken today",page:"health",color:t.BLUE});
+        const highIncomplete=tasks.filter(tk=>tk.priority==="high"&&!tk.done);
+        if(highIncomplete.length>2) alerts.push({type:"task",msg:highIncomplete.length+" high priority tasks incomplete",page:"tasks",color:t.PURPLE});
+        return alerts.slice(0,3).map((a,i)=>(
+          <div key={i} onClick={()=>setPage(a.page)} style={{padding:"9px 13px",background:a.color+"14",border:"1px solid "+a.color+"33",borderRadius:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:a.color,flexShrink:0}}/>
+            <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",flex:1}}>{a.msg}</div>
+            <div style={{fontSize:10,color:a.color,fontFamily:"sans-serif",flexShrink:0}}>View</div>
+          </div>
+        ));
+      })()}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -1724,6 +1736,7 @@ function CashFlowPage({transactions,setTransactions}){
   const t=T();
   const[form,setForm]=useState({date:todayStr(),type:"income",category:"Salary",amount:"",note:""});
   const[showAdd,setShowAdd]=useState(false);const[filter,setFilter]=useState("all");
+
   const[pdfState,setPdfState]=useState("idle");const[pdfError,setPdfError]=useState("");
   const[extracted,setExtracted]=useState([]);const[selected,setSelected]=useState({});
   const fileRef=useRef(null);
@@ -1819,6 +1832,7 @@ function CashFlowPage({transactions,setTransactions}){
           </div>
         </Card>
       )}
+
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
         <Card>
           <SectionLabel>6-Month Trend</SectionLabel>
@@ -2074,7 +2088,13 @@ function BillsPage({bills,setBills}){
 }
 
 function InvestPage({profile}){
-  const t=T();const[tab,setTab]=useState("ideas");const[aiOpps,setAiOpps]=useState("");const[loading,setLoading]=useState(false);
+  const t=T();
+  const[tab,setTab]=useState("ideas");
+  const[aiOpps,setAiOpps]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[watchlist,setWatchlist]=useState([]);
+  const[wForm,setWForm]=useState({ticker:"",name:"",notes:""});
+  const[showWAdd,setShowWAdd]=useState(false);
   const getAi=async()=>{
     setLoading(true);
     try{
@@ -2096,9 +2116,9 @@ function InvestPage({profile}){
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Capital Deployment</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Opportunities</div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {["ideas","live"].map(tb=>(
-          <button key={tb} onClick={()=>setTab(tb)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(tab===tb?t.GOLD:t.BORDER),background:tab===tb?t.GOLD+"18":"transparent",color:tab===tb?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
-            {tb==="live"?"Live AI Search":"Curated Ideas"}
+        {[["ideas","Curated Ideas"],["live","Live AI Search"],["watchlist","My Watchlist"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+            {label}
           </button>
         ))}
       </div>
@@ -2136,6 +2156,48 @@ function InvestPage({profile}){
           {aiOpps&&!loading&&<div style={{marginTop:10,fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiOpps}</div>}
           {!aiOpps&&!loading&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8}}>Click Search Now to get current opportunities tailored to your profile.</div>}
         </Card>
+      )}
+      {tab==="watchlist"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{watchlist.length+" stocks on watchlist"}</div>
+            <Btn onClick={()=>setShowWAdd(s=>!s)} style={{padding:"6px 12px",fontSize:11}}>+ Add</Btn>
+          </div>
+          {showWAdd&&(
+            <Card style={{marginBottom:12,borderColor:t.GOLD+"44"}}>
+              <div style={{display:"flex",gap:7,marginBottom:7}}>
+                <Inp value={wForm.ticker} onChange={e=>setWForm(f=>({...f,ticker:e.target.value.toUpperCase()}))} placeholder="Ticker (e.g. BHP.AX)" style={{flex:1}}/>
+                <Inp value={wForm.name} onChange={e=>setWForm(f=>({...f,name:e.target.value}))} placeholder="Name" style={{flex:2}}/>
+              </div>
+              <Inp value={wForm.notes} onChange={e=>setWForm(f=>({...f,notes:e.target.value}))} placeholder="Notes - why watching?" style={{marginBottom:7}}/>
+              <div style={{display:"flex",gap:7}}>
+                <Btn onClick={()=>{if(!wForm.ticker)return;setWatchlist(w=>[...w,{...wForm,id:Date.now(),addedDate:todayStr()}]);setWForm({ticker:"",name:"",notes:""});setShowWAdd(false);}}>Add</Btn>
+                <Btn onClick={()=>setShowWAdd(false)} variant="ghost">Cancel</Btn>
+              </div>
+            </Card>
+          )}
+          {watchlist.length===0&&!showWAdd&&(
+            <div style={{textAlign:"center",padding:32,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:28,marginBottom:8}}>W</div>
+              <div>No stocks on watchlist - add tickers you want to monitor</div>
+            </div>
+          )}
+          {watchlist.map((w,i)=>(
+            <Card key={w.id} style={{marginBottom:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <Tag>{w.ticker}</Tag>
+                    {w.name&&<span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{w.name}</span>}
+                  </div>
+                  {w.notes&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>{w.notes}</div>}
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"Added: "+w.addedDate}</div>
+                </div>
+                <button onClick={()=>setWatchlist(wl=>wl.filter(x=>x.id!==w.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
       <div style={{marginTop:14,padding:"10px 12px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>
         For informational purposes only. Not financial advice.
@@ -2430,8 +2492,10 @@ function ReadingPage({books,setBooks}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300});
-  const[notePrompt,setNotePrompt]=useState(null); // {bookId, fromPage, toPage, text}
-  const[expandNotes,setExpandNotes]=useState({}); // bookId -> bool
+  const[notePrompt,setNotePrompt]=useState(null);
+  const[expandNotes,setExpandNotes]=useState({});
+  const[annualGoal,setAnnualGoal]=useState(24);
+  const[editGoal,setEditGoal]=useState(false);
   const add=()=>{
     if(!form.title)return;
     setBooks(bs=>[...bs,{...form,id:Date.now(),cur:Number(form.cur||0),tot:Number(form.tot||300),readingNotes:[]}]);
@@ -2477,6 +2541,38 @@ function ReadingPage({books,setBooks}){
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
         ))}
       </div>
+      {(()=>{const booksRead=cats.done.length;
+        const pct=Math.min(Math.round(booksRead/annualGoal*100),100);
+        const remaining=Math.max(annualGoal-booksRead,0);
+        const weekOfYear=Math.ceil((new Date()-new Date(new Date().getFullYear(),0,1))/(7*24*60*60*1000));
+        const booksPerWeekNeeded=weekOfYear<52?Math.ceil(remaining/Math.max(52-weekOfYear,1)):0;
+        return (
+          <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>Annual Reading Goal</div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{booksRead+" of "+annualGoal+" books - "+pct+"% complete"}</div>
+              </div>
+              {editGoal?(
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <input type="number" defaultValue={annualGoal} onBlur={e=>setAnnualGoal(parseInt(e.target.value)||24)} style={{width:52,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.TEXT,fontSize:12,fontFamily:"sans-serif",outline:"none",textAlign:"center"}}/>
+                  <Btn onClick={()=>setEditGoal(false)} style={{fontSize:10,padding:"4px 8px"}}>Set</Btn>
+                </div>
+              ):(
+                <button onClick={()=>setEditGoal(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit Goal</button>
+              )}
+            </div>
+            <PB value={pct} color={t.GOLD} height={6}/>
+            {remaining>0&&(
+              <div style={{marginTop:8,display:"flex",gap:14}}>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{remaining+" books to go"}</div>
+                {booksPerWeekNeeded>0&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{booksPerWeekNeeded+" per week to finish on time"}</div>}
+              </div>
+            )}
+            {remaining===0&&<div style={{marginTop:8,fontSize:11,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>Annual reading goal achieved!</div>}
+          </Card>
+        );
+      })()}
 
       {notePrompt&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"66"}}>
@@ -2592,7 +2688,12 @@ function ReadingPage({books,setBooks}){
 }
 
 function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog}){
-  const t=T();const[aiReview,setAiReview]=useState("");const[loading,setLoading]=useState(false);
+  const t=T();
+  const[aiReview,setAiReview]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[reflection,setReflection]=useState("");
+  const[savedReflection,setSavedReflection]=useState("");
+  const[showReflection,setShowReflection]=useState(false);
   const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
   const weekStart=last7[0],weekEnd=last7[6];
   const scores=last7.map(d=>history[d]?.score||0);
@@ -2660,6 +2761,27 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
             <PB value={Math.min(Math.round(h.done/h.target*100),100)} color={h.color} height={3}/>
           </div>
         ))}
+      </Card>
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showReflection?12:0}}>
+          <div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>My Reflection</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Your own notes on the week</div>
+          </div>
+          <button onClick={()=>setShowReflection(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{showReflection?"Done":"Write"}</button>
+        </div>
+        {showReflection&&(
+          <div>
+            <textarea value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
+            <Btn onClick={()=>{setSavedReflection(reflection);setShowReflection(false);}}>Save Reflection</Btn>
+          </div>
+        )}
+        {!showReflection&&savedReflection&&(
+          <div style={{fontSize:12,color:t.TEXT,fontFamily:"Georgia,serif",lineHeight:1.75,fontStyle:"italic"}}>"{savedReflection}"</div>
+        )}
+        {!showReflection&&!savedReflection&&(
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Tap Write to add your own reflection for the week.</div>
+        )}
       </Card>
       <Card style={{borderColor:t.GOLD+"33"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiReview?12:0}}>
@@ -2842,12 +2964,201 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme}){
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Privacy</SectionLabel>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75}}>Data saved to this device only. AI questions sent to Anthropic API only. No accounts, no cloud, no tracking.</div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75,marginBottom:8}}>Data saved to this device only. AI questions sent to Anthropic API only. No accounts, no cloud, no tracking.</div>
+        <div style={{padding:"8px 10px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:6,fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>
+          Multi-device sync and account login are coming in a future update. Your data will be automatically migrated when accounts are enabled.
+        </div>
       </Card>
       <div style={{padding:"12px 14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:7}}>
         <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif",marginBottom:5}}>Danger Zone</div>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>Clears all data and resets to demo mode.</div>
         <button onClick={onReset} style={{background:"none",border:"1px solid "+t.RED+"55",borderRadius:6,padding:"5px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Reset App</button>
+      </div>
+    </div>
+  );
+}
+
+function BudgetPage({transactions,budgets,setBudgets}){
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[newCat,setNewCat]=useState("");
+  const[editingCat,setEditingCat]=useState(null);
+  const mk=monthStr();
+  const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();
+
+  // All budget categories = defaults + custom ones stored in budgets
+  const defaultCats=EXP_CATS.expense;
+  const customCats=Object.keys(budgets).filter(k=>!defaultCats.includes(k)&&k!=="__total");
+  const allCats=[...defaultCats,...customCats];
+  const budgetedCats=allCats.filter(c=>budgets[c]&&parseFloat(budgets[c])>0);
+  const totalBudget=budgetedCats.reduce((s,c)=>s+(parseFloat(budgets[c])||0),0);
+
+  const getSpent=(cat,month)=>transactions.filter(tx=>tx.date.startsWith(month)&&tx.type==="expense"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0);
+  const totalSpent=budgetedCats.reduce((s,c)=>s+getSpent(c,mk),0);
+  const totalPct=totalBudget>0?Math.min(Math.round(totalSpent/totalBudget*100),100):0;
+  const remaining=totalBudget-totalSpent;
+
+  // 6-month trend per category
+  const months6=Array.from({length:6}).map((_,i)=>{
+    const d=new Date();d.setMonth(d.getMonth()-(5-i));
+    return{key:d.toISOString().slice(0,7),label:d.toLocaleString("default",{month:"short"})};
+  });
+
+  const setCatBudget=(cat,val)=>setBudgets(b=>({...b,[cat]:val}));
+
+  return (
+    <div style={{maxWidth:800,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Financial Control</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Monthly Budget</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleString("default",{month:"long",year:"numeric"})}</div>
+        </div>
+        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Category</Btn>
+      </div>
+
+      {showAdd&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>New Budget Category</SectionLabel>
+          <div style={{display:"flex",gap:8}}>
+            <Inp value={newCat} onChange={e=>setNewCat(e.target.value)} placeholder="Category name (e.g. Gym, Hobbies)"/>
+            <Btn onClick={()=>{if(!newCat.trim())return;setCatBudget(newCat.trim(),0);setNewCat("");setShowAdd(false);}}>Add</Btn>
+            <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
+          </div>
+        </Card>
+      )}
+
+      {totalBudget>0&&(
+        <Card style={{marginBottom:14,background:t.CARD2,border:"1px solid "+(totalSpent>totalBudget?t.RED:t.GOLD)+"44"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:14}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TOTAL BUDGET</div>
+              <div style={{fontSize:20,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt(totalBudget)}</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>SPENT</div>
+              <div style={{fontSize:20,color:totalSpent>totalBudget?t.RED:t.TEXT,fontFamily:"sans-serif",fontWeight:700}}>{fmt(totalSpent)}</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>REMAINING</div>
+              <div style={{fontSize:20,color:remaining>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmt(Math.abs(remaining))}</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{remaining>=0?"left":"over budget"}</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>USED</div>
+              <div style={{fontSize:20,color:totalPct>=100?t.RED:totalPct>=80?t.GOLD:t.GREEN,fontFamily:"sans-serif",fontWeight:700}}>{totalPct+"%"}</div>
+            </div>
+          </div>
+          <PB value={totalPct} color={totalSpent>totalBudget?t.RED:totalPct>=80?t.GOLD:t.GREEN} height={6}/>
+        </Card>
+      )}
+
+      {budgetedCats.length>0&&(
+        <Card style={{marginBottom:14}}>
+          <SectionLabel>6-Month Spending Trend</SectionLabel>
+          <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80,marginBottom:6}}>
+            {months6.map((m,i)=>{
+              const spent=budgetedCats.reduce((s,c)=>s+getSpent(c,m.key),0);
+              const maxSpend=Math.max(...months6.map(mm=>budgetedCats.reduce((s,c)=>s+getSpent(c,mm.key),0)),totalBudget,1);
+              const budgetH=(totalBudget/maxSpend)*60;
+              const spentH=(spent/maxSpend)*60;
+              const over=spent>totalBudget;
+              return (
+                <div key={m.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                  <div style={{width:"100%",position:"relative",height:64,display:"flex",alignItems:"flex-end"}}>
+                    {totalBudget>0&&<div style={{position:"absolute",bottom:budgetH+"px",left:0,right:0,borderTop:"1px dashed "+t.GOLD+"66"}}/>}
+                    <div style={{width:"100%",background:over?t.RED+"88":t.BLUE+"88",borderRadius:"2px 2px 0 0",height:spentH+"px",minHeight:spent>0?2:0,transition:"height .3s"}}/>
+                  </div>
+                  <div style={{fontSize:8,color:i===5?t.GOLD:t.MUTED,fontFamily:"sans-serif"}}>{m.label}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+            {[{c:t.BLUE+"88",l:"Spent"},{c:t.GOLD,l:"Budget (dashed)"}].map(x=>(
+              <div key={x.l} style={{display:"flex",alignItems:"center",gap:3}}>
+                <div style={{width:10,height:3,background:x.c,borderRadius:2}}/>
+                <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{x.l}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {allCats.map(cat=>{
+          const budget=parseFloat(budgets[cat])||0;
+          const spent=getSpent(cat,mk);
+          const prevSpent=getSpent(cat,prevMk);
+          const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
+          const over=budget>0&&spent>budget;
+          const isEditing=editingCat===cat;
+          const isCustom=!defaultCats.includes(cat);
+          if(budget===0&&!isEditing&&!isCustom)return null;
+          return (
+            <Card key={cat} style={{borderLeft:"3px solid "+(over?t.RED:budget>0?t.GREEN:t.BORDER)}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:budget>0?8:0}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{cat}</span>
+                    {prevSpent>0&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"last mo: "+fmt(prevSpent)}</span>}
+                  </div>
+                  {budget>0&&(
+                    <div style={{fontSize:10,color:over?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
+                      {fmt(spent)+" spent of "+fmt(budget)+" budget"+( over?" - "+fmt(spent-budget)+" over!":"")}
+                    </div>
+                  )}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:7}}>
+                  {isEditing?(
+                    <>
+                      <input
+                        type="number"
+                        defaultValue={budget||""}
+                        autoFocus
+                        onBlur={e=>{setCatBudget(cat,parseFloat(e.target.value)||0);setEditingCat(null);}}
+                        onKeyDown={e=>{if(e.key==="Enter"){setCatBudget(cat,parseFloat(e.target.value)||0);setEditingCat(null);}}}
+                        placeholder="Budget $"
+                        style={{width:90,background:t.CARD2,border:"1px solid "+t.GOLD,borderRadius:5,padding:"4px 8px",color:t.TEXT,fontSize:12,fontFamily:"sans-serif",outline:"none",textAlign:"right"}}
+                      />
+                      <Btn onClick={()=>setEditingCat(null)} variant="ghost" style={{fontSize:10,padding:"4px 8px"}}>Done</Btn>
+                    </>
+                  ):(
+                    <>
+                      {budget>0&&<span style={{fontSize:14,color:over?t.RED:t.GREEN,fontFamily:"sans-serif",fontWeight:700}}>{pct+"%"}</span>}
+                      <button onClick={()=>setEditingCat(cat)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{budget>0?"Edit":"Set"}</button>
+                      {isCustom&&<button onClick={()=>{const b={...budgets};delete b[cat];setBudgets(b);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>}
+                    </>
+                  )}
+                </div>
+              </div>
+              {budget>0&&<PB value={pct} color={over?t.RED:pct>=80?t.GOLD:t.GREEN} height={5}/>}
+            </Card>
+          );
+        })}
+        {budgetedCats.length===0&&!showAdd&&(
+          <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+            <div style={{fontSize:28,marginBottom:10}}>B</div>
+            <div style={{marginBottom:8}}>No budgets set yet</div>
+            <div style={{fontSize:11}}>Tap Set on any category or add a custom one above</div>
+          </div>
+        )}
+        {defaultCats.filter(c=>!budgets[c]||parseFloat(budgets[c])===0).length>0&&(
+          <Card style={{padding:"10px 14px"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Unbudgeted Categories</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {defaultCats.filter(c=>!budgets[c]||parseFloat(budgets[c])===0).map(cat=>{
+                const spent=getSpent(cat,mk);
+                return (
+                  <button key={cat} onClick={()=>setEditingCat(cat)} style={{padding:"5px 11px",borderRadius:14,border:"1px solid "+t.BORDER,background:"transparent",color:spent>0?t.TEXT:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+                    {cat}
+                    {spent>0&&<span style={{fontSize:9,color:t.RED,fontFamily:"sans-serif"}}>{fmt(spent)}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -2873,6 +3184,7 @@ function App(){
   const[habits,setHabits]=useState(D_HABITS);
   const[habitLog,setHabitLog]=useState({});
   const[holdings,setHoldings]=useState([]);
+  const[budgets,setBudgets]=useState({});
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
@@ -2916,6 +3228,7 @@ function App(){
       if(saved.nwHistory)setNwHistory(prev=>({...prev,...saved.nwHistory}));
       if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
+      if(saved.budgets)setBudgets(saved.budgets);
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
     setHydrated(true);
@@ -2923,7 +3236,7 @@ function App(){
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40)});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -2985,7 +3298,7 @@ function App(){
   const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
@@ -3011,6 +3324,7 @@ function App(){
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
+          {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="tax"&&<TaxPage profile={liveProfile}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile}/>}
           {page==="invest"&&<InvestPage profile={liveProfile}/>}
