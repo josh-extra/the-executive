@@ -239,7 +239,7 @@ function Btn({onClick,children,style,disabled,variant}){
   if(variant==="ghost")return <button onClick={onClick} disabled={!!disabled} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 16px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,...style}}>{children}</button>;
   return <button onClick={onClick} disabled={!!disabled} style={{background:disabled?t.BORDER2:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:7,padding:"9px 16px",color:disabled?t.MUTED:"#080808",cursor:disabled?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,...style}}>{children}</button>;
 }
-function SparkLine({data,color,height=48,labels}){
+function SparkLine({data,color,height=48,labels,target}){
   const[hover,setHover]=useState(null);
   const t=T();
   if(!data||data.length<2)return null;
@@ -274,6 +274,12 @@ function SparkLine({data,color,height=48,labels}){
         </defs>
         <polygon points={polyPts} fill="url(#sg)"/>
         <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
+        {target&&target>=mn&&target<=mx&&(
+          <>
+            <line x1={p} y1={py(target)} x2={W-p} y2={py(target)} stroke={color} strokeWidth="1" strokeDasharray="3,2" opacity=".5"/>
+            <text x={W-p-2} y={py(target)-3} fill={color} fontSize="7" textAnchor="end" fontFamily="sans-serif" opacity=".7">{"target"}</text>
+          </>
+        )}
         {hover&&labels&&(
           <>
             <line x1={hover.x} y1={p} x2={hover.x} y2={H-p} stroke={color} strokeWidth="1" strokeDasharray="3,2" opacity=".6"/>
@@ -433,7 +439,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions}){
   const t=T();
   const tDone=tasks.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
@@ -462,6 +468,12 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const todayScore=activeCats>0?Math.round((tPct+hbPct+sPct)/activeCats):0;
   const scoreColor=todayScore>=80?t.GREEN:todayScore>=60?t.GOLD:todayScore>=40?t.BLUE:t.RED;
   const r=32,circ=2*Math.PI*r;
+  const mk=monthStr();
+  const monthIncome=(transactions||[]).filter(tx=>tx.date.startsWith(mk)&&tx.type==="income").reduce((s,tx)=>s+tx.amount,0);
+  const monthExpense=(transactions||[]).filter(tx=>tx.date.startsWith(mk)&&tx.type==="expense").reduce((s,tx)=>s+tx.amount,0);
+  const monthNet=monthIncome-monthExpense;
+  const nextBill=(bills||[]).filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())>0).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue))[0];
+  const monthlyBills=(bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+b.amount*(m[b.frequency]||1);},0);
   const mktRows=[{l:"S&P 500",d:market.sp500,fx:false},{l:"ASX 200",d:market.asx,fx:false},{l:"AUD/USD",d:market.audusd,fx:true}];
   const goalPeriods=["year","month","week"];
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
@@ -503,28 +515,50 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             </div>
           </div>
         </Card>
-        <Card style={{textAlign:"center",padding:"16px 14px"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>NET WORTH</div>
-          <div style={{fontSize:22,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1.2,marginBottom:4}}>{fmt(nw)}</div>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{nwPct+"% of "+fmt(nwT)+" target"}</div>
-          <PB value={nwPct} color={t.GOLD} height={4}/>
+        <Card style={{padding:"16px 14px",cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>CASH FLOW - THIS MONTH</div>
+          {monthIncome===0&&monthExpense===0?(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No transactions yet</div>
+          ):(
+            <>
+              <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+                {[{l:"Income",v:monthIncome,c:t.GREEN},{l:"Expenses",v:monthExpense,c:t.RED}].map(x=>(
+                  <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:52}}>{x.l}</div>
+                    <div style={{flex:1}}><PB value={monthIncome>0?Math.round(x.v/monthIncome*100):0} color={x.c} height={4}/></div>
+                    <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:52,textAlign:"right",fontWeight:600}}>{fmt(x.v)}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Net</div>
+                <div style={{fontSize:16,color:monthNet>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{(monthNet>=0?"+":"")+fmt(monthNet)}</div>
+              </div>
+            </>
+          )}
         </Card>
-        <Card style={{padding:"16px 14px"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:8}}>THIS WEEK</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-            {Array.from({length:7}).map((_,i)=>{
-              const d=new Date();d.setDate(d.getDate()-(6-i));
-              const dk=d.toISOString().split("T")[0];
-              const isT=dk===todayStr();
-              const sc=history[dk]?.score||0;
-              const col=sc>=80?t.GREEN:sc>=60?t.GOLD:sc>0?t.BLUE:t.BORDER;
-              return <div key={i} title={sc>0?sc+"%":"No data"} style={{aspectRatio:"1",borderRadius:3,background:sc>0?col+"66":t.CARD2,border:"1.5px solid "+(isT?scoreColor:"transparent")}}/>;
-            })}
-          </div>
-          <div style={{marginTop:8,display:"flex",justifyContent:"space-between"}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Mon - Sun</div>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>7-day view</div>
-          </div>
+        <Card style={{padding:"16px 14px",cursor:"pointer"}} onClick={()=>setPage("bills")}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>BILLS</div>
+          {!bills||bills.length===0?(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No bills tracked yet</div>
+          ):(
+            <>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>Monthly recurring</div>
+                <div style={{fontSize:22,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmt(monthlyBills)}</div>
+              </div>
+              {nextBill&&(
+                <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Next due</div>
+                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{nextBill.name}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{nextBill.nextDue}</div>
+                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmt(nextBill.amount)}</div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </Card>
       </div>
       {upcoming.length>0&&(
@@ -1621,7 +1655,7 @@ function TaxPage({profile}){
   );
 }
 
-function DebtPage({profile}){
+function DebtPage({profile,setProfile}){
   const t=T();const[extra,setExtra]=useState(500);
   const debts=[{l:"Mortgage",k:"mortgageDebt",rate:6.2},{l:"Investment Loan",k:"investLoanDebt",rate:7.0},{l:"Car Finance",k:"carDebt",rate:9.5},{l:"Credit Cards",k:"creditCardDebt",rate:19.9},{l:"Personal Loans",k:"personalDebt",rate:12.0}].filter(d=>parseFloat(profile[d.k])>0).map(d=>({...d,balance:parseFloat(profile[d.k])}));
   const calcM=(bal,rate,ex)=>{
@@ -1658,6 +1692,15 @@ function DebtPage({profile}){
               </div>
             </div>
             <PB value={pct} color={t.RED} height={4}/>
+            {payingDebt===d.k?(
+              <div style={{marginTop:10,display:"flex",gap:7,alignItems:"center"}}>
+                <Inp type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="Payment amount" style={{flex:1,fontSize:12}}/>
+                <Btn onClick={()=>recordPayment(d.k,parseFloat(payAmount)||0)} disabled={!payAmount} style={{fontSize:11}}>Record</Btn>
+                <Btn onClick={()=>{setPayingDebt(null);setPayAmount("");}} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+              </div>
+            ):(
+              <button onClick={()=>setPayingDebt(d.k)} style={{marginTop:8,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Record Payment</button>
+            )}
           </Card>
         );
       })}
@@ -1871,7 +1914,12 @@ function BillsPage({bills,setBills}){
     else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
     return d.toISOString().split("T")[0];
   };
-  const markPaid=id=>setBills(bs=>bs.map(b=>b.id!==id?b:{...b,nextDue:advanceDate(b.nextDue,b.frequency),lastPaid:todayStr()}));
+  const[showHistory,setShowHistory]=useState(false);
+  const markPaid=id=>setBills(bs=>bs.map(b=>{
+    if(b.id!==id)return b;
+    const payment={date:todayStr(),amount:b.amount,name:b.name};
+    return{...b,nextDue:advanceDate(b.nextDue,b.frequency),lastPaid:todayStr(),paymentHistory:[payment,...(b.paymentHistory||[]).slice(0,23)]};
+  }));
   const add=()=>{
     if(!form.name||!form.amount)return;
     setBills(bs=>[...bs,{...form,id:Date.now(),amount:parseFloat(form.amount)}]);
@@ -1951,6 +1999,30 @@ function BillsPage({bills,setBills}){
               <Btn onClick={add}>Add</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
             </div>
           </div>
+        </Card>
+      )}
+      {bills.some(b=>(b.paymentHistory||[]).length>0)&&(
+        <Card style={{marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showHistory?12:0}}>
+            <SectionLabel>Payment History</SectionLabel>
+            <button onClick={()=>setShowHistory(s=>!s)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>{showHistory?"Hide":"Show"}</button>
+          </div>
+          {showHistory&&(
+            <div>
+              {bills.flatMap(b=>(b.paymentHistory||[]).map(p=>({...p,billName:b.name}))).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,20).map((p,i)=>(
+                <div key={i}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{p.name||p.billName}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{p.date}</div>
+                    </div>
+                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{"-"+fmt(p.amount)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
       <Card>
@@ -2182,7 +2254,14 @@ function BodyPage({bodyLog,setBodyLog,profile}){
               )}
             </div>
             {data.length>=2?(
-              <SparkLine data={data.map(d=>d.v)} color={m.color} height={40}/>
+              <div style={{position:"relative"}}>
+                <SparkLine data={data.map(d=>d.v)} color={m.color} height={40} target={m.target}/>
+                {m.target&&(
+                  <div style={{position:"absolute",top:0,right:0,fontSize:8,color:m.color,fontFamily:"sans-serif",background:t.CARD,padding:"1px 4px",borderRadius:3,opacity:.8}}>
+                    {"Target: "+m.target}
+                  </div>
+                )}
+              </div>
             ):(
               <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"10px 0"}}>Log more data to see trend</div>
             )}
@@ -2201,7 +2280,7 @@ function WorkoutPage({workouts,setWorkouts}){
   const prs={};
   [...(workouts||[])].reverse().forEach(w=>w.sets&&w.sets.forEach(s=>{
     if(s.weight&&parseFloat(s.weight)>0&&(!prs[s.exercise]||parseFloat(s.weight)>parseFloat(prs[s.exercise].weight)))
-      prs[s.exercise]={weight:s.weight,reps:s.reps};
+      prs[s.exercise]={weight:s.weight,reps:s.reps,date:w.date};
   }));
   return (
     <div style={{maxWidth:720,margin:"0 auto"}}>
@@ -2213,9 +2292,9 @@ function WorkoutPage({workouts,setWorkouts}){
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Log</Btn>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {["log","records"].map(tb=>(
-          <button key={tb} onClick={()=>setTab(tb)} style={{flex:1,padding:"7px",borderRadius:7,border:"1px solid "+(tab===tb?t.GOLD:t.BORDER),background:tab===tb?t.GOLD+"18":"transparent",color:tab===tb?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
-            {tb==="records"?"Personal Records":"Log"}
+        {[["log","Log"],["progress","Progress"],["records","Records"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"7px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+            {label}
           </button>
         ))}
       </div>
@@ -2254,15 +2333,68 @@ function WorkoutPage({workouts,setWorkouts}){
       )}
       {tab==="records"&&(
         <Card>
-          {Object.entries(prs).slice(0,8).map(([ex,pr])=>(
-            <div key={ex} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+t.BORDER}}>
-              <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{ex}</span>
-              <span style={{fontSize:12,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{pr.weight+"kg x "+pr.reps}</span>
-            </div>
-          ))}
-          {!Object.keys(prs).length&&<div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>Log workouts with weights to see records</div>}
+          <SectionLabel>Personal Records</SectionLabel>
+          {Object.entries(prs).length===0&&<div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>Log workouts with weights to see records</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+            {Object.entries(prs).slice(0,12).map(([ex,pr])=>(
+              <div key={ex} style={{background:t.CARD2,borderRadius:8,padding:"10px 12px",minWidth:120,flex:1}}>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{ex}</div>
+                <div style={{fontSize:18,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{pr.weight+"kg"}</div>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{"x"+pr.reps+" - "+fmtDate(pr.date)}</div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
+      {tab==="progress"&&(()=>{
+        const last8weeks=Array.from({length:8}).map((_,i)=>{
+          const d=new Date();d.setDate(d.getDate()-(7-1)*i);
+          const wkStart=new Date(d);wkStart.setDate(d.getDate()-6);
+          const wkEnd=d;
+          const wkWorkouts=(workouts||[]).filter(w=>{const wd=new Date(w.date+"T12:00:00");return wd>=wkStart&&wd<=wkEnd;});
+          const totalSets=wkWorkouts.reduce((s,w)=>s+(w.sets?.length||0),0);
+          const totalVol=wkWorkouts.reduce((s,w)=>s+(w.sets||[]).reduce((ss,set)=>ss+(parseFloat(set.weight)||0)*(parseFloat(set.reps)||0)*(parseFloat(set.sets)||1),0),0);
+          return{label:wkStart.toLocaleDateString([],{day:"numeric",month:"short"}),sessions:wkWorkouts.length,sets:totalSets,vol:Math.round(totalVol)};
+        }).reverse();
+        const maxSets=Math.max(...last8weeks.map(w=>w.sets),1);
+        const maxVol=Math.max(...last8weeks.map(w=>w.vol),1);
+        const totalWorkouts=(workouts||[]).length;
+        const totalSetsAll=(workouts||[]).reduce((s,w)=>s+(w.sets?.length||0),0);
+        const avgPerWeek=last8weeks.length?Math.round(last8weeks.reduce((s,w)=>s+w.sessions,0)/last8weeks.length*10)/10:0;
+        return (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+              <StatCard label="Total Sessions" value={totalWorkouts} color={t.GOLD}/>
+              <StatCard label="Total Exercises" value={totalSetsAll} color={t.BLUE}/>
+              <StatCard label="Avg per Week" value={avgPerWeek} color={t.GREEN}/>
+            </div>
+            <Card>
+              <SectionLabel>Weekly Volume (sets)</SectionLabel>
+              <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80,marginBottom:6}}>
+                {last8weeks.map((w,i)=>(
+                  <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                    <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>{w.sets||""}</div>
+                    <div style={{width:"100%",background:i===last8weeks.length-1?t.GOLD+"cc":t.GOLD+"44",borderRadius:"3px 3px 0 0",height:((w.sets/maxSets)*60)+"px",minHeight:w.sets>0?3:0,transition:"height .3s"}}/>
+                    <div style={{fontSize:7,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center"}}>{w.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <SectionLabel>Weekly Total Volume (kg lifted)</SectionLabel>
+              <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80,marginBottom:6}}>
+                {last8weeks.map((w,i)=>(
+                  <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                    <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>{w.vol>0?w.vol:""}</div>
+                    <div style={{width:"100%",background:i===last8weeks.length-1?t.PURPLE+"cc":t.PURPLE+"44",borderRadius:"3px 3px 0 0",height:((w.vol/maxVol)*60)+"px",minHeight:w.vol>0?3:0,transition:"height .3s"}}/>
+                    <div style={{fontSize:7,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center"}}>{w.label}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
       {tab==="log"&&(
         <div>
           {!(workouts||[]).length&&!showAdd&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>W</div><div>No sessions yet</div></div>}
@@ -2859,7 +2991,7 @@ function App(){
           </div>
         )}
         <div style={{flex:1,overflowY:"auto",padding:"22px 28px"}}>
-          {page==="dashboard"&&<DashboardPage {...pg}/>}
+          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
@@ -2869,7 +3001,7 @@ function App(){
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="tax"&&<TaxPage profile={liveProfile}/>}
-          {page==="debt"&&<DebtPage profile={liveProfile}/>}
+          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile}/>}
           {page==="invest"&&<InvestPage profile={liveProfile}/>}
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
