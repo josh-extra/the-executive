@@ -455,12 +455,12 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
     {pct:(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0,c:t.GOLD,label:"Habits",sub:hDone+"/"+((habits||[]).length),page:"habits"},
     {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"}
   ];
-  const tS=tasks.length?Math.round(tDone/tasks.length*40):0;
-  const hbS=(habits||[]).length?Math.round(hDone/(habits||[]).length*30):0;
-  const sS2=supplements.length?Math.round(sDone/supplements.length*30):0;
-  const todayScore=tS+hbS+sS2;
-  const scoreGrade=todayScore>=90?"S":todayScore>=75?"A":todayScore>=60?"B":todayScore>=45?"C":"D";
-  const scoreColor=todayScore>=90?t.GOLD:todayScore>=75?t.GREEN:todayScore>=60?t.BLUE:todayScore>=45?t.MUTED:t.RED;
+  const tPct=tasks.length?Math.round(tDone/tasks.length*100):0;
+  const hbPct=(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0;
+  const sPct=supplements.length?Math.round(sDone/supplements.length*100):0;
+  const activeCats=[tasks.length>0,(habits||[]).length>0,supplements.length>0].filter(Boolean).length;
+  const todayScore=activeCats>0?Math.round((tPct+hbPct+sPct)/activeCats):0;
+  const scoreColor=todayScore>=80?t.GREEN:todayScore>=60?t.GOLD:todayScore>=40?t.BLUE:t.RED;
   const r=32,circ=2*Math.PI*r;
   const mktRows=[{l:"S&P 500",d:market.sp500,fx:false},{l:"ASX 200",d:market.asx,fx:false},{l:"AUD/USD",d:market.audusd,fx:true}];
   const goalPeriods=["year","month","week"];
@@ -481,35 +481,50 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       <div style={{padding:"9px 13px",background:t.CARD2,borderRadius:7,borderLeft:"3px solid "+t.GOLD+"33"}}>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic"}}>"{quote}"</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
-        <Card style={{gridColumn:"span 1",background:t.CARD2,border:"1px solid "+scoreColor+"44",textAlign:"center",padding:"14px 10px"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
-          <div style={{fontSize:42,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>out of 100</div>
-          <div style={{marginTop:8}}><PB value={todayScore} color={scoreColor} height={4}/></div>
-        </Card>
-        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>GRADE</div>
-          <div style={{fontSize:42,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{scoreGrade}</div>
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
-        </Card>
-        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>BREAKDOWN</div>
-          <div style={{display:"flex",flexDirection:"column",gap:5,marginTop:4}}>
-            {[{l:"Tasks",v:tS,m:40,c:t.GREEN},{l:"Habits",v:hbS,m:30,c:t.GOLD},{l:"Supps",v:sS2,m:30,c:t.BLUE}].map(x=>(
-              <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:36}}>{x.l}</div>
-                <div style={{flex:1}}><PB value={Math.round(x.v/x.m*100)} color={x.c} height={4}/></div>
-                <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"/"+x.m}</div>
-              </div>
-            ))}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+        <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",padding:"16px 14px",display:"flex",alignItems:"center",gap:14}}>
+          <div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+              <div style={{fontSize:48,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
+              <div style={{fontSize:16,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
+            </div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].map(x=>(
+                <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:34}}>{x.l}</div>
+                  <div style={{flex:1}}><PB value={x.v} color={x.c} height={4}/></div>
+                  <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"%"}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
-        <Card style={{gridColumn:"span 1",textAlign:"center",padding:"14px 10px"}}>
+        <Card style={{textAlign:"center",padding:"16px 14px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>NET WORTH</div>
-          <div style={{fontSize:18,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1.2}}>{fmt(nw)}</div>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2,marginBottom:6}}>{nwPct+"% of target"}</div>
+          <div style={{fontSize:22,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1.2,marginBottom:4}}>{fmt(nw)}</div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{nwPct+"% of "+fmt(nwT)+" target"}</div>
           <PB value={nwPct} color={t.GOLD} height={4}/>
+        </Card>
+        <Card style={{padding:"16px 14px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:8}}>THIS WEEK</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+            {Array.from({length:7}).map((_,i)=>{
+              const d=new Date();d.setDate(d.getDate()-(6-i));
+              const dk=d.toISOString().split("T")[0];
+              const isT=dk===todayStr();
+              const sc=history[dk]?.score||0;
+              const col=sc>=80?t.GREEN:sc>=60?t.GOLD:sc>0?t.BLUE:t.BORDER;
+              return <div key={i} title={sc>0?sc+"%":"No data"} style={{aspectRatio:"1",borderRadius:3,background:sc>0?col+"66":t.CARD2,border:"1.5px solid "+(isT?scoreColor:"transparent")}}/>;
+            })}
+          </div>
+          <div style={{marginTop:8,display:"flex",justifyContent:"space-between"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Mon - Sun</div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>7-day view</div>
+          </div>
         </Card>
       </div>
       {upcoming.length>0&&(
@@ -738,10 +753,59 @@ function TasksPage({tasks,setTasks}){
 }
 
 function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
-  const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",icon:"*",color:"#C9A84C",target:7});
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
+  const[showEmojiPicker,setShowEmojiPicker]=useState(false);
+  const[expandHabit,setExpandHabit]=useState({});
+  const[dragIdx,setDragIdx]=useState(null);
+
+  const EMOJIS=["🔥","💪","🧘","📚","🏃","🥗","💧","😴","🧠","\u2744\uFE0F","\u270D\uFE0F","🎯","🏋️","🚴","🧘","\u2600\uFE0F","🌙","\u26A1","🎵","🙏","💊","🥤","🍎","🫁","\u2764\uFE0F","🧘","🏊","🤸","📖","💰"];
+  const TIME_GROUPS=["morning","afternoon","evening","anytime"];
+  const TIME_LABELS={morning:"Morning",afternoon:"Afternoon",evening:"Evening",anytime:"Anytime"};
+
   const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
-  const tog=(id,date)=>setHabitLog(l=>{const k=id+"_"+date;return{...l,[k]:!l[k]};});
+  const last30=Array.from({length:30}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(29-i));return d.toISOString().split("T")[0];});
   const dayLetters=["S","M","T","W","T","F","S"];
+
+  const getStreak=h=>{
+    let s=0;
+    for(let i=0;i<365;i++){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const k=h.id+"_"+d.toISOString().split("T")[0];
+      if(habitLog[k])s++;
+      else if(i>0)break;
+    }
+    return s;
+  };
+
+  const weekPct=h=>{
+    const done=last7.filter(d=>!!habitLog[h.id+"_"+d]).length;
+    return Math.min(Math.round(done/h.target*100),100);
+  };
+
+  const overallWeekPct=(habits||[]).length?Math.round(
+    (habits||[]).reduce((s,h)=>s+weekPct(h),0)/(habits||[]).length
+  ):0;
+
+  const tog=(id,date)=>setHabitLog(l=>{const k=id+"_"+date;return{...l,[k]:!l[k]};});
+
+  const addHabit=()=>{
+    if(!form.name)return;
+    setHabits(hs=>[...hs,{...form,id:Date.now()}]);
+    setForm({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
+    setShowAdd(false);setShowEmojiPicker(false);
+  };
+
+  const moveUp=i=>{
+    if(i===0)return;
+    setHabits(hs=>{const n=[...hs];[n[i-1],n[i]]=[n[i],n[i-1]];return n;});
+  };
+  const moveDown=(i,len)=>{
+    if(i===len-1)return;
+    setHabits(hs=>{const n=[...hs];[n[i],n[i+1]]=[n[i+1],n[i]];return n;});
+  };
+
   return (
     <div style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
@@ -751,63 +815,181 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
         </div>
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
       </div>
-      {showAdd&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <div style={{display:"flex",gap:8,marginBottom:8}}>
-            <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Habit name" style={{flex:2}}/>
-            <Inp value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))} placeholder="Icon" style={{width:60}}/>
-          </div>
-          <div style={{display:"flex",gap:8,marginBottom:8}}>
-            <Inp value={form.target} type="number" onChange={e=>setForm(f=>({...f,target:parseInt(e.target.value)||7}))} placeholder="Days/week" style={{flex:1}}/>
-            <input type="color" value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} style={{width:48,height:38,borderRadius:6,border:"1px solid "+t.BORDER,cursor:"pointer"}}/>
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            <Btn onClick={()=>{if(!form.name)return;setHabits(hs=>[...hs,{...form,id:Date.now()}]);setForm({name:"",icon:"*",color:"#C9A84C",target:7});setShowAdd(false);}}>Add</Btn>
-            <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
-          </div>
-        </Card>
-      )}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5,marginBottom:14}}>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5,marginBottom:8}}>
         {last7.map((d,i)=>{
           const isT=d===todayStr();
-          const cnt=(habits||[]).filter(h=>!!habitLog[h.id+"_"+d]).length;
+          // For each habit, count it as "on track" for this day if:
+          // - ticked on this day, OR target already met by cumulative days up to and including this day
+          const daysUpToAndIncluding=last7.slice(0,i+1);
+          const cnt=(habits||[]).filter(h=>{
+            const doneUpTo=daysUpToAndIncluding.filter(dd=>!!habitLog[h.id+"_"+dd]).length;
+            const targetMet=doneUpTo>=h.target;
+            const tickedToday=!!habitLog[h.id+"_"+d];
+            return tickedToday||targetMet;
+          }).length;
           const pct=(habits||[]).length?Math.round(cnt/(habits||[]).length*100):0;
           const col=pct>=80?t.GREEN:pct>=50?t.GOLD:pct>0?t.BLUE:t.BORDER;
           return (
             <div key={d} style={{textAlign:"center"}}>
               <div style={{fontSize:9,color:isT?t.GOLD:t.MUTED,fontFamily:"sans-serif",fontWeight:isT?700:400,marginBottom:4}}>{dayLetters[new Date(d+"T12:00:00").getDay()]}</div>
               <div style={{aspectRatio:"1",borderRadius:6,background:pct>0?col+"33":t.CARD2,border:"1.5px solid "+(isT?t.GOLD:col),display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:9,color:pct>0?col:t.MUTED,fontFamily:"sans-serif",fontWeight:700}}>{pct>0?pct+"%":"0"}</span>
+                <span style={{fontSize:9,color:pct>0?col:t.MUTED,fontFamily:"sans-serif",fontWeight:700}}>{pct>0?pct+"%":"-"}</span>
               </div>
             </div>
           );
         })}
       </div>
-      {(habits||[]).map(h=>{
-        const wDone=last7.filter(d=>!!habitLog[h.id+"_"+d]).length;
-        return (
-          <Card key={h.id} style={{marginBottom:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-              <span style={{fontSize:20}}>{h.icon}</span>
-              <div style={{flex:1}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>
-                  <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{wDone+"/"+h.target+" this week"}</span>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{"This week: "+overallWeekPct+"% overall compliance"}</div>
+        <div style={{display:"flex",gap:8}}>
+          {[{c:t.GREEN,l:"80%+"},{c:t.GOLD,l:"50%+"},{c:t.BLUE,l:"1%+"}].map(x=>(
+            <div key={x.l} style={{display:"flex",alignItems:"center",gap:3}}>
+              <div style={{width:8,height:8,borderRadius:2,background:x.c+"66"}}/>
+              <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{x.l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showAdd&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>New Habit</SectionLabel>
+          <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+            <div style={{position:"relative"}}>
+              <button onClick={()=>setShowEmojiPicker(s=>!s)} style={{width:44,height:44,borderRadius:8,border:"1px solid "+t.BORDER,background:t.CARD2,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {form.icon}
+              </button>
+              {showEmojiPicker&&(
+                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:4,width:200,boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
+                  {EMOJIS.map(e=>(
+                    <button key={e} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",padding:4,borderRadius:5,textAlign:"center"}}>
+                      {e}
+                    </button>
+                  ))}
                 </div>
-                <PB value={Math.min(Math.round(wDone/h.target*100),100)} color={h.color} height={3}/>
-              </div>
-              <button onClick={()=>setHabits(hs=>hs.filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+              )}
             </div>
-            <div style={{display:"flex",gap:5}}>
-              {last7.map(d=>{
-                const done=!!habitLog[h.id+"_"+d];const isT=d===todayStr();
-                return <div key={d} onClick={()=>tog(h.id,d)} style={{flex:1,aspectRatio:"1",borderRadius:"50%",background:done?h.color:"transparent",border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>{done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}</div>;
-              })}
+            <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Habit name" style={{flex:1}}/>
+            <input type="color" value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} style={{width:44,height:44,borderRadius:8,border:"1px solid "+t.BORDER,cursor:"pointer",padding:2}}/>
+          </div>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Days per week target</div>
+              <Inp type="number" value={form.target} onChange={e=>setForm(f=>({...f,target:parseInt(e.target.value)||7}))} placeholder="7" style={{fontSize:12}}/>
             </div>
-          </Card>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Time of day</div>
+              <Sel value={form.timeOfDay} onChange={e=>setForm(f=>({...f,timeOfDay:e.target.value}))} style={{fontSize:12}}>
+                {TIME_GROUPS.map(tg=><option key={tg} value={tg}>{TIME_LABELS[tg]}</option>)}
+              </Sel>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={addHabit}>Add Habit</Btn>
+            <Btn onClick={()=>{setShowAdd(false);setShowEmojiPicker(false);}} variant="ghost">Cancel</Btn>
+          </div>
+        </Card>
+      )}
+
+      {TIME_GROUPS.map(timeGroup=>{
+        const groupHabits=(habits||[]).filter(h=>(h.timeOfDay||"morning")===timeGroup);
+        if(!groupHabits.length)return null;
+        return (
+          <div key={timeGroup} style={{marginBottom:20}}>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:10}}>{TIME_LABELS[timeGroup]}</div>
+            {groupHabits.map((h,gi)=>{
+              const allIdx=(habits||[]).findIndex(x=>x.id===h.id);
+              const wDone=last7.filter(d=>!!habitLog[h.id+"_"+d]).length;
+              const streak=getStreak(h);
+              const pct=weekPct(h);
+              const isExpanded=!!expandHabit[h.id];
+              return (
+                <Card key={h.id} style={{marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div onClick={()=>tog(h.id,todayStr())} style={{width:40,height:40,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18,transition:"all .2s"}}>
+                      {h.icon}
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{h.name}</span>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          {streak>0&&(
+                            <div style={{display:"flex",alignItems:"center",gap:3,background:h.color+"22",borderRadius:10,padding:"2px 7px"}}>
+                              <span style={{fontSize:10}}>🔥</span>
+                              <span style={{fontSize:10,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</span>
+                            </div>
+                          )}
+                          <span style={{fontSize:10,color:wDone>=h.target?t.GREEN:t.MUTED,fontFamily:"sans-serif",fontWeight:wDone>=h.target?600:400}}>{wDone>=h.target?"Target met":wDone+"/"+h.target+" this week"}</span>
+                        </div>
+                      </div>
+                      <PB value={pct} color={pct>=100?t.GREEN:h.color} height={3}/>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <button onClick={()=>moveUp(allIdx)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,lineHeight:1,opacity:.6}}>▲</button>
+                      <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,lineHeight:1,opacity:.6}}>▼</button>
+                    </div>
+                    <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.7}}>{isExpanded?"^":"v"}</button>
+                    <button onClick={()=>setHabits(hs=>hs.filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                  </div>
+
+                  <div style={{display:"flex",gap:5,marginBottom:isExpanded?10:0}}>
+                    {last7.map(d=>{
+                      const done=!!habitLog[h.id+"_"+d];
+                      const isT=d===todayStr();
+                      const dl=dayLetters[new Date(d+"T12:00:00").getDay()];
+                      return (
+                        <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                          <div style={{fontSize:8,color:isT?h.color:t.MUTED,fontFamily:"sans-serif",fontWeight:isT?700:400}}>{dl}</div>
+                          <div onClick={()=>tog(h.id,d)} style={{width:"100%",aspectRatio:"1",borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>
+                            {done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {isExpanded&&(
+                    <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>30-Day History</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:3,marginBottom:10}}>
+                        {last30.map((d,i)=>{
+                          const done=!!habitLog[h.id+"_"+d];
+                          const isT=d===todayStr();
+                          return (
+                            <div key={d} onClick={()=>tog(h.id,d)} title={d} style={{aspectRatio:"1",borderRadius:3,background:done?h.color+"88":t.CARD2,border:"1px solid "+(isT?h.color:done?h.color+"44":t.BORDER),cursor:"pointer"}}/>
+                          );
+                        })}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
+                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Current streak</div>
+                        </div>
+                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
+                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{last30.filter(d=>!!habitLog[h.id+"_"+d]).length}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Last 30 days</div>
+                        </div>
+                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
+                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{Math.round(last30.filter(d=>!!habitLog[h.id+"_"+d]).length/30*100)+"%"}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>30-day rate</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         );
       })}
-      {!(habits||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>H</div><div>No habits yet</div></div>}
+      {!(habits||[]).length&&(
+        <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:32,marginBottom:10}}>🔥</div>
+          <div>No habits yet - tap + Add to start</div>
+        </div>
+      )}
     </div>
   );
 }
