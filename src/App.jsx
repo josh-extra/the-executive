@@ -1656,7 +1656,18 @@ function TaxPage({profile}){
 }
 
 function DebtPage({profile,setProfile}){
-  const t=T();const[extra,setExtra]=useState(500);
+  const t=T();
+  const[extra,setExtra]=useState(500);
+  const[payingDebt,setPayingDebt]=useState(null);
+  const[payAmount,setPayAmount]=useState("");
+  const recordPayment=(k,amount)=>{
+    const current=parseFloat(profile[k])||0;
+    const newBal=Math.max(0,current-amount);
+    const tD=["mortgageDebt","investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,dk)=>s+(dk===k?newBal:parseFloat(profile[dk])||0),0);
+    const tA=parseFloat(profile.totalAssets)||0;
+    setProfile(p=>({...p,[k]:newBal,totalDebt:tD,netWorth:tA-tD}));
+    setPayingDebt(null);setPayAmount("");
+  };
   const debts=[{l:"Mortgage",k:"mortgageDebt",rate:6.2},{l:"Investment Loan",k:"investLoanDebt",rate:7.0},{l:"Car Finance",k:"carDebt",rate:9.5},{l:"Credit Cards",k:"creditCardDebt",rate:19.9},{l:"Personal Loans",k:"personalDebt",rate:12.0}].filter(d=>parseFloat(profile[d.k])>0).map(d=>({...d,balance:parseFloat(profile[d.k])}));
   const calcM=(bal,rate,ex)=>{
     const r=rate/100/12,mp=bal*r*1.1,total=mp+ex/Math.max(debts.length,1);
