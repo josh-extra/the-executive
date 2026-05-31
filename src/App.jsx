@@ -844,7 +844,7 @@ function TasksPage({tasks,setTasks}){
   const priColors={high:t.RED,medium:t.GOLD,low:t.MUTED};
   const priLabels={high:"High Priority",medium:"Standard",low:"Low Priority"};
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{marginBottom:20}}>
         <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Daily Execution</div>
         <div style={{fontSize:26,color:t.TEXT,marginBottom:4}}>Today's Actions</div>
@@ -951,7 +951,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   };
 
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Daily Discipline</div>
@@ -1161,7 +1161,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
   };
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Targets</div>
@@ -1255,7 +1255,7 @@ function JournalPage({entries,setEntries}){
   if(viewing){
     const entry=(entries||[]).find(x=>x.id===viewing);
     return (
-      <div style={{maxWidth:680,margin:"0 auto"}}>
+      <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
         <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,marginBottom:14}}>Back</button>
         <Card>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{entry?.date}</div>
@@ -1268,7 +1268,7 @@ function JournalPage({entries,setEntries}){
     );
   }
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Private Thoughts</div>
@@ -1659,7 +1659,7 @@ function ProjectorPage({profile}){
     {l:"Years",v:yrs,set:setYrs,min:3,max:30,step:1,sub:"To "+(new Date().getFullYear()+yrs)}
   ];
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Planning</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Wealth Forecast</div>
       <Card style={{marginBottom:14}}>
@@ -1713,7 +1713,7 @@ function TaxPage({profile}){
   const t=T();const loc=L();
   if(!loc.taxPage){
     return (
-      <div style={{maxWidth:680,margin:"0 auto"}}>
+      <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
         <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Tax Planning</div>
         <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Tax Estimate</div>
         <Card style={{textAlign:"center",padding:48}}>
@@ -1734,7 +1734,7 @@ function TaxPage({profile}){
   ];
   const curB=brackets.findIndex((b,i)=>income<=b.up&&(i===0||income>brackets[i-1].up));
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>EOFY Planning</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Tax Estimate</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
@@ -1786,7 +1786,7 @@ function DebtPage({profile,setProfile}){
   };
   const totalDebt=debts.reduce((s,d)=>s+d.balance,0);
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Debt Freedom</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Payoff Calculator</div>
       <Card style={{marginBottom:14}}>
@@ -1869,7 +1869,7 @@ function CashFlowPage({transactions,setTransactions}){
   const add=()=>{if(!form.amount||isNaN(form.amount))return;setTransactions(ts=>[{...form,amount:parseFloat(form.amount),id:Date.now()},...ts]);setForm(f=>({...f,amount:"",note:""}));setShowAdd(false);};
   const shown=transactions.filter(tx=>filter==="all"||tx.type===filter).slice(0,40);
   return (
-    <div style={{maxWidth:800,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:800,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Cash Flow</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Income and Expenses</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
@@ -2052,7 +2052,7 @@ function BillsPage({bills,setBills}){
   const totalMonthly=bills.reduce((s,b)=>s+monthlyEq(b),0);
   const upcoming=bills.filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())/864e5<=14).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Recurring</div>
@@ -2210,7 +2210,7 @@ function InvestPage({profile}){
     {name:"AI Infrastructure",cls:"Equity",ret:"Varies",risk:"Med-High",note:"GPU cloud and data centre buildout continuing."}
   ];
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Capital Deployment</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Opportunities</div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
@@ -2316,7 +2316,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
     {l:"HRV",v:latestLog?.hrv||"-",sub:"Higher is better"}
   ];
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Physical Capital</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Health and Vitals</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
@@ -2388,7 +2388,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
     {key:"hrv",label:"HRV",color:t.GREEN,target:70}
   ];
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Body Tracking</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Metrics History</div>
       <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
@@ -2454,7 +2454,7 @@ function WorkoutPage({workouts,setWorkouts}){
       prs[s.exercise]={weight:s.weight,reps:s.reps,date:w.date};
   }));
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Iron and Conditioning</div>
@@ -2626,7 +2626,7 @@ function ReadingPage({books,setBooks}){
   const cats={reading:(books||[]).filter(b=>b.status==="reading"),next:(books||[]).filter(b=>b.status==="next"),done:(books||[]).filter(b=>b.status==="done")};
   const colMap={reading:t.GOLD,next:t.BLUE,done:t.GREEN};
   return (
-    <div style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>The Library</div>
@@ -2821,7 +2821,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
     setLoading(false);
   };
   return (
-    <div style={{maxWidth:720,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Performance Review</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Weekly Review</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
@@ -2983,7 +2983,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme}){
   const RISK_OPTS=["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"];
   const curGoals=form.healthGoals||[];
   return (
-    <div style={{maxWidth:640,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:640,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Account</div>
@@ -3105,7 +3105,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
   const setCatBudget=(cat,val)=>setBudgets(b=>({...b,[cat]:val}));
 
   return (
-    <div style={{maxWidth:800,margin:"0 auto"}}>
+    <div data-page="true" style={{maxWidth:800,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Financial Control</div>
@@ -3401,20 +3401,28 @@ function App(){
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
-      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";}"}</style>
+      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;}}"}</style>
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto"}}>
-        {!profile&&(
+        {!profile&&(isMobile?(
+          <div style={{margin:"0 14px",marginTop:"calc(14px + env(safe-area-inset-top))",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>Demo Mode</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Tap to set up your profile</div>
+            </div>
+            <button onClick={()=>setPage("profile")} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"8px 14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,flexShrink:0}}>Set Up</button>
+          </div>
+        ):(
           <div style={{background:t.GOLD+"14",borderBottom:"1px solid "+t.GOLD+"33",padding:"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Demo Mode - William Sterling</div>
             <button onClick={()=>setPage("profile")} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
-        )}
+        ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
-          <div style={{width:"100%",maxWidth:1100,padding:"28px 32px",flex:1,paddingTop:"calc(28px + env(safe-area-inset-top))",paddingBottom:"calc(28px + env(safe-area-inset-bottom) + 60px)"}}>
+          <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"16px 14px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
