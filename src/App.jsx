@@ -423,8 +423,11 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
       <>
         {/* Mobile full-screen menu overlay */}
         {menuOpen&&(
-          <div style={{position:"fixed",inset:0,background:t.BG,zIndex:200,display:"flex",flexDirection:"column",overflowY:"auto"}}>
-            <div style={{padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
+          <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column"}}>
+            {/* Tap outside to close - invisible backdrop */}
+            <div onClick={()=>setMenuOpen(false)} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.5)"}}/>
+            <div style={{position:"relative",zIndex:1,background:t.BG,display:"flex",flexDirection:"column",height:"100%",overflowY:"auto"}}>
+            <div style={{padding:"16px 20px",paddingTop:"calc(16px + env(safe-area-inset-top))",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
               <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif"}}>The Executive</div>
               <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:22,lineHeight:1}}>X</button>
             </div>
@@ -462,11 +465,12 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                 ))}
               </div>
             </div>
+            </div>
           </div>
         )}
 
         {/* Bottom tab bar */}
-        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:t.CARD,borderTop:"1px solid "+t.BORDER,display:"flex",alignItems:"stretch",paddingBottom:"env(safe-area-inset-bottom)"}}>
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:t.CARD,borderTop:"1px solid "+t.BORDER,display:"flex",alignItems:"stretch",paddingBottom:"calc(env(safe-area-inset-bottom) + 4px)"}}>
           {BOTTOM_TABS.map(([id,icon,label])=>{
             const active=page===id;
             return (
@@ -3410,7 +3414,7 @@ function App(){
           </div>
         )}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
-          <div style={{width:"100%",maxWidth:1100,padding:"28px 32px",flex:1,paddingBottom:"calc(28px + env(safe-area-inset-bottom) + 60px)"}}>
+          <div style={{width:"100%",maxWidth:1100,padding:"28px 32px",flex:1,paddingTop:"calc(28px + env(safe-area-inset-top))",paddingBottom:"calc(28px + env(safe-area-inset-bottom) + 60px)"}}>
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
