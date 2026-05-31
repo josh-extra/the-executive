@@ -361,7 +361,7 @@ function MorningBriefing({profile,tasks,onClose}){
       try{
         const highTasks=(tasks||[]).filter(tk=>tk.priority==="high").map(tk=>tk.text).join(", ");
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"});
-        const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp morning briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Sections: MARKETS (search today), PRIORITIES (top 3 tasks), PULSE (one financial insight), MINDSET (one sentence). Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:700,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp morning briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Sections: MARKETS (search today), PRIORITIES (top 3 tasks), PULSE (one financial insight), MINDSET (one sentence). Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
         const d=await r.json();
         setBrief((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
       }catch{setBrief("Connection error.");}
@@ -538,7 +538,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile}){
   const t=T();
   const tDone=tasks.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
@@ -578,7 +578,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{display:"flex",flexDirection:isMobile?"column":"row",justifyContent:"space-between",alignItems:isMobile?"center":"center",textAlign:isMobile?"center":"left",gap:isMobile?10:0}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Dashboard</div>
           <div style={{fontSize:24,color:t.TEXT}}>
@@ -592,13 +592,14 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       <div style={{padding:"9px 13px",background:t.CARD2,borderRadius:7,borderLeft:"3px solid "+t.GOLD+"33"}}>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic"}}>"{quote}"</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
-        <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",padding:"16px 14px",display:"flex",alignItems:"center",gap:14}}>
-          <div>
+      {/* Score card - full width on mobile, 1/3 on desktop */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:10}}>
+        <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",padding:"14px",display:"flex",alignItems:"center",gap:14}}>
+          <div style={{flexShrink:0}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
-            <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-              <div style={{fontSize:48,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
-              <div style={{fontSize:16,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
+            <div style={{display:"flex",alignItems:"baseline",gap:3}}>
+              <div style={{fontSize:isMobile?38:48,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
+              <div style={{fontSize:14,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
             </div>
             <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
           </div>
@@ -614,7 +615,9 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             </div>
           </div>
         </Card>
-        <Card style={{padding:"16px 14px",cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr",gap:10}}>
+        <Card style={{padding:"14px",cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>CASH FLOW - THIS MONTH</div>
           {monthIncome===0&&monthExpense===0?(
             <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No transactions yet</div>
@@ -636,7 +639,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             </>
           )}
         </Card>
-        <Card style={{padding:"16px 14px",cursor:"pointer"}} onClick={()=>setPage("bills")}>
+        <Card style={{padding:"14px",cursor:"pointer"}} onClick={()=>setPage("bills")}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>BILLS</div>
           {!bills||bills.length===0?(
             <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No bills tracked yet</div>
@@ -1856,7 +1859,7 @@ function CashFlowPage({transactions,setTransactions}){
     try{
       const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
       const catList=[...EXP_CATS.income,...EXP_CATS.expense].join(", ");
-      const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]})});
+      const resp=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]})});
       const d=await resp.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
       const parsed=JSON.parse(text);
@@ -2196,7 +2199,7 @@ function InvestPage({profile}){
   const getAi=async()=>{
     setLoading(true);
     try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
       const d=await r.json();
       setAiOpps((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiOpps("Connection error.");}
@@ -2814,7 +2817,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       const avgMood=weekJournal.length?(weekJournal.reduce((a,e)=>a+(e.mood||3),0)/weekJournal.length).toFixed(1):"?";
       const goalsSummary=(goals||[]).map(g=>g.title+" "+g.progress+"% ("+g.period+")").join(", ")||"none";
       const habitDetails=habitPerf.map(h=>h.name+": "+h.done+"/"+h.target).join("\n")||"none";
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
       const d=await r.json();
       setAiReview((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiReview("Connection error.");}
@@ -2918,7 +2921,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
     const q=text||input.trim();if(!q||loading)return;setInput("");
     const updated=[...msgs,{role:"user",content:q}];setMessages(updated);setLoading(true);
     try{
-      const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:updated.map(m=>({role:m.role,content:m.content}))})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:updated.map(m=>({role:m.role,content:m.content}))})});
       const d=await r.json();
       const reply=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Try again.";
       setMessages(m=>[...m,{role:"assistant",content:reply}]);
@@ -3423,7 +3426,7 @@ function App(){
         ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
           <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"16px 14px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
-          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions}/>}
+          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
