@@ -384,9 +384,31 @@ function MorningBriefing({profile,tasks,onClose}){
   );
 }
 
+function useIsMobile(){
+  const[mobile,setMobile]=useState(window.innerWidth<768);
+  useEffect(()=>{
+    const h=()=>setMobile(window.innerWidth<768);
+    window.addEventListener('resize',h);
+    return()=>window.removeEventListener('resize',h);
+  },[]);
+  return mobile;
+}
+
 function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,savedLabel}){
   const t=T();
+  const isMobile=useIsMobile();
+  const[menuOpen,setMenuOpen]=useState(false);
   const initials=(profile.firstName?.[0]||"")+(profile.lastName?.[0]||"");
+
+  // Bottom tab bar items - most used pages
+  const BOTTOM_TABS=[
+    ["dashboard","🏠","Home"],
+    ["tasks","📝","Tasks"],
+    ["habits","🔥","Habits"],
+    ["wealth","💸","Wealth"],
+    ["advisor","🤖","AI"],
+  ];
+
   const groups=[
     ["Command",["dashboard","weekly","advisor"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
@@ -394,6 +416,78 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     ["Health",["health","body","workout"]],
     ["Settings",["profile"]]
   ];
+
+  if(isMobile){
+    return (
+      <div style={{width:0,flexShrink:0}}>
+      <>
+        {/* Mobile full-screen menu overlay */}
+        {menuOpen&&(
+          <div style={{position:"fixed",inset:0,background:t.BG,zIndex:200,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+            <div style={{padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
+              <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif"}}>The Executive</div>
+              <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:22,lineHeight:1}}>X</button>
+            </div>
+            <div style={{flex:1,padding:"8px 0"}}>
+              {groups.map(([group,pages])=>(
+                <div key={group} style={{marginBottom:4}}>
+                  <div style={{fontSize:8,letterSpacing:2,color:t.MUTED,textTransform:"uppercase",fontFamily:"sans-serif",padding:"8px 20px 4px"}}>{group}</div>
+                  {pages.map(id=>{
+                    const nav=NAV.find(n=>n[0]===id);
+                    if(!nav)return null;
+                    const active=page===id;
+                    return (
+                      <button key={id} onClick={()=>{setPage(id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"12px 20px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"3px solid "+t.GOLD:"3px solid transparent",color:active?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:14,textAlign:"left"}}>
+                        <span style={{fontSize:18,lineHeight:1}}>{nav[1]}</span>
+                        <span>{nav[2]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            <div style={{borderTop:"1px solid "+t.BORDER,padding:"14px 20px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{width:36,height:36,borderRadius:"50%",background:t.GOLD+"33",border:"1px solid "+t.GOLD+"55",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:t.GOLD,fontWeight:700,flexShrink:0}}>{initials||"W"}</div>
+                <div>
+                  <div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif"}}>{profile.firstName} {profile.lastName}</div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{profile.occupation||"The Executive"}</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                {["dark","light"].map(th=>(
+                  <button key={th} onClick={()=>setTheme(th)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(theme===th?t.GOLD:t.BORDER),background:theme===th?t.GOLD+"18":"transparent",color:theme===th?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+                    {th==="dark"?"Dark":"Light"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom tab bar */}
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:t.CARD,borderTop:"1px solid "+t.BORDER,display:"flex",alignItems:"stretch",paddingBottom:"env(safe-area-inset-bottom)"}}>
+          {BOTTOM_TABS.map(([id,icon,label])=>{
+            const active=page===id;
+            return (
+              <button key={id} onClick={()=>setPage(id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
+                <span style={{fontSize:20,lineHeight:1}}>{icon}</span>
+                <span style={{fontSize:9,letterSpacing:.3}}>{label}</span>
+              </button>
+            );
+          })}
+          {/* More button */}
+          <button onClick={()=>setMenuOpen(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
+            <span style={{fontSize:20,lineHeight:1}}>☰</span>
+            <span style={{fontSize:9,letterSpacing:.3}}>More</span>
+          </button>
+        </div>
+      </>
+      </div>
+    );
+  }
+
+  // Desktop sidebar (unchanged)
   return (
     <div style={{width:collapsed?54:200,flexShrink:0,background:t.CARD,borderRight:"1px solid "+t.BORDER,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,transition:"width .2s",overflow:"hidden"}}>
       <div style={{padding:collapsed?"12px 8px":"14px 14px",borderBottom:"1px solid "+t.BORDER,display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between"}}>
@@ -3199,6 +3293,7 @@ function App(){
   const[celebration,setCelebration]=useState(null);
   const[seenMilestones,setSeenMilestones]=useState([]);
   const[showRecalibrate,setShowRecalibrate]=useState(false);
+  const isMobile=useIsMobile();
   const market=useMarket();
   const portfolio=usePortfolio(holdings);
   const cryptoPortfolio=useCrypto(cryptoHoldings);
@@ -3307,7 +3402,7 @@ function App(){
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel}/>
-      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto"}}>
         {!profile&&(
           <div style={{background:t.GOLD+"14",borderBottom:"1px solid "+t.GOLD+"33",padding:"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Demo Mode - William Sterling</div>
@@ -3315,7 +3410,7 @@ function App(){
           </div>
         )}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
-          <div style={{width:"100%",maxWidth:1100,padding:"28px 32px",flex:1}}>
+          <div style={{width:"100%",maxWidth:1100,padding:"28px 32px",flex:1,paddingBottom:"calc(28px + env(safe-area-inset-bottom) + 60px)"}}>
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
