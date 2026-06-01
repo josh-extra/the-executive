@@ -1409,8 +1409,19 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
                 <PB value={g.progress||0} color={col} height={4}/>
                 {(g.targetValue||g.currentValue)&&(
                   <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{g.currentValue?(g.currentValue+(g.unit?" "+g.unit:"")+" current"):"Starting out"}</span>
-                    {g.targetValue&&<span style={{fontSize:9,color:col,fontFamily:"sans-serif"}}>{g.targetValue+(g.unit?" "+g.unit:"")+" target"}</span>}
+                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>
+                      {g.currentValue?(g.currentValue+(g.unit?" "+g.unit:"")):"--"}
+                    </span>
+                    {g.targetValue&&(
+                      <span style={{fontSize:9,color:col,fontFamily:"sans-serif"}}>
+                        {g.targetValue+(g.unit?" "+g.unit+"  target":"  target")}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {milestones.length>0&&(
+                  <div style={{marginTop:4,fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>
+                    {doneMilestones+"/"+milestones.length+" milestones complete"}
                   </div>
                 )}
               </div>
@@ -1418,14 +1429,50 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
               {/* Expanded content */}
               {isExpanded&&(
                 <div style={{borderTop:"1px solid "+t.BORDER}}>
-                  {/* Progress controls */}
-                  <div style={{padding:"10px 16px",display:"flex",alignItems:"center",gap:8,borderBottom:"1px solid "+t.BORDER}}>
-                    <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Progress:</span>
-                    <button onClick={()=>setProgress(g.id,(g.progress||0)-10)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>-</button>
-                    <input type="range" min={0} max={100} value={g.progress||0} onChange={e=>setProgress(g.id,parseInt(e.target.value))} style={{flex:1,accentColor:col}}/>
-                    <button onClick={()=>setProgress(g.id,(g.progress||0)+10)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 10px",color:col,cursor:"pointer",fontSize:12}}>+</button>
-                    <button onClick={()=>setProgress(g.id,100)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"3px 9px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Done</button>
-                    <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                  {/* Smart progress controls */}
+                  <div style={{padding:"12px 16px",borderBottom:"1px solid "+t.BORDER}}>
+                    {/* Auto from milestones */}
+                    {milestones.length>0&&(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Progress auto-calculated from milestones</div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>{const p=milestones.length?Math.round(doneMilestones/milestones.length*100):0;setProgress(g.id,p);}} style={{background:col+"18",border:"1px solid "+col+"33",borderRadius:5,padding:"3px 9px",color:col,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Sync</button>
+                          <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Numeric update if targetValue set */}
+                    {g.targetValue&&!milestones.length&&(
+                      <div style={{marginBottom:8}}>
+                        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Update current value to recalculate progress</div>
+                        <div style={{display:"flex",gap:7,alignItems:"center"}}>
+                          <Inp
+                            type="number"
+                            defaultValue={g.currentValue||""}
+                            onBlur={e=>{
+                              const cur=parseFloat(e.target.value)||0;
+                              const target=parseFloat(g.targetValue)||1;
+                              const pct=Math.min(Math.round(cur/target*100),100);
+                              setGoals(gs=>gs.map(x=>x.id===g.id?{...x,currentValue:String(cur),progress:pct}:x));
+                            }}
+                            placeholder={"Current "+(g.unit||"value")}
+                            style={{flex:1,fontSize:12,padding:"6px 10px"}}
+                          />
+                          {g.unit&&<span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.unit}</span>}
+                          <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{"of "+(g.targetValue)+(g.unit?" "+g.unit:"")}</span>
+                          <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Fallback slider for non-numeric, no-milestone goals */}
+                    {!g.targetValue&&!milestones.length&&(
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.progress||0+"%"}</span>
+                        <input type="range" min={0} max={100} value={g.progress||0} onChange={e=>setProgress(g.id,parseInt(e.target.value))} style={{flex:1,accentColor:col}}/>
+                        <button onClick={()=>setProgress(g.id,100)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"3px 9px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",flexShrink:0}}>Done</button>
+                        <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Milestones */}
