@@ -1387,11 +1387,38 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             <PB value={Math.min(Math.round(nw/nwT*100),100)} color={t.GOLD} height={4}/>
           </div>
         </Card>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,alignContent:"start"}}>
-          <StatCard label="Total Assets" value={fmt(profile.totalAssets||0)} color={t.GREEN}/>
-          <StatCard label="Total Debt" value={fmt(profile.totalDebt||0)} color={t.RED}/>
-          <StatCard label="Annual Income" value={fmt(parseFloat(profile.annualIncome)||0)} color={t.GOLD}/>
-          <StatCard label="After Tax" value={fmt((parseFloat(profile.annualIncome)||0)-calcTax(parseFloat(profile.annualIncome)||0))} color={t.BLUE}/>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <Card style={{padding:"12px 14px"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Net Equity Breakdown</div>
+            {[
+              {l:"Property",asset:parseFloat(profile.propertyValue)||0,debt:parseFloat(profile.mortgageDebt)||0,c:"#7A9E7E"},
+              {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:parseFloat(profile.investLoanDebt)||0,c:t.GOLD},
+              {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
+              {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:parseFloat(profile.creditCardDebt)||0+parseFloat(profile.personalDebt)||0,c:"#7EB8C9"},
+              {l:"Crypto",asset:parseFloat(profile.cryptoValue)||0,debt:0,c:t.PURPLE},
+              {l:"Car / Other",asset:0,debt:parseFloat(profile.carDebt)||0,c:t.RED},
+            ].filter(r=>r.asset>0||r.debt>0).map(r=>{
+              const equity=r.asset-r.debt;
+              return (
+                <div key={r.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid "+t.BORDER}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:r.c,flexShrink:0}}/>
+                    <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{r.l}</span>
+                    {r.debt>0&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"(-"+fmt(r.debt)+")"}</span>}
+                  </div>
+                  <span style={{fontSize:12,color:equity>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(equity>=0?"+":"")+fmt(equity)}</span>
+                </div>
+              );
+            })}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:8,marginTop:4}}>
+              <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:700}}>Net Worth</span>
+              <span style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt(nw)}</span>
+            </div>
+          </Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <StatCard label="Annual Income" value={fmt(parseFloat(profile.annualIncome)||0)} color={t.GOLD}/>
+            <StatCard label="After Tax" value={fmt((parseFloat(profile.annualIncome)||0)-calcTax(parseFloat(profile.annualIncome)||0))} color={t.GREEN}/>
+          </div>
         </div>
       </div>
       <Card style={{marginBottom:14}}>
@@ -2592,17 +2619,18 @@ function WorkoutPage({workouts,setWorkouts}){
 function ReadingPage({books,setBooks}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
-  const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300});
+  const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300,review:"",rating:0,dateFinished:todayStr()});  // already updated
+  const[expandDone,setExpandDone]=useState({});
   const[notePrompt,setNotePrompt]=useState(null);
   const[expandNotes,setExpandNotes]=useState({});
   const[annualGoal,setAnnualGoal]=useState(24);
   const[editGoal,setEditGoal]=useState(false);
   const add=()=>{
     if(!form.title)return;
-    setBooks(bs=>[...bs,{...form,id:Date.now(),cur:Number(form.cur||0),tot:Number(form.tot||300),readingNotes:[]}]);
-    setForm({title:"",author:"",status:"reading",cur:0,tot:300});
+    setBooks(bs=>[...bs,{...form,id:Date.now(),cur:form.status==="done"?Number(form.tot||300):Number(form.cur||0),tot:Number(form.tot||300),readingNotes:[],dateFinished:form.status==="done"?form.dateFinished||todayStr():null}]);
+    setForm({title:"",author:"",status:"reading",cur:0,tot:300,review:"",rating:0,dateFinished:todayStr()});
     setShowAdd(false);
-  };
+  };  // already updated
   const addPages=(bookId,n)=>{
     const book=(books||[]).find(b=>b.id===bookId);
     if(!book)return;
@@ -2615,15 +2643,24 @@ function ReadingPage({books,setBooks}){
     const book=(books||[]).find(b=>b.id===bookId);
     if(!book)return;
     const fromPage=book.cur;
-    setBooks(bs=>bs.map(b=>b.id===bookId?{...b,cur:b.tot,status:"done"}:b));
-    setNotePrompt({bookId,fromPage,toPage:book.tot,text:""});
+    setBooks(bs=>bs.map(b=>b.id===bookId?{...b,cur:b.tot,status:"done",dateFinished:todayStr()}:b));
+    setNotePrompt({bookId,fromPage,toPage:book.tot,text:"",isFinish:true,rating:0,review:""});
   };
   const saveNote=()=>{
     if(!notePrompt)return;
-    if(notePrompt.text.trim()){
-      const entry={id:Date.now(),date:todayStr(),fromPage:notePrompt.fromPage,toPage:notePrompt.toPage,text:notePrompt.text.trim()};
-      setBooks(bs=>bs.map(b=>b.id===notePrompt.bookId?{...b,readingNotes:[...(b.readingNotes||[]),entry]}:b));
-    }
+    setBooks(bs=>bs.map(b=>{
+      if(b.id!==notePrompt.bookId)return b;
+      const updates={};
+      if(notePrompt.text.trim()){
+        const entry={id:Date.now(),date:todayStr(),fromPage:notePrompt.fromPage,toPage:notePrompt.toPage,text:notePrompt.text.trim()};
+        updates.readingNotes=[...(b.readingNotes||[]),entry];
+      }
+      if(notePrompt.isFinish){
+        if(notePrompt.rating>0)updates.rating=notePrompt.rating;
+        if(notePrompt.review.trim())updates.review=notePrompt.review.trim();
+      }
+      return{...b,...updates};
+    }));
     setNotePrompt(null);
   };
   const cats={reading:(books||[]).filter(b=>b.status==="reading"),next:(books||[]).filter(b=>b.status==="next"),done:(books||[]).filter(b=>b.status==="done")};
@@ -2677,20 +2714,53 @@ function ReadingPage({books,setBooks}){
 
       {notePrompt&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"66"}}>
-          <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Session Note</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>
-            {"Pages "+notePrompt.fromPage+" - "+notePrompt.toPage+" - What stood out?"}
-          </div>
-          <textarea
-            autoFocus
-            value={notePrompt.text}
-            onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
-            placeholder="Key idea, quote, or reflection... (optional)"
-            rows={3}
-            style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
-          />
+          {notePrompt.isFinish?(
+            <>
+              <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Book Finished!</div>
+              <div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",marginBottom:14}}>How would you rate it?</div>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}>
+                {[1,2,3,4,5].map(n=>(
+                  <button key={n} onClick={()=>setNotePrompt(p=>({...p,rating:n}))} style={{width:36,height:36,borderRadius:"50%",border:"1px solid "+(n<=(notePrompt.rating||0)?t.GOLD:t.BORDER),background:n<=(notePrompt.rating||0)?t.GOLD+"22":"transparent",color:n<=(notePrompt.rating||0)?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:14,fontWeight:700}}>
+                    {n}
+                  </button>
+                ))}
+                {notePrompt.rating>0&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{["","One star","Two stars","Three stars","Four stars","Five stars"][notePrompt.rating]}</span>}
+              </div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Review / Key Takeaways (optional)</div>
+              <textarea
+                value={notePrompt.review||""}
+                onChange={e=>setNotePrompt(p=>({...p,review:e.target.value}))}
+                placeholder="What did you think? Key ideas, favourite quotes, would you recommend it?"
+                rows={3}
+                style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box",marginBottom:10}}
+              />
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Final Session Note (optional)</div>
+              <textarea
+                value={notePrompt.text}
+                onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
+                placeholder="Last pages - anything that stood out?"
+                rows={2}
+                style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
+              />
+            </>
+          ):(
+            <>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:4}}>Session Note</div>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>
+                {"Pages "+notePrompt.fromPage+" - "+notePrompt.toPage+" - What stood out?"}
+              </div>
+              <textarea
+                autoFocus
+                value={notePrompt.text}
+                onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
+                placeholder="Key idea, quote, or reflection... (optional)"
+                rows={3}
+                style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
+              />
+            </>
+          )}
           <div style={{display:"flex",gap:8,marginTop:10}}>
-            <Btn onClick={saveNote}>Save Note</Btn>
+            <Btn onClick={saveNote}>{notePrompt.isFinish?"Save":"Save Note"}</Btn>
             <Btn onClick={()=>setNotePrompt(null)} variant="ghost">Skip</Btn>
           </div>
         </Card>
@@ -2704,15 +2774,40 @@ function ReadingPage({books,setBooks}){
             <div style={{display:"flex",gap:8}}>
               <Inp value={form.author} onChange={e=>setForm(f=>({...f,author:e.target.value}))} placeholder="Author" style={{flex:2}}/>
               <Sel value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))} style={{flex:1}}>
-                <option value="reading">Reading</option>
+                <option value="reading">Currently Reading</option>
                 <option value="next">Up Next</option>
-                <option value="done">Done</option>
+                <option value="done">Already Read</option>
               </Sel>
             </div>
-            <div style={{display:"flex",gap:8}}>
-              <Inp type="number" value={form.cur} onChange={e=>setForm(f=>({...f,cur:e.target.value}))} placeholder="Current page" style={{flex:1}}/>
-              <Inp type="number" value={form.tot} onChange={e=>setForm(f=>({...f,tot:e.target.value}))} placeholder="Total pages" style={{flex:1}}/>
-            </div>
+            {form.status!=="done"&&(
+              <div style={{display:"flex",gap:8}}>
+                <Inp type="number" value={form.cur} onChange={e=>setForm(f=>({...f,cur:e.target.value}))} placeholder="Current page" style={{flex:1}}/>
+                <Inp type="number" value={form.tot} onChange={e=>setForm(f=>({...f,tot:e.target.value}))} placeholder="Total pages" style={{flex:1}}/>
+              </div>
+            )}
+            {form.status==="done"&&(
+              <>
+                <div style={{display:"flex",gap:8}}>
+                  <Inp type="number" value={form.tot} onChange={e=>setForm(f=>({...f,tot:e.target.value}))} placeholder="Total pages (optional)" style={{flex:1}}/>
+                  <Inp type="date" value={form.dateFinished} onChange={e=>setForm(f=>({...f,dateFinished:e.target.value}))} style={{flex:1}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Your Rating</div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    {[1,2,3,4,5].map(n=>(
+                      <button key={n} onClick={()=>setForm(f=>({...f,rating:n}))} style={{width:32,height:32,borderRadius:"50%",border:"1px solid "+(n<=form.rating?t.GOLD:t.BORDER),background:n<=form.rating?t.GOLD+"22":"transparent",color:n<=form.rating?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700}}>
+                        {n}
+                      </button>
+                    ))}
+                    {form.rating>0&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{["","One star","Two stars","Three stars","Four stars","Five stars"][form.rating]}</span>}
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Review and Notes</div>
+                  <textarea value={form.review} onChange={e=>setForm(f=>({...f,review:e.target.value}))} placeholder="What did you think? Key takeaways, favourite ideas, quotes..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box"}}/>
+                </div>
+              </>
+            )}
             <div style={{display:"flex",gap:8}}><Btn onClick={add}>Add</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn></div>
           </div>
         </Card>
@@ -2736,11 +2831,46 @@ function ReadingPage({books,setBooks}){
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
                       {b.status==="reading"&&<span style={{fontSize:11,color:col,fontFamily:"sans-serif",fontWeight:600}}>{pct+"%"}</span>}
-                      {b.status==="done"&&<span style={{fontSize:10,color:t.GREEN,fontFamily:"sans-serif"}}>Done</span>}
+                      {b.status==="done"&&(
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          {b.rating>0&&(
+                            <div style={{display:"flex",gap:3,marginBottom:3,justifyContent:"flex-end"}}>
+                              {[1,2,3,4,5].map(n=>(
+                                <div key={n} style={{width:10,height:10,borderRadius:"50%",background:n<=b.rating?t.GOLD:t.BORDER2}}/>
+                              ))}
+                            </div>
+                          )}
+                          <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{b.dateFinished||"Done"}</span>
+                        </div>
+                      )}
                       <button onClick={()=>setBooks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
                     </div>
                   </div>
 
+                  {b.status==="done"&&(b.review||(b.readingNotes||[]).length>0)&&(
+                    <div style={{marginTop:8}}>
+                      <button onClick={()=>setExpandDone(x=>({...x,[b.id]:!x[b.id]}))} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,padding:0,display:"flex",alignItems:"center",gap:4}}>
+                        {expandDone[b.id]?"Hide ":"Show "}
+                        {[b.review?"my review":null,(b.readingNotes||[]).length>0?((b.readingNotes||[]).length+" notes"):null].filter(Boolean).join(" and ")}
+                      </button>
+                      {expandDone[b.id]&&(
+                        <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:10}}>
+                          {b.review&&(
+                            <div style={{padding:"10px 12px",background:t.CARD2,borderRadius:7,borderLeft:"2px solid "+col}}>
+                              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>My Review</div>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"Georgia,serif",lineHeight:1.75}}>{b.review}</div>
+                            </div>
+                          )}
+                          {(b.readingNotes||[]).map(n=>(
+                            <div key={n.id} style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,borderLeft:"2px solid "+col}}>
+                              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>{"p."+n.fromPage+" - p."+n.toPage+" - "+n.date}</div>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"Georgia,serif",lineHeight:1.7}}>{n.text}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {b.status==="reading"&&(
                     <>
                       <PB value={pct} color={col} height={4}/>
@@ -3265,12 +3395,266 @@ function BudgetPage({transactions,budgets,setBudgets}){
   );
 }
 
+function SetupPage({onComplete}){
+  const t=T();
+  const[step,setStep]=useState(0);
+  const[p,setP]=useState({
+    firstName:"",lastName:"",age:"",location:"",occupation:"",
+    height:"",weight:"",targetWeight:"",bodyFat:"",sleepHours:"",
+    healthGoals:[],currentHabits:[],riskProfile:"Growth - accept volatility",
+    annualIncome:"",propertyValue:"",mortgageDebt:"",investLoanDebt:"",
+    cashSavings:"",superBalance:"",carDebt:"",creditCardDebt:"",personalDebt:"",
+    netWorthTarget:""
+  });
+  const[initGoals,setInitGoals]=useState([]);
+  const[initSupps,setInitSupps]=useState([]);
+  const[newGoal,setNewGoal]=useState({title:"",period:"month",category:"financial"});
+  const[newSupp,setNewSupp]=useState({name:"",dose:"",time:"morning",purpose:""});
+
+  const STEPS=[
+    "welcome","personal","body","healthgoals","habits","supplements","goals","financial","risk","done"
+  ];
+  const cur=STEPS[step];
+  const prog=step/(STEPS.length-1);
+
+  const upd=(k,v)=>setP(x=>({...x,[k]:v}));
+  const toggleArr=(k,v)=>setP(x=>({...x,[k]:x[k].includes(v)?x[k].filter(i=>i!==v):[...x[k],v]}));
+
+  const next=()=>setStep(s=>Math.min(s+1,STEPS.length-1));
+  const back=()=>setStep(s=>Math.max(s-1,0));
+
+  const finish=()=>{
+    const tA=(parseFloat(p.propertyValue)||0)+(parseFloat(p.cashSavings)||0)+(parseFloat(p.superBalance)||0);
+    const tD=(parseFloat(p.mortgageDebt)||0)+(parseFloat(p.investLoanDebt)||0)+(parseFloat(p.carDebt)||0)+(parseFloat(p.creditCardDebt)||0)+(parseFloat(p.personalDebt)||0);
+    onComplete({
+      profile:{...p,totalAssets:tA,totalDebt:tD,netWorth:tA-tD,shareValue:0,cryptoValue:0},
+      goals:initGoals.map((g,i)=>({...g,id:Date.now()+i,progress:0})),
+      supplements:initSupps.map((s,i)=>({...s,id:Date.now()+i,taken:false}))
+    });
+  };
+
+  const HEALTH_GOALS=["Build Muscle","Lose Fat","Improve Sleep","Boost Testosterone","Increase Energy","Improve HRV","Reduce Stress","Longevity","Improve Cardio","Flexibility"];
+  const HABITS_LIST=["Morning Routine","Cold Exposure","Meditation","Journalling","Strength Training","Reading Daily","Intermittent Fasting","No Alcohol","Evening Walk","Gratitude Practice"];
+  const SUPP_PRESETS=[{name:"Vitamin D3+K2",dose:"5000 IU",time:"morning",purpose:"Immunity & bone health"},{name:"Magnesium Glycinate",dose:"400mg",time:"evening",purpose:"Sleep & recovery"},{name:"Omega-3 Fish Oil",dose:"2g",time:"morning",purpose:"Inflammation & heart"},{name:"Creatine Monohydrate",dose:"5g",time:"morning",purpose:"Strength & cognition"},{name:"Zinc",dose:"25mg",time:"evening",purpose:"Testosterone & immunity"},{name:"Ashwagandha",dose:"600mg",time:"evening",purpose:"Stress & cortisol"}];
+
+  const inp=(k,label,ph,type="text")=>(
+    <div key={k}>
+      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{label}</div>
+      <Inp type={type} value={p[k]||""} onChange={e=>upd(k,e.target.value)} placeholder={ph}/>
+    </div>
+  );
+
+  if(cur==="welcome") return (
+    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center"}}>
+      <div style={{fontSize:9,letterSpacing:5,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:20}}>The Executive</div>
+      <div style={{width:40,height:1,background:t.GOLD,marginBottom:28,opacity:.5}}/>
+      <div style={{fontSize:30,color:t.TEXT,lineHeight:1.3,marginBottom:16}}>Your Personal Dashboard</div>
+      <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.8,maxWidth:300,marginBottom:40}}>
+        Wealth. Health. Performance.<br/>Everything in one private place.<br/><br/>
+        <span style={{fontSize:11,opacity:.7}}>Your data stays on your device. Nothing is shared.</span>
+      </div>
+      <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:t.BG,cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin Setup</button>
+      <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textDecoration:"underline"}}>Skip — explore demo first</button>
+    </div>
+  );
+
+  if(cur==="done") return (
+    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center"}}>
+      <div style={{fontSize:48,marginBottom:20}}>V</div>
+      <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:12}}>You're all set</div>
+      <div style={{fontSize:26,color:t.TEXT,marginBottom:12}}>{"Welcome, "+(p.firstName||"Executive")}</div>
+      <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.8,maxWidth:300,marginBottom:40}}>Your dashboard is personalised and ready. You can fill in any skipped sections later from within each page.</div>
+      <button onClick={finish} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:t.BG,cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Enter The Executive</button>
+    </div>
+  );
+
+  return (
+    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",maxWidth:540,margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{padding:"16px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif"}}>Setup</div>
+        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{step-1+" / "+(STEPS.length-3)}</div>
+      </div>
+      <div style={{margin:"8px 20px 0",height:2,background:t.BORDER,borderRadius:99,overflow:"hidden"}}>
+        <div style={{width:(prog*100)+"%",height:"100%",background:"linear-gradient(90deg,"+t.GOLD+","+t.GL+")",transition:"width .4s"}}/>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:"24px 20px 120px"}}>
+
+        {cur==="personal"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Personal</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:20}}>Tell us about yourself</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{display:"flex",gap:10}}>{inp("firstName","First Name","William")}{inp("lastName","Last Name","Sterling")}</div>
+              {inp("age","Age","34","number")}
+              {inp("location","City / State","Brisbane, QLD")}
+              {inp("occupation","Occupation","Founder / Investor")}
+            </div>
+          </div>
+        )}
+
+        {cur==="body"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Body Metrics</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Physical baseline</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Used for body tracking and health scoring. You can skip this and add later.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{display:"flex",gap:10}}>{inp("height","Height (cm)","182","number")}{inp("weight","Weight (kg)","85","number")}</div>
+              <div style={{display:"flex",gap:10}}>{inp("targetWeight","Target Weight (kg)","80","number")}{inp("bodyFat","Body Fat %","18","number")}</div>
+              {inp("sleepHours","Average Sleep (hrs)","7.5","number")}
+            </div>
+          </div>
+        )}
+
+        {cur==="healthgoals"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Health Goals</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What are you working toward?</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Select all that apply. Used to personalise supplement and health recommendations.</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {HEALTH_GOALS.map(g=>{
+                const on=p.healthGoals.includes(g);
+                return <button key={g} onClick={()=>toggleArr("healthGoals",g)} style={{padding:"8px 14px",borderRadius:20,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"22":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>{on?"V ":""}{g}</button>;
+              })}
+            </div>
+          </div>
+        )}
+
+        {cur==="habits"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Daily Habits</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What do you already practise?</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>These will be added to your habit tracker automatically.</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              {HABITS_LIST.map(h=>{
+                const on=p.currentHabits.includes(h);
+                return <button key={h} onClick={()=>toggleArr("currentHabits",h)} style={{padding:"8px 14px",borderRadius:20,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"22":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>{on?"V ":""}{h}</button>;
+              })}
+            </div>
+          </div>
+        )}
+
+        {cur==="supplements"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Supplements</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Your current stack</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:16}}>Select from common supplements or skip — you can manage these in the Health tab.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+              {SUPP_PRESETS.map(s=>{
+                const on=initSupps.some(x=>x.name===s.name);
+                return (
+                  <div key={s.name} onClick={()=>setInitSupps(ss=>on?ss.filter(x=>x.name!==s.name):[...ss,s])} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:on?t.GOLD+"18":t.CARD,border:"1px solid "+(on?t.GOLD:t.BORDER),borderRadius:8,cursor:"pointer"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{s.name}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>{" - "+s.dose}</span></div>
+                      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{s.purpose}</div>
+                    </div>
+                    <div style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      {on&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{""+initSupps.length+" selected. Add custom supplements in the Health tab."}</div>
+          </div>
+        )}
+
+        {cur==="goals"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Goals</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Set your first goals</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:16}}>Add 1-3 to get started. You can add more anytime from the Goals tab.</div>
+            {initGoals.map((g,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,marginBottom:8}}>
+                <div>
+                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{g.title}</div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{g.category+" - "+g.period}</div>
+                </div>
+                <button onClick={()=>setInitGoals(gs=>gs.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
+              </div>
+            ))}
+            {initGoals.length<5&&(
+              <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",marginTop:8}}>
+                <Inp value={newGoal.title} onChange={e=>setNewGoal(g=>({...g,title:e.target.value}))} placeholder="Goal title..." style={{marginBottom:8}}/>
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <Sel value={newGoal.period} onChange={e=>setNewGoal(g=>({...g,period:e.target.value}))} style={{flex:1}}>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                    <option value="year">This Year</option>
+                  </Sel>
+                  <Sel value={newGoal.category} onChange={e=>setNewGoal(g=>({...g,category:e.target.value}))} style={{flex:1}}>
+                    {["financial","career","health","education","personal"].map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+                  </Sel>
+                </div>
+                <Btn onClick={()=>{if(!newGoal.title.trim())return;setInitGoals(gs=>[...gs,{...newGoal}]);setNewGoal({title:"",period:"month",category:"financial"});}}>Add Goal</Btn>
+              </div>
+            )}
+          </div>
+        )}
+
+        {cur==="financial"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Finances</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Your financial position</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Shares and crypto are tracked separately in the Wealth tab. Skip anything you prefer not to enter now.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {inp("annualIncome","Annual Income (AUD)","320,000","number")}
+              <div style={{height:1,background:t.BORDER}}/>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Property</div>
+              <div style={{display:"flex",gap:10}}>{inp("propertyValue","Property Value","1,000,000","number")}{inp("mortgageDebt","Mortgage Owing","900,000","number")}</div>
+              <div style={{height:1,background:t.BORDER}}/>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Other</div>
+              <div style={{display:"flex",gap:10}}>{inp("cashSavings","Cash & Savings","50,000","number")}{inp("superBalance","Superannuation","150,000","number")}</div>
+              <div style={{height:1,background:t.BORDER}}/>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Other Debts</div>
+              <div style={{display:"flex",gap:10}}>{inp("carDebt","Car Finance","0","number")}{inp("creditCardDebt","Credit Cards","0","number")}</div>
+              {inp("personalDebt","Personal Loans","0","number")}
+            </div>
+          </div>
+        )}
+
+        {cur==="risk"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Investment Profile</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Risk & targets</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Used to personalise your AI Advisor and investment ideas.</div>
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>Investment risk tolerance</div>
+              {["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"].map(r=>{
+                const on=p.riskProfile===r;
+                return <button key={r} onClick={()=>upd("riskProfile",r)} style={{display:"block",width:"100%",textAlign:"left",padding:"12px 14px",borderRadius:8,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"18":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,marginBottom:7}}>{on?"V  ":""}{r}</button>;
+              })}
+            </div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>Net Worth Target (AUD)</div>
+            <Inp type="number" value={p.netWorthTarget} onChange={e=>upd("netWorthTarget",e.target.value)} placeholder="3,000,000"/>
+          </div>
+        )}
+
+      </div>
+
+      {/* Footer buttons */}
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:540,padding:"12px 20px",background:"linear-gradient(transparent,"+t.BG+" 30%)",display:"flex",gap:10,paddingBottom:"calc(12px + env(safe-area-inset-bottom))"}}>
+        {step>1&&<button onClick={back} style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:14,color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:13}}>Back</button>}
+        <button onClick={cur==="risk"?next:next} style={{flex:3,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:14,color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
+          {cur==="risk"?"Finish Setup":"Continue"}
+        </button>
+        {["body","supplements","goals","financial"].includes(cur)&&(
+          <button onClick={next} style={{position:"absolute",top:-28,right:20,background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textDecoration:"underline"}}>Skip</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("dark");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
+  const[showSetup,setShowSetup]=useState(false);
   const[tasks,setTasks]=useState(D_TASKS);
   const[goals,setGoals]=useState(D_GOALS);
   const[completed,setCompleted]=useState([]);
@@ -3372,6 +3756,27 @@ function App(){
     prevNW.current=nw;
   },[profile?.netWorth]);
 
+  const handleSetupComplete=(data)=>{
+    if(!data){setShowSetup(false);return;} // skip - use demo
+    // Full reset of all data
+    setProfile(data.profile);
+    setTasks([]);
+    setGoals(data.goals||[]);
+    setCompleted([]);
+    setSupplements(data.supplements||[]);
+    setWorkouts([]);setTransactions([]);setJournal([]);
+    setBooks([]);setBills([]);setHistory({});setBodyLog([]);
+    // Build habits from selected habit names
+    const habitColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A"];
+    const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
+    setHabits((data.profile.currentHabits||[]).map((name,i)=>({id:Date.now()+i,name,icon:habitEmojis[name]||"X",color:habitColors[i%habitColors.length],target:7,timeOfDay:"morning"})));
+    setHabitLog({});setHoldings([]);setCryptoHoldings([]);
+    setSeenMilestones([]);setNwHistory({});setBudgets({});
+    setAdvisorMessages([]);
+    setShowSetup(false);
+    setPage("dashboard");
+  };
+
   if(!hydrated){
     return (
       <div style={{minHeight:"100vh",background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
@@ -3381,12 +3786,18 @@ function App(){
     );
   }
 
+  if(showSetup){
+    return <SetupPage onComplete={handleSetupComplete}/>;
+  }
+
   const handleReset=()=>{
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setBills([]);setHistory({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
+    setCryptoHoldings([]);setBudgets({});setAdvisorMessages([]);
+    setShowSetup(true);
     setPage("dashboard");
   };
 
@@ -3421,7 +3832,7 @@ function App(){
         ):(
           <div style={{background:t.GOLD+"14",borderBottom:"1px solid "+t.GOLD+"33",padding:"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Demo Mode - William Sterling</div>
-            <button onClick={()=>setPage("profile")} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
+            <button onClick={()=>setShowSetup(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
         ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
