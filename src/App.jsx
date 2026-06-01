@@ -906,6 +906,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const[showEmojiPicker,setShowEmojiPicker]=useState(false);
   const[expandHabit,setExpandHabit]=useState({});
   const[dragIdx,setDragIdx]=useState(null);
+  const[confirmDelete,setConfirmDelete]=useState(null);
 
   const EMOJIS=["🔥","💪","🧘","📚","🏃","🥗","💧","😴","🧠","\u2744\uFE0F","\u270D\uFE0F","🎯","🏋️","🚴","🧘","\u2600\uFE0F","🌙","\u26A1","🎵","🙏","💊","🥤","🍎","🫁","\u2764\uFE0F","🧘","🏊","🤸","📖","💰"];
   const TIME_GROUPS=["morning","afternoon","evening","anytime"];
@@ -1078,7 +1079,15 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                       <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,lineHeight:1,opacity:.6}}>▼</button>
                     </div>
                     <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.7}}>{isExpanded?"^":"v"}</button>
-                    <button onClick={()=>setHabits(hs=>hs.filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                    {confirmDelete===h.id?(
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
+                        <button onClick={()=>{setHabits(hs=>hs.filter(x=>x.id!==h.id));setConfirmDelete(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                        <button onClick={()=>setConfirmDelete(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                      </div>
+                    ):(
+                      <button onClick={()=>setConfirmDelete(h.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                    )}
                   </div>
 
                   <div style={{display:"flex",gap:5,marginBottom:isExpanded?10:0}}>
@@ -1154,6 +1163,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
   const[showMsAdd,setShowMsAdd]=useState(null);
   const[actionForm,setActionForm]=useState({text:"",frequency:"weekly",milestoneId:null,goalId:null});
   const[showActionAdd,setShowActionAdd]=useState(null);
+  const[confirmDeleteGoal,setConfirmDeleteGoal]=useState(null);
 
   const CATS=[
     {id:"wealth",label:"Wealth",color:"#C9A84C"},
@@ -1437,7 +1447,15 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
                         <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Progress auto-calculated from milestones</div>
                         <div style={{display:"flex",gap:6}}>
                           <button onClick={()=>{const p=milestones.length?Math.round(doneMilestones/milestones.length*100):0;setProgress(g.id,p);}} style={{background:col+"18",border:"1px solid "+col+"33",borderRadius:5,padding:"3px 9px",color:col,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Sync</button>
-                          <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                          {confirmDeleteGoal===g.id?(
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
+                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                      </div>
+                    ):(
+                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                    )}
                         </div>
                       </div>
                     )}
@@ -1460,7 +1478,15 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
                           />
                           {g.unit&&<span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.unit}</span>}
                           <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{"of "+(g.targetValue)+(g.unit?" "+g.unit:"")}</span>
-                          <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                          {confirmDeleteGoal===g.id?(
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
+                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                      </div>
+                    ):(
+                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                    )}
                         </div>
                       </div>
                     )}
@@ -1470,7 +1496,15 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
                         <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.progress||0+"%"}</span>
                         <input type="range" min={0} max={100} value={g.progress||0} onChange={e=>setProgress(g.id,parseInt(e.target.value))} style={{flex:1,accentColor:col}}/>
                         <button onClick={()=>setProgress(g.id,100)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"3px 9px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",flexShrink:0}}>Done</button>
-                        <button onClick={()=>setGoals(gs=>gs.filter(x=>x.id!==g.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                        {confirmDeleteGoal===g.id?(
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
+                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                      </div>
+                    ):(
+                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                    )}
                       </div>
                     )}
                   </div>
