@@ -4034,9 +4034,9 @@ function RecipesPage({profile}){
     try{
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-sonnet-4-6",
-        max_tokens:2000,
-        system:"You are a nutritionist and chef. Return ONLY valid JSON - no markdown, no explanation, just the JSON array.",
-        messages:[{role:"user",content:"Generate 6 recipe ideas for someone with these health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet preference: "+dietStr+". Return a JSON array of 6 recipes, each with: {title, mealType, prepTime, cookTime, difficulty, calories, protein, carbs, fat, whyItFits, ingredients: [{item, amount, category}], steps: [string], tags: [string]}. Categories for ingredients: Produce, Meat & Fish, Dairy & Eggs, Pantry, Spices, Other."}]
+        max_tokens:4000,
+        system:"You are a nutritionist and chef. You MUST return ONLY a valid JSON array with no markdown, no backticks, no explanation text before or after. Start your response with [ and end with ].",
+        messages:[{role:"user",content:"Generate 4 recipes for health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet: "+dietStr+". Return a JSON array of 4 objects. Each object must have exactly these fields: title (string), mealType (string), prepTime (string), cookTime (string), difficulty (string), calories (number), protein (number), carbs (number), fat (number), whyItFits (string), ingredients (array of {item, amount, category} where category is one of: Produce, Meat and Fish, Dairy and Eggs, Pantry, Spices, Other), steps (array of strings)."}]
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
