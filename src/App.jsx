@@ -1229,8 +1229,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
       const goalSummary=allGoals.map(g=>g.title+" ("+g.progress+"%"+" - "+g.category+")").join(", ");
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:600,messages:[{role:"user",content:"My goals: "+goalSummary+". Suggest 3 specific, actionable micro-actions I should take this week to make progress. For each: GOAL NAME | ACTION | FREQUENCY. Be direct and specific, not generic."}]})});
       const d=await r.json();
-      setAiSuggs((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("
-")||"Unable to generate.");
+      setAiSuggs((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiSuggs("Connection error.");}
     setAiLoading(false);
   };
