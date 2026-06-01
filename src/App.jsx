@@ -48,7 +48,7 @@ const NAV=[
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["tax","📋","Tax"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
-  ["workout","🏋","Workout"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
+  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["profile","👤","Profile"]
 ];
 const POPULAR_COINS=[
@@ -413,7 +413,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     ["Command",["dashboard","weekly","advisor"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","projector","cashflow","bills","budget","tax","debt","invest"]],
-    ["Health",["health","body","workout"]],
+    ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
 
@@ -4008,6 +4008,372 @@ function SetupPage({onComplete}){
   );
 }
 
+function RecipesPage({profile}){
+  const t=T();
+  const[mealFilter,setMealFilter]=useState("all");
+  const[goalFilter,setGoalFilter]=useState("all");
+  const[dietFilter,setDietFilter]=useState("all");
+  const[recipes,setRecipes]=useState([]);
+  const[loading,setLoading]=useState(false);
+  const[selected,setSelected]=useState(null);
+  const[favourites,setFavourites]=useState([]);
+  const[shoppingList,setShoppingList]=useState([]);
+  const[showShoppingList,setShowShoppingList]=useState(false);
+  const[tab,setTab]=useState("discover");
+
+  const MEAL_TYPES=["all","Breakfast","Lunch","Dinner","Snack","Post-Workout","Pre-Workout"];
+  const DIET_FILTERS=["all","High Protein","Low Carb","Keto","Mediterranean","Intermittent Fasting","Dairy Free","Gluten Free"];
+  const healthGoals=(profile.healthGoals||[]);
+
+  const generateRecipes=async()=>{
+    setLoading(true);setRecipes([]);setSelected(null);
+    const goalStr=healthGoals.join(", ")||"general health";
+    const mealStr=mealFilter==="all"?"any meal type":mealFilter;
+    const dietStr=dietFilter==="all"?"no specific diet":dietFilter;
+    const bodyStr=profile.weight?"Weight: "+profile.weight+"kg, Target: "+(profile.targetWeight||"?")+"kg":"";
+    try{
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:2000,
+        system:"You are a nutritionist and chef. Return ONLY valid JSON - no markdown, no explanation, just the JSON array.",
+        messages:[{role:"user",content:"Generate 6 recipe ideas for someone with these health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet preference: "+dietStr+". Return a JSON array of 6 recipes, each with: {title, mealType, prepTime, cookTime, difficulty, calories, protein, carbs, fat, whyItFits, ingredients: [{item, amount, category}], steps: [string], tags: [string]}. Categories for ingredients: Produce, Meat & Fish, Dairy & Eggs, Pantry, Spices, Other."}]
+      })});
+      const d=await r.json();
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const clean=text.replace(/```json|```/g,"").trim();
+      const parsed=JSON.parse(clean);
+      setRecipes(Array.isArray(parsed)?parsed:[]);
+    }catch(e){console.error(e);setRecipes([]);}
+    setLoading(false);
+  };
+
+  const addToShoppingList=(recipe)=>{
+    setShoppingList(sl=>{
+      const existing=[...sl];
+      (recipe.ingredients||[]).forEach(ing=>{
+        const key=ing.item.toLowerCase().trim();
+        if(!existing.find(x=>x.item.toLowerCase().trim()===key)){
+          existing.push({...ing,fromRecipe:recipe.title,checked:false,id:Date.now()+Math.random()});
+        }
+      });
+      return existing;
+    });
+  };
+
+  const downloadShoppingList=()=>{
+    const cats={};
+    shoppingList.forEach(item=>{
+      const cat=item.category||"Other";
+      if(!cats[cat])cats[cat]=[];
+      cats[cat].push(item);
+    });
+    let content="THE EXECUTIVE - SHOPPING LIST\n";
+    content+="Generated: "+new Date().toLocaleDateString("en-AU")+"\n\n";
+    Object.entries(cats).forEach(([cat,items])=>{
+      content+=cat.toUpperCase()+"\n";
+      content+="----------------------------\n";
+      items.forEach(item=>{
+        content+=(item.checked?"[x] ":"[ ] ")+item.amount+" "+item.item+"\n";
+      });
+      content+="\n";
+    });
+    const blob=new Blob([content],{type:"text/plain"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download="shopping-list.txt";a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const isFav=r=>favourites.some(f=>f.title===r.title);
+  const toggleFav=r=>setFavourites(fs=>isFav(r)?fs.filter(f=>f.title!==r.title):[...fs,r]);
+
+  const MacroBadge=({label,value,color})=>(
+    <div style={{textAlign:"center",background:color+"18",border:"1px solid "+color+"44",borderRadius:7,padding:"5px 10px",minWidth:52}}>
+      <div style={{fontSize:13,color:color,fontFamily:"sans-serif",fontWeight:700}}>{value}</div>
+      <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+    </div>
+  );
+
+  // Full recipe view
+  if(selected){
+    const r=selected;
+    const catGroups={};
+    (r.ingredients||[]).forEach(ing=>{
+      const cat=ing.category||"Other";
+      if(!catGroups[cat])catGroups[cat]=[];
+      catGroups[cat].push(ing);
+    });
+    return (
+      <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <button onClick={()=>setSelected(null)} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,display:"flex",alignItems:"center",gap:6}}>
+            {"< Back"}
+          </button>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>toggleFav(r)} style={{background:isFav(r)?t.GOLD+"22":"transparent",border:"1px solid "+(isFav(r)?t.GOLD:t.BORDER),borderRadius:7,padding:"6px 12px",color:isFav(r)?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+              {isFav(r)?"Saved":"Save"}
+            </button>
+            <button onClick={()=>{addToShoppingList(r);setSelected(null);setShowShoppingList(true);}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:7,padding:"6px 14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>
+              Add to Shopping List
+            </button>
+          </div>
+        </div>
+
+        <Card style={{marginBottom:14}}>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>{r.mealType}</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>{r.title}</div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12}}>
+              {[{l:"Prep",v:r.prepTime},{l:"Cook",v:r.cookTime},{l:"Difficulty",v:r.difficulty}].map(x=>(
+                <div key={x.l} style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"3px 9px",borderRadius:10}}>
+                  {x.l+": "+x.v}
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <MacroBadge label="Calories" value={r.calories} color={t.GOLD}/>
+              <MacroBadge label="Protein" value={r.protein+"g"} color={t.GREEN}/>
+              <MacroBadge label="Carbs" value={r.carbs+"g"} color={t.BLUE}/>
+              <MacroBadge label="Fat" value={r.fat+"g"} color={t.PURPLE}/>
+            </div>
+          </div>
+          {r.whyItFits&&(
+            <div style={{padding:"10px 12px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:7}}>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Why this fits your goals</div>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.7}}>{r.whyItFits}</div>
+            </div>
+          )}
+        </Card>
+
+        <Card style={{marginBottom:14}}>
+          <SectionLabel>Ingredients</SectionLabel>
+          {Object.entries(catGroups).map(([cat,items])=>(
+            <div key={cat} style={{marginBottom:12}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat}</div>
+              {items.map((ing,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+t.BORDER+"66"}}>
+                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{ing.item}</span>
+                  <span style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{ing.amount}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </Card>
+
+        <Card style={{marginBottom:14}}>
+          <SectionLabel>Method</SectionLabel>
+          {(r.steps||[]).map((step,i)=>(
+            <div key={i} style={{display:"flex",gap:12,marginBottom:14}}>
+              <div style={{width:24,height:24,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.GOLD,fontWeight:700,flexShrink:0}}>{i+1}</div>
+              <div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.75,paddingTop:2}}>{step}</div>
+            </div>
+          ))}
+        </Card>
+
+        <button onClick={()=>{addToShoppingList(r);setSelected(null);setShowShoppingList(true);}} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
+          Add to Shopping List
+        </button>
+      </div>
+    );
+  }
+
+  // Shopping list view
+  if(showShoppingList){
+    const cats={};
+    shoppingList.forEach(item=>{const cat=item.category||"Other";if(!cats[cat])cats[cat]=[];cats[cat].push(item);});
+    return (
+      <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Grocery List</div>
+            <div style={{fontSize:26,color:t.TEXT}}>Shopping List</div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{shoppingList.length+" items"}</div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setShowShoppingList(false)} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"7px 12px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Back</button>
+            <Btn onClick={downloadShoppingList}>Download</Btn>
+          </div>
+        </div>
+        {shoppingList.length===0?(
+          <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+            <div style={{fontSize:28,marginBottom:10}}>S</div>
+            <div>No items yet — add recipes to your shopping list</div>
+          </div>
+        ):(
+          <>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <button onClick={()=>setShoppingList(sl=>sl.map(x=>({...x,checked:true})))} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:7,padding:"6px 12px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Check All</button>
+              <button onClick={()=>setShoppingList(sl=>sl.filter(x=>!x.checked))} style={{background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:7,padding:"6px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Remove Checked</button>
+            </div>
+            {Object.entries(cats).map(([cat,items])=>(
+              <Card key={cat} style={{marginBottom:10}}>
+                <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>{cat}</div>
+                {items.map(item=>(
+                  <div key={item.id} onClick={()=>setShoppingList(sl=>sl.map(x=>x.id===item.id?{...x,checked:!x.checked}:x))} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+t.BORDER+"66",cursor:"pointer"}}>
+                    <div style={{width:18,height:18,borderRadius:4,border:"1.5px solid "+(item.checked?t.GREEN:t.BORDER),background:item.checked?t.GREEN:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      {item.checked&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
+                    </div>
+                    <div style={{flex:1}}>
+                      <span style={{fontSize:13,color:item.checked?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:item.checked?"line-through":"none"}}>{item.item}</span>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginLeft:8}}>{item.amount}</span>
+                    </div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{item.fromRecipe}</div>
+                  </div>
+                ))}
+              </Card>
+            ))}
+            <button onClick={downloadShoppingList} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginTop:8}}>
+              Download Shopping List
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Main discover view
+  return (
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Nutrition</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Recipes</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised to your health goals</div>
+        </div>
+        <button onClick={()=>setShowShoppingList(true)} style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+          {"List: "+shoppingList.length}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {[["discover","Discover"],["favourites","Saved"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+            {label}{id==="favourites"&&favourites.length>0?" ("+favourites.length+")":""}
+          </button>
+        ))}
+      </div>
+
+      {tab==="favourites"&&(
+        <div>
+          {favourites.length===0?(
+            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:28,marginBottom:10}}>R</div>
+              <div>No saved recipes yet — discover and save your favourites</div>
+            </div>
+          ):(
+            favourites.map((r,i)=>(
+              <Card key={i} style={{marginBottom:10,cursor:"pointer"}} onClick={()=>setSelected(r)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{r.mealType}</div>
+                    <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:6}}>{r.title}</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{r.calories+" cal"}</span>
+                      <span style={{fontSize:10,color:t.GREEN,fontFamily:"sans-serif"}}>{r.protein+"g protein"}</span>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{r.prepTime+" prep"}</span>
+                    </div>
+                  </div>
+                  <button onClick={e=>{e.stopPropagation();toggleFav(r);}} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontSize:16}}>S</button>
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
+
+      {tab==="discover"&&(
+        <>
+          {/* Your goals */}
+          {healthGoals.length>0&&(
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Your Goals</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {healthGoals.map(g=>(
+                  <div key={g} style={{padding:"3px 10px",borderRadius:10,background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",fontSize:10,color:t.GOLD,fontFamily:"sans-serif"}}>{g}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <Card style={{marginBottom:14}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Meal Type</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {MEAL_TYPES.map(m=>(
+                    <button key={m} onClick={()=>setMealFilter(m)} style={{padding:"4px 11px",borderRadius:14,border:"1px solid "+(mealFilter===m?t.GOLD:t.BORDER),background:mealFilter===m?t.GOLD+"22":"transparent",color:mealFilter===m?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+                      {m==="all"?"Any":m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Dietary Style</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {DIET_FILTERS.map(d=>(
+                    <button key={d} onClick={()=>setDietFilter(d)} style={{padding:"4px 11px",borderRadius:14,border:"1px solid "+(dietFilter===d?t.BLUE:t.BORDER),background:dietFilter===d?t.BLUE+"22":"transparent",color:dietFilter===d?t.BLUE:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+                      {d==="all"?"Any":d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Generate button */}
+          <button onClick={generateRecipes} disabled={loading} style={{width:"100%",background:loading?t.BORDER:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:loading?t.MUTED:t.BG,cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginBottom:16}}>
+            {loading?"Generating recipes...":"Generate Recipes for My Goals"}
+          </button>
+
+          {loading&&(
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {[1,2,3].map(i=><Card key={i} style={{padding:16}}><Skeleton height={14} width="60%" style={{marginBottom:8}}/><Skeleton height={10} width="40%" style={{marginBottom:12}}/><div style={{display:"flex",gap:8}}>{[1,2,3,4].map(j=><Skeleton key={j} width={52} height={40}/>)}</div></Card>)}
+            </div>
+          )}
+
+          {/* Recipe cards */}
+          {!loading&&recipes.length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {recipes.map((r,i)=>(
+                <Card key={i} style={{cursor:"pointer",padding:14}} onClick={()=>setSelected(r)}>
+                  <div style={{fontSize:8,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{r.mealType}</div>
+                  <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:6,lineHeight:1.3}}>{r.title}</div>
+                  <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:8}}>{r.prepTime}</span>
+                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:8}}>{r.difficulty}</span>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:10}}>
+                    {[{l:"Cal",v:r.calories,c:t.GOLD},{l:"Protein",v:r.protein+"g",c:t.GREEN},{l:"Carbs",v:r.carbs+"g",c:t.BLUE},{l:"Fat",v:r.fat+"g",c:t.PURPLE}].map(m=>(
+                      <div key={m.l} style={{background:m.c+"18",borderRadius:5,padding:"3px 6px",textAlign:"center"}}>
+                        <div style={{fontSize:11,color:m.c,fontWeight:700}}>{m.v}</div>
+                        <div style={{fontSize:7,color:t.MUTED,textTransform:"uppercase",letterSpacing:.5}}>{m.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <button onClick={e=>{e.stopPropagation();addToShoppingList(r);}} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 8px",color:t.GREEN,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>+ List</button>
+                    <button onClick={e=>{e.stopPropagation();toggleFav(r);}} style={{background:"none",border:"none",color:isFav(r)?t.GOLD:t.MUTED,cursor:"pointer",fontSize:14}}>{isFav(r)?"S":"S"}</button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {!loading&&recipes.length===0&&(
+            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:32,marginBottom:10}}>R</div>
+              <div style={{fontSize:14,marginBottom:8}}>Ready to cook?</div>
+              <div style={{fontSize:12}}>Tap Generate to get personalised recipe ideas based on your health goals</div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[profile,setProfile]=useState(null);
@@ -4210,6 +4576,7 @@ function App(){
           {page==="tax"&&<TaxPage profile={liveProfile}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile}/>}
           {page==="invest"&&<InvestPage profile={liveProfile}/>}
+          {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts}/>}
