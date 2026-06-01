@@ -361,7 +361,7 @@ function MorningBriefing({profile,tasks,onClose}){
       try{
         const highTasks=(tasks||[]).filter(tk=>tk.priority==="high").map(tk=>tk.text).join(", ");
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"});
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:700,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp morning briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Sections: MARKETS (search today), PRIORITIES (top 3 tasks), PULSE (one financial insight), MINDSET (one sentence). Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:700,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp morning briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Sections: MARKETS (search today), PRIORITIES (top 3 tasks), PULSE (one financial insight), MINDSET (one sentence). Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
         const d=await r.json();
         setBrief((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
       }catch{setBrief("Connection error.");}
@@ -1227,7 +1227,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
     setAiLoading(true);setAiSuggs("");
     try{
       const goalSummary=allGoals.map(g=>g.title+" ("+g.progress+"%"+" - "+g.category+")").join(", ");
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:600,messages:[{role:"user",content:"My goals: "+goalSummary+". Suggest 3 specific, actionable micro-actions I should take this week to make progress. For each: GOAL NAME | ACTION | FREQUENCY. Be direct and specific, not generic."}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:600,messages:[{role:"user",content:"My goals: "+goalSummary+". Suggest 3 specific, actionable micro-actions I should take this week to make progress. For each: GOAL NAME | ACTION | FREQUENCY. Be direct and specific, not generic."}]})});
       const d=await r.json();
       setAiSuggs((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiSuggs("Connection error.");}
@@ -2212,7 +2212,7 @@ function CashFlowPage({transactions,setTransactions}){
     try{
       const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
       const catList=[...EXP_CATS.income,...EXP_CATS.expense].join(", ");
-      const resp=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]})});
+      const resp=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]})});
       const d=await resp.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
       const parsed=JSON.parse(text);
@@ -2552,7 +2552,7 @@ function InvestPage({profile}){
   const getAi=async()=>{
     setLoading(true);
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
       const d=await r.json();
       setAiOpps((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiOpps("Connection error.");}
@@ -3273,7 +3273,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       const avgMood=weekJournal.length?(weekJournal.reduce((a,e)=>a+(e.mood||3),0)/weekJournal.length).toFixed(1):"?";
       const goalsSummary=(goals||[]).map(g=>g.title+" "+g.progress+"% ("+g.period+")").join(", ")||"none";
       const habitDetails=habitPerf.map(h=>h.name+": "+h.done+"/"+h.target).join("\n")||"none";
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
       const d=await r.json();
       setAiReview((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
     }catch{setAiReview("Connection error.");}
@@ -3377,7 +3377,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
     const q=text||input.trim();if(!q||loading)return;setInput("");
     const updated=[...msgs,{role:"user",content:q}];setMessages(updated);setLoading(true);
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-5-20251001",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:updated.map(m=>({role:m.role,content:m.content}))})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:updated.map(m=>({role:m.role,content:m.content}))})});
       const d=await r.json();
       const reply=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Try again.";
       setMessages(m=>[...m,{role:"assistant",content:reply}]);
