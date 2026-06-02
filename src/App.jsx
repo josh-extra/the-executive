@@ -4228,48 +4228,96 @@ function RecipesPage({profile}){
   if(showShoppingList){
     const cats={};
     shoppingList.forEach(item=>{const cat=item.category||"Other";if(!cats[cat])cats[cat]=[];cats[cat].push(item);});
+    const checkedCount=shoppingList.filter(x=>x.checked).length;
+    const totalItems=shoppingList.length;
+    const pctDone=totalItems?Math.round(checkedCount/totalItems*100):0;
+
+    // Category icons
+    const catIcons={"Produce":"V","Meat and Fish":"F","Dairy and Eggs":"D","Pantry":"P","Spices":"S","Other":"O","Protein":"P","Grain":"G","Fat":"F","Dairy":"D","Herb":"H","Seasoning":"S"};
+
     return (
-      <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      <div data-page="true" style={{maxWidth:540,margin:"0 auto"}}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Grocery List</div>
-            <div style={{fontSize:26,color:t.TEXT}}>Shopping List</div>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{shoppingList.length+" items"}</div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Grocery List</div>
+            <div style={{fontSize:24,color:t.TEXT}}>Shopping List</div>
           </div>
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setShowShoppingList(false)} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"7px 12px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Back</button>
             <Btn onClick={downloadShoppingList}>Download</Btn>
           </div>
         </div>
+
         {shoppingList.length===0?(
           <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
-            <div style={{fontSize:28,marginBottom:10}}>S</div>
-            <div>No items yet — add recipes to your shopping list</div>
+            <div style={{fontSize:32,marginBottom:10}}>C</div>
+            <div style={{marginBottom:6}}>Your list is empty</div>
+            <div style={{fontSize:11}}>Add recipes to build your shopping list</div>
           </div>
         ):(
           <>
-            <div style={{display:"flex",gap:8,marginBottom:14}}>
-              <button onClick={()=>setShoppingList(sl=>sl.map(x=>({...x,checked:true})))} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:7,padding:"6px 12px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Check All</button>
-              <button onClick={()=>setShoppingList(sl=>sl.filter(x=>!x.checked))} style={{background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:7,padding:"6px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Remove Checked</button>
+            {/* Progress bar */}
+            <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{checkedCount+" of "+totalItems+" items"}</div>
+                <div style={{fontSize:13,color:pctDone===100?t.GREEN:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{pctDone+"%"}</div>
+              </div>
+              <PB value={pctDone} color={pctDone===100?t.GREEN:t.GOLD} height={6}/>
+              {pctDone===100&&<div style={{fontSize:11,color:t.GREEN,fontFamily:"sans-serif",textAlign:"center",marginTop:8,fontWeight:600}}>All done! You're ready to cook.</div>}
             </div>
-            {Object.entries(cats).map(([cat,items])=>(
-              <Card key={cat} style={{marginBottom:10}}>
-                <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>{cat}</div>
-                {items.map(item=>(
-                  <div key={item.id} onClick={()=>setShoppingList(sl=>sl.map(x=>x.id===item.id?{...x,checked:!x.checked}:x))} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+t.BORDER+"66",cursor:"pointer"}}>
-                    <div style={{width:18,height:18,borderRadius:4,border:"1.5px solid "+(item.checked?t.GREEN:t.BORDER),background:item.checked?t.GREEN:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                      {item.checked&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
+
+            {/* Action buttons */}
+            <div style={{display:"flex",gap:8,marginBottom:16}}>
+              <button onClick={()=>setShoppingList(sl=>sl.map(x=>({...x,checked:false})))} style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"8px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Uncheck All</button>
+              <button onClick={()=>setShoppingList(sl=>sl.filter(x=>!x.checked))} style={{flex:1,background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:8,padding:"8px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Remove Checked</button>
+              <button onClick={()=>setShoppingList([])} style={{flex:1,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:8,padding:"8px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Clear All</button>
+            </div>
+
+            {/* Category sections */}
+            {Object.entries(cats).map(([cat,items])=>{
+              const catChecked=items.filter(x=>x.checked).length;
+              const allCatChecked=catChecked===items.length;
+              return (
+                <div key={cat} style={{marginBottom:12}}>
+                  {/* Category header */}
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                    <div style={{width:28,height:28,borderRadius:8,background:allCatChecked?t.GREEN+"22":t.GOLD+"18",border:"1px solid "+(allCatChecked?t.GREEN:t.GOLD)+"44",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:allCatChecked?t.GREEN:t.GOLD,fontWeight:700,flexShrink:0}}>
+                      {catIcons[cat]||cat[0]}
                     </div>
                     <div style={{flex:1}}>
-                      <span style={{fontSize:13,color:item.checked?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:item.checked?"line-through":"none"}}>{item.item}</span>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginLeft:8}}>{item.amount}</span>
+                      <div style={{fontSize:11,color:allCatChecked?t.MUTED:t.TEXT,fontFamily:"sans-serif",fontWeight:600,textDecoration:allCatChecked?"line-through":"none"}}>{cat}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{catChecked+"/"+items.length+" checked"}</div>
                     </div>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{item.fromRecipe}</div>
                   </div>
-                ))}
-              </Card>
-            ))}
-            <button onClick={downloadShoppingList} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginTop:8}}>
+
+                  {/* Items */}
+                  <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,overflow:"hidden"}}>
+                    {items.map((item,i)=>(
+                      <div key={item.id} onClick={()=>setShoppingList(sl=>sl.map(x=>x.id===item.id?{...x,checked:!x.checked}:x))}
+                        style={{display:"flex",alignItems:"center",gap:12,padding:"13px 14px",borderBottom:i<items.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:item.checked?t.CARD2:"transparent",transition:"background .15s"}}>
+                        {/* Checkbox */}
+                        <div style={{width:24,height:24,borderRadius:"50%",border:"2px solid "+(item.checked?t.GREEN:t.BORDER),background:item.checked?t.GREEN:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s"}}>
+                          {item.checked&&<span style={{fontSize:11,color:t.BG,fontWeight:700}}>V</span>}
+                        </div>
+                        {/* Item details */}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:14,color:item.checked?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:item.checked?"line-through":"none",fontWeight:500}}>{item.item}</div>
+                          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{item.fromRecipe}</div>
+                        </div>
+                        {/* Amount badge */}
+                        <div style={{background:item.checked?t.CARD:t.GOLD+"18",border:"1px solid "+(item.checked?t.BORDER:t.GOLD+"44"),borderRadius:6,padding:"3px 9px",flexShrink:0}}>
+                          <div style={{fontSize:12,color:item.checked?t.MUTED:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{item.amount}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Download button */}
+            <button onClick={downloadShoppingList} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginTop:8,marginBottom:20}}>
               Download Shopping List
             </button>
           </>
