@@ -625,7 +625,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         <Card style={{padding:"14px",cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>CASH FLOW - THIS MONTH</div>
           {monthIncome===0&&monthExpense===0?(
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No transactions yet</div>
+            <div style={{textAlign:"center",padding:"12px 0"}}>
+                <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>No transactions this month</div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Add income and expenses in Cash Flow</div>
+              </div>
           ):(
             <>
               <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
@@ -1816,6 +1819,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </div>
         )}
         {safeH.length>0&&sP.totalValue>0&&(
+          <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginLeft:-14,marginRight:-14,paddingLeft:14,paddingRight:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[{l:"Current Value",v:fmt(sP.totalValue),c:t.GOLD},{l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain),c:sP.totalGain>=0?t.GREEN:t.RED},{l:"Return",v:(sP.totalGainPct>=0?"+":"")+sP.totalGainPct.toFixed(1)+"%",c:sP.totalGainPct>=0?t.GREEN:t.RED}].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
@@ -1928,6 +1932,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             )}
           </div>
         )}
+        </div>
         {!(cryptoHoldings||[]).length&&!showCryptoAdd&&(
           <div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif"}}>
             <div style={{fontSize:28,marginBottom:8}}>₿</div>
@@ -1935,6 +1940,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             <div style={{fontSize:11}}>Add coins to track live AUD prices</div>
           </div>
         )}
+        <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginLeft:-14,marginRight:-14,paddingLeft:14,paddingRight:14}}>
         {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.totalValue>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[
@@ -2053,10 +2059,19 @@ function ProjectorPage({profile}){
     {l:"Return Rate",v:rr,set:setRr,min:2,max:15,step:1,sub:"% p.a."},
     {l:"Years",v:yrs,set:setYrs,min:3,max:30,step:1,sub:"To "+(new Date().getFullYear()+yrs)}
   ];
+  const hasFinancialData=(profile.annualIncome&&parseFloat(profile.annualIncome)>0)||(profile.netWorth&&parseFloat(profile.netWorth)>0);
   return (
     <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Planning</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Wealth Forecast</div>
+      {!hasFinancialData&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44",textAlign:"center",padding:32}}>
+          <div style={{fontSize:32,marginBottom:12}}>F</div>
+          <div style={{fontSize:16,color:t.TEXT,marginBottom:8}}>No financial data yet</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7,marginBottom:16}}>Add your income and net worth in your profile to see a personalised wealth projection across bull, base and bear scenarios.</div>
+          <Btn onClick={()=>{}}>Go to Profile</Btn>
+        </Card>
+      )}
       <Card style={{marginBottom:14}}>
         {controls.map(ctrl=>(
           <div key={ctrl.l} style={{marginBottom:14}}>
@@ -3430,13 +3445,32 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
   const curGoals=form.healthGoals||[];
   return (
     <div data-page="true" style={{maxWidth:640,margin:"0 auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Account</div>
           <div style={{fontSize:26,color:t.TEXT}}>Profile</div>
         </div>
         <Btn onClick={save}>{saved?"Saved":"Save Changes"}</Btn>
       </div>
+      {(()=>{
+        const fields=["firstName","lastName","age","location","occupation","height","weight","annualIncome","netWorthTarget"];
+        const filled=fields.filter(f=>profile[f]&&String(profile[f]).trim()).length;
+        const pct=Math.round(filled/fields.length*100);
+        return pct<100?(
+          <Card style={{marginBottom:16,borderColor:t.GOLD+"44"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"Profile "+pct+"% complete"}</div>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{(fields.length-filled)+" fields remaining"}</div>
+            </div>
+            <PB value={pct} color={t.GOLD} height={5}/>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8}}>A complete profile gives the AI Advisor better context and personalises your entire dashboard.</div>
+          </Card>
+        ):(
+          <Card style={{marginBottom:16,borderColor:t.GREEN+"44",padding:"10px 14px"}}>
+            <div style={{fontSize:11,color:t.GREEN,fontFamily:"sans-serif"}}>Profile complete</div>
+          </Card>
+        );
+      })()}
       <Card style={{marginBottom:12}}>
         <SectionLabel>Appearance</SectionLabel>
         <div style={{display:"flex",gap:8}}>
@@ -4097,12 +4131,16 @@ function RecipesPage({profile}){
         </div>
 
         <Card style={{marginBottom:14,overflow:"hidden",padding:0}}>
-          <img
-            src={"https://source.unsplash.com/featured/800x400/?"+encodeURIComponent(r.title+",food")}
-            alt={r.title}
-            style={{width:"100%",height:200,objectFit:"cover",display:"block"}}
-            onError={e=>{e.target.style.display="none";}}
-          />
+          {(()=>{
+            const colors=["#1A1208","#0D1A0D","#0D0D1A","#1A0D0D","#1A1A0D"];
+            const ci=r.title.charCodeAt(0)%colors.length;
+            return (
+              <div style={{width:"100%",height:200,background:"linear-gradient(135deg,"+colors[ci]+",#080808)",position:"relative",overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:80,opacity:.1}}>{r.mealType==="Breakfast"?"B":r.mealType==="Lunch"?"L":r.mealType==="Dinner"?"D":"F"}</div>
+                <img src={"https://source.unsplash.com/800x400/?"+encodeURIComponent(r.title+",food,meal")} alt={r.title} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:0,transition:"opacity .3s"}} onError={e=>{e.target.style.display="none";}} onLoad={e=>{e.target.style.opacity=1;}} loading="lazy"/>
+              </div>
+            );
+          })()}
           <div style={{padding:16}}>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>{r.mealType}</div>
@@ -4401,12 +4439,16 @@ function RecipesPage({profile}){
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {recipes.map((r,i)=>(
                 <Card key={i} style={{cursor:"pointer",padding:0,overflow:"hidden"}} onClick={()=>setSelected(r)}>
-                  <img
-                    src={"https://source.unsplash.com/featured/400x200/?"+encodeURIComponent(r.title+",food")}
-                    alt={r.title}
-                    style={{width:"100%",height:120,objectFit:"cover",display:"block"}}
-                    onError={e=>{e.target.style.display="none";}}
-                  />
+                  {(()=>{
+                    const colors=["#1A1208","#0D1A0D","#0D0D1A","#1A0D0D","#1A1A0D"];
+                    const ci=r.title.charCodeAt(0)%colors.length;
+                    return (
+                      <div style={{width:"100%",height:120,background:"linear-gradient(135deg,"+colors[ci]+",#080808)",display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+                        <div style={{fontSize:40,opacity:.15}}>{r.mealType==="Breakfast"?"B":r.mealType==="Lunch"?"L":r.mealType==="Dinner"?"D":r.mealType==="Snack"?"S":"F"}</div>
+                        <img src={"https://source.unsplash.com/400x200/?"+encodeURIComponent(r.title+",food,meal")} alt={r.title} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";}} onLoad={e=>{e.target.style.opacity=1;}} loading="lazy"/>
+                      </div>
+                    );
+                  })()}
                   <div style={{padding:12}}>
                   <div style={{fontSize:8,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{r.mealType}</div>
                   <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:6,lineHeight:1.3}}>{r.title}</div>
