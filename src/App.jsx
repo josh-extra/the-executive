@@ -586,95 +586,78 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      <div style={{display:"flex",flexDirection:isMobile?"column":"row",justifyContent:"space-between",alignItems:isMobile?"center":"center",textAlign:isMobile?"center":"left",gap:isMobile?10:0}}>
+      {/* ── HEADER ── */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:isMobile?"center":"flex-start",flexDirection:isMobile?"column":"row",gap:isMobile?10:0,textAlign:isMobile?"center":"left"}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Dashboard</div>
-          <div style={{fontSize:24,color:t.TEXT}}>
+          <div style={{fontSize:isMobile?22:26,color:t.TEXT}}>
             {"Good "+(new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening")+", "}
             <span style={{color:t.GOLD}}>{profile.firstName}</span>
           </div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
         </div>
-        <button onClick={()=>setShowBriefing(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Morning Brief</button>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+          {!isMobile&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",maxWidth:280,textAlign:"right",lineHeight:1.6}}>"{quote}"</div>}
+          <button onClick={()=>setShowBriefing(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"7px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap"}}>Morning Brief</button>
+        </div>
       </div>
-      <div style={{padding:"9px 13px",background:t.CARD2,borderRadius:7,borderLeft:"3px solid "+t.GOLD+"33"}}>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic"}}>"{quote}"</div>
-      </div>
-      {/* Score card - full width on mobile, 1/3 on desktop */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:10}}>
-        <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",padding:"14px",display:"flex",alignItems:"center",gap:14}}>
+      {/* ── ROW 1: Score + Rings + Net Worth ── */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+        {/* Score */}
+        <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",display:"flex",alignItems:"center",gap:14}}>
           <div style={{flexShrink:0}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
             <div style={{display:"flex",alignItems:"baseline",gap:3}}>
-              <div style={{fontSize:isMobile?38:48,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
-              <div style={{fontSize:14,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
+              <div style={{fontSize:isMobile?38:52,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
+              <div style={{fontSize:16,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
             </div>
             <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
           </div>
           <div style={{flex:1}}>
-            <div style={{display:"flex",flexDirection:"column",gap:6}}>
-              {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].map(x=>(
-                <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:34}}>{x.l}</div>
-                  <div style={{flex:1}}><PB value={x.v} color={x.c} height={4}/></div>
-                  <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"%"}</div>
-                </div>
-              ))}
-            </div>
+            {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].map(x=>(
+              <div key={x.l} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:34}}>{x.l}</div>
+                <div style={{flex:1}}><PB value={x.v} color={x.c} height={4}/></div>
+                <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"%"}</div>
+              </div>
+            ))}
           </div>
         </Card>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr",gap:10}}>
-        <Card style={{padding:"14px",cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>CASH FLOW - THIS MONTH</div>
-          {monthIncome===0&&monthExpense===0?(
-            <div style={{textAlign:"center",padding:"12px 0"}}>
-                <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>No transactions this month</div>
-                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Add income and expenses in Cash Flow</div>
-              </div>
-          ):(
-            <>
-              <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
-                {[{l:"Income",v:monthIncome,c:t.GREEN},{l:"Expenses",v:monthExpense,c:t.RED}].map(x=>(
-                  <div key={x.l} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:52}}>{x.l}</div>
-                    <div style={{flex:1}}><PB value={monthIncome>0?Math.round(x.v/monthIncome*100):0} color={x.c} height={4}/></div>
-                    <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:52,textAlign:"right",fontWeight:600}}>{fmt(x.v)}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Net</div>
-                <div style={{fontSize:16,color:monthNet>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{(monthNet>=0?"+":"")+fmt(monthNet)}</div>
-              </div>
-            </>
-          )}
-        </Card>
-        <Card style={{padding:"14px",cursor:"pointer"}} onClick={()=>setPage("bills")}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:10}}>BILLS</div>
-          {!bills||bills.length===0?(
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>No bills tracked yet</div>
-          ):(
-            <>
-              <div style={{marginBottom:8}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>Monthly recurring</div>
-                <div style={{fontSize:22,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmt(monthlyBills)}</div>
-              </div>
-              {nextBill&&(
-                <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Next due</div>
-                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{nextBill.name}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
-                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{nextBill.nextDue}</div>
-                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmt(nextBill.amount)}</div>
+        {/* Progress Rings */}
+        {!isMobile&&<Card style={{display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+          <SectionLabel action={<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{streak+" day streak"}</span>}>Today's Progress</SectionLabel>
+          <div style={{display:"flex",justifyContent:"space-around",alignItems:"center",flex:1,padding:"6px 0"}}>
+            {rings.map(ring=>(
+              <div key={ring.label} onClick={()=>setPage(ring.page)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer"}}>
+                <div style={{position:"relative",width:76,height:76}}>
+                  <svg width={76} height={76} style={{transform:"rotate(-90deg)"}}>
+                    <circle cx={38} cy={38} r={r} fill="none" stroke={t.BORDER2} strokeWidth={7}/>
+                    <circle cx={38} cy={38} r={r} fill="none" stroke={ring.c} strokeWidth={7} strokeDasharray={(Math.min(ring.pct/100,1)*circ)+","+circ} strokeLinecap="round" style={{transition:"stroke-dasharray .7s"}}/>
+                  </svg>
+                  <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <div style={{fontSize:12,color:ring.c,fontFamily:"sans-serif",fontWeight:700}}>{ring.pct+"%"}</div>
                   </div>
                 </div>
-              )}
-            </>
-          )}
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{ring.label}</div>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{ring.sub}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>}
+        {/* Net Worth */}
+        <Card style={{cursor:"pointer"}} onClick={()=>setPage("wealth")}>
+          <SectionLabel>Net Worth</SectionLabel>
+          <div style={{fontSize:isMobile?24:30,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,marginBottom:2}}>{fmt(nw)}</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{"Target: "+fmt(nwT)+" - "+nwPct+"%"}</div>
+          <SparkLine data={[...nwVals,nw]} color={t.GOLD} height={48} labels={nwLabels}/>
+          <div style={{marginTop:8}}><PB value={nwPct} color={t.GOLD} height={3}/></div>
         </Card>
       </div>
-{(()=>{
+
+      {/* ── ALERTS ── */}
+      {(()=>{
         const alerts=[];
         if(upcoming.length>0) alerts.push({type:"bill",msg:"Bill due: "+upcoming[0].name+" ("+fmt(upcoming[0].amount)+")",page:"bills",color:t.RED});
         const behindGoals=(goals||[]).filter(g=>g.progress<30&&g.period!=="year");
@@ -692,83 +675,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           </div>
         ));
       })()}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-        <Card>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <SectionLabel>Today's Progress</SectionLabel>
-            <div style={{background:t.CARD2,borderRadius:12,padding:"2px 8px"}}>
-              <span style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{streak+" day streak"}</span>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:12,justifyContent:"space-around",marginBottom:12}}>
-            {rings.map(ring=>(
-              <div key={ring.label} onClick={()=>setPage(ring.page)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer"}}>
-                <div style={{position:"relative",width:76,height:76}}>
-                  <svg width={76} height={76} style={{transform:"rotate(-90deg)"}}>
-                    <circle cx={38} cy={38} r={r} fill="none" stroke={t.BORDER2} strokeWidth={7}/>
-                    <circle cx={38} cy={38} r={r} fill="none" stroke={ring.c} strokeWidth={7} strokeDasharray={(Math.min(ring.pct/100,1)*circ)+","+circ} strokeLinecap="round" style={{transition:"stroke-dasharray .7s"}}/>
-                  </svg>
-                  <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                    <div style={{fontSize:12,color:ring.c,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{ring.pct+"%"}</div>
-                  </div>
-                </div>
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{ring.label}</div>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{ring.sub}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <Card onClick={()=>setPage("wealth")}>
-          <SectionLabel action={<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Details</span>}>Net Worth</SectionLabel>
-          <div style={{fontSize:30,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,marginBottom:2}}>{fmt(nw)}</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{"Target: "+fmt(nwT)+" - "+nwPct+"%"}</div>
-          <SparkLine data={[...nwVals,nw]} color={t.GOLD} height={48} labels={nwLabels}/>
-          <div style={{marginTop:8}}><PB value={nwPct} color={t.GOLD} height={3}/></div>
-        </Card>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr 1fr",gap:14}}>
-        <Card>
-          <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All</button>}>Priority Actions</SectionLabel>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>
-            <span>{tDone+"/"+tasks.length+" done"}</span>
-            <span>{(tasks.length?Math.round(tDone/tasks.length*100):0)+"%"}</span>
-          </div>
-          <div style={{marginBottom:10}}><PB value={tasks.length?Math.round(tDone/tasks.length*100):0} color={t.GREEN} height={3}/></div>
-          {highTasks.slice(0,4).map((tk,i)=>(
-            <div key={tk.id}>
-              {i>0&&<Divider/>}
-              <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",cursor:"pointer"}}>
-                <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
-                </div>
-                <span style={{flex:1,fontSize:12,color:tk.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:tk.done?"line-through":"none"}}>{tk.text}</span>
-                <div style={{width:6,height:6,borderRadius:"50%",background:t.RED,flexShrink:0}}/>
-              </div>
-            </div>
-          ))}
-        </Card>
-        <Card>
-          <SectionLabel action={<button onClick={()=>setPage("goals")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All</button>}>Goals</SectionLabel>
-          {goalPeriods.map(period=>{
-            const g=goals.find(g=>g.period===period);
-            if(!g)return null;
-            const col=CAT_COLORS[g.category]||t.GOLD;
-            return (
-              <div key={period} style={{marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <div>
-                    <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{periodLabels[period]}</div>
-                    <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{g.title}</div>
-                  </div>
-                  <span style={{fontSize:12,color:col,fontFamily:"sans-serif",fontWeight:700}}>{g.progress+"%"}</span>
-                </div>
-                <PB value={g.progress} color={col} height={3}/>
-              </div>
-            );
-          })}
-        </Card>
+
+      {/* ── ROW 2: Markets + Cash Flow + Bills ── */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+        {/* Markets */}
         <Card>
           <SectionLabel action={
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -779,33 +689,121 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           {mktRows.map((m,i)=>(
             <div key={m.l}>
               {i>0&&<Divider/>}
-              <div style={{padding:"6px 0"}}>
-                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>{m.l}</div>
-                {m.d.loading?(
-                  <Skeleton width={80} height={12}/>
-                ):(
-                  <div style={{display:"flex",justifyContent:"space-between"}}>
-                    <div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>
-                    <div style={{fontSize:11,color:m.d.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(m.d.pct>=0?"+ ":"- ")+Math.abs(m.d.pct||0).toFixed(2)+"%"}</div>
-                  </div>
-                )}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
+                <div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{m.l}</div>
+                  {m.d.loading?<Skeleton width={80} height={14}/>:<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>}
+                </div>
+                {!m.d.loading&&<div style={{fontSize:11,color:m.d.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(m.d.pct>=0?"+ ":"- ")+Math.abs(m.d.pct||0).toFixed(2)+"%"}</div>}
               </div>
             </div>
           ))}
         </Card>
+        {/* Cash Flow */}
+        <Card style={{cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
+          <SectionLabel>Cash Flow - This Month</SectionLabel>
+          {monthIncome===0&&monthExpense===0?(
+            <div style={{textAlign:"center",padding:"12px 0"}}>
+              <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>No transactions this month</div>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Add income and expenses in Cash Flow</div>
+            </div>
+          ):(
+            <>
+              <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:10}}>
+                {[{l:"Income",v:monthIncome,c:t.GREEN},{l:"Expenses",v:monthExpense,c:t.RED}].map(x=>(
+                  <div key={x.l} style={{display:"flex",alignItems:"center",gap:7}}>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:52}}>{x.l}</div>
+                    <div style={{flex:1}}><PB value={monthIncome>0?Math.round(x.v/monthIncome*100):0} color={x.c} height={4}/></div>
+                    <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:52,textAlign:"right",fontWeight:600}}>{fmt(x.v)}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Net this month</div>
+                <div style={{fontSize:18,color:monthNet>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{(monthNet>=0?"+":"")+fmt(monthNet)}</div>
+              </div>
+            </>
+          )}
+        </Card>
+        {/* Bills */}
+        <Card style={{cursor:"pointer"}} onClick={()=>setPage("bills")}>
+          <SectionLabel>Bills</SectionLabel>
+          {!bills||bills.length===0?(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",padding:"8px 0"}}>No bills tracked yet</div>
+          ):(
+            <>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Monthly recurring</div>
+                <div style={{fontSize:24,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmt(monthlyBills)}</div>
+              </div>
+              {nextBill&&<div style={{borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Next due</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{nextBill.name}</div>
+                  <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmt(nextBill.amount)}</div>
+                </div>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{nextBill.nextDue}</div>
+              </div>}
+            </>
+          )}
+        </Card>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.2fr 1fr",gap:14}}>
+
+      {/* ── ROW 3: Tasks + Goals + Habits ── */}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12}}>
+        {/* Tasks */}
         <Card>
-          <SectionLabel action={<button onClick={()=>setPage("habits")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All</button>}>Today's Habits</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:7}}>
-            {(habits||[]).slice(0,6).map(h=>{
+          <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>
+            <span>{tDone+"/"+tasks.length+" done"}</span>
+            <span>{(tasks.length?Math.round(tDone/tasks.length*100):0)+"%"}</span>
+          </div>
+          <div style={{marginBottom:10}}><PB value={tasks.length?Math.round(tDone/tasks.length*100):0} color={t.GREEN} height={3}/></div>
+          {tasks.slice(0,6).map((tk,i)=>(
+            <div key={tk.id}>
+              {i>0&&<Divider/>}
+              <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",cursor:"pointer"}}>
+                <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                </div>
+                <span style={{flex:1,fontSize:12,color:tk.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:tk.done?"line-through":"none"}}>{tk.text}</span>
+                {tk.priority==="high"&&!tk.done&&<div style={{width:6,height:6,borderRadius:"50%",background:t.RED,flexShrink:0}}/>}
+              </div>
+            </div>
+          ))}
+        </Card>
+        {/* Goals */}
+        <Card>
+          <SectionLabel action={<button onClick={()=>setPage("goals")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All goals</button>}>Goals</SectionLabel>
+          {goals.length===0?<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No goals set yet</div>:
+          goals.slice(0,5).map(g=>{
+            const col=CAT_COLORS[g.category]||t.GOLD;
+            return (
+              <div key={g.id} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                  <div style={{flex:1,marginRight:8}}>
+                    <div style={{fontSize:8,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:1}}>{g.category}</div>
+                    <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.3}}>{g.title}</div>
+                  </div>
+                  <span style={{fontSize:13,color:col,fontFamily:"sans-serif",fontWeight:700,flexShrink:0}}>{g.progress+"%"}</span>
+                </div>
+                <PB value={g.progress} color={col} height={3}/>
+              </div>
+            );
+          })}
+        </Card>
+        {/* Habits */}
+        <Card>
+          <SectionLabel action={<button onClick={()=>setPage("habits")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All habits</button>}>Today's Habits</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {(habits||[]).slice(0,7).map(h=>{
               const done=!!habitLog[h.id+"_"+todayStr()];
               return (
-                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer"}}>
-                  <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(done?h.color:t.BORDER2),background:done?h.color:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-                    {done&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}>V</span>}
+                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"5px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
+                  <div style={{width:22,height:22,borderRadius:"50%",border:"1.5px solid "+(done?h.color:t.BORDER2),background:done?h.color:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+                    {done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
                   </div>
-                  <span style={{fontSize:13}}>{h.icon}</span>
+                  <span style={{fontSize:14,lineHeight:1}}>{h.icon}</span>
                   <span style={{flex:1,fontSize:12,color:done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
                 </div>
               );
@@ -813,32 +811,15 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           </div>
           <div style={{marginTop:10}}><PB value={(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0} color={t.GOLD} height={3}/></div>
         </Card>
-        <Card>
-          <SectionLabel action={<button onClick={()=>setPage("weekly")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Review</button>}>30-Day Activity</SectionLabel>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:3}}>
-            {Array.from({length:30}).map((_,i)=>{
-              const d=new Date();d.setDate(d.getDate()-(29-i));
-              const sc=history[d.toISOString().split("T")[0]]?.score||0;
-              const col=sc>=75?t.GREEN:sc>=50?t.GOLD:sc>0?t.BLUE:t.BORDER;
-              return <div key={i} title={sc>0?"Score: "+sc:"No data"} style={{aspectRatio:"1",borderRadius:3,background:sc>0?col+"66":t.CARD2,border:"1.5px solid "+(i===29?t.GOLD:"transparent")}}/>;
-            })}
-          </div>
-          <div style={{display:"flex",gap:8,marginTop:8,justifyContent:"flex-end"}}>
-            {[{c:t.GREEN,l:"75+"},{c:t.GOLD,l:"50+"},{c:t.BLUE,l:"1+"}].map(x=>(
-              <div key={x.l} style={{display:"flex",alignItems:"center",gap:3}}>
-                <div style={{width:8,height:8,borderRadius:2,background:x.c+"66"}}/>
-                <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{x.l}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
       </div>
-      <div onClick={()=>setPage("advisor")} style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:9,padding:"12px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+
+      {/* ── AI ADVISOR BANNER ── */}
+      <div onClick={()=>setPage("advisor")} style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:10,padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:2}}>AI Advisor - Full Context - Web Search</div>
+          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:3}}>AI Advisor - Full Dashboard Context - Web Search</div>
           <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>Ask for a review, get market insights, or explore investment ideas</div>
         </div>
-        <div style={{fontSize:18,color:t.GOLD}}>AI</div>
+        <div style={{fontSize:20,color:t.GOLD,marginLeft:16,flexShrink:0}}>✦</div>
       </div>
     </div>
   );
