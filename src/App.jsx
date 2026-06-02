@@ -4020,6 +4020,7 @@ function RecipesPage({profile}){
   const[shoppingList,setShoppingList]=useState([]);
   const[showShoppingList,setShowShoppingList]=useState(false);
   const[tab,setTab]=useState("discover");
+  const[servings,setServings]=useState(2);
 
   const MEAL_TYPES=["all","Breakfast","Lunch","Dinner","Snack","Post-Workout","Pre-Workout"];
   const DIET_FILTERS=["all","High Protein","Low Carb","Keto","Mediterranean","Intermittent Fasting","Dairy Free","Gluten Free"];
@@ -4119,7 +4120,14 @@ function RecipesPage({profile}){
           </div>
         </div>
 
-        <Card style={{marginBottom:14}}>
+        <Card style={{marginBottom:14,overflow:"hidden",padding:0}}>
+          <img
+            src={"https://source.unsplash.com/featured/800x400/?"+encodeURIComponent(r.title+",food")}
+            alt={r.title}
+            style={{width:"100%",height:200,objectFit:"cover",display:"block"}}
+            onError={e=>{e.target.style.display="none";}}
+          />
+          <div style={{padding:16}}>
           <div style={{marginBottom:12}}>
             <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:6}}>{r.mealType}</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>{r.title}</div>
@@ -4146,18 +4154,45 @@ function RecipesPage({profile}){
         </Card>
 
         <Card style={{marginBottom:14}}>
-          <SectionLabel>Ingredients</SectionLabel>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <SectionLabel>Ingredients</SectionLabel>
+            <div style={{display:"flex",alignItems:"center",gap:10,background:t.CARD2,borderRadius:8,padding:"4px 10px"}}>
+              <button onClick={()=>setServings(s=>Math.max(1,s-1))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:18,lineHeight:1,fontWeight:300}}>-</button>
+              <div style={{textAlign:"center",minWidth:60}}>
+                <div style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{servings}</div>
+                <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>servings</div>
+              </div>
+              <button onClick={()=>setServings(s=>Math.min(20,s+1))} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontSize:18,lineHeight:1,fontWeight:300}}>+</button>
+            </div>
+          </div>
           {Object.entries(catGroups).map(([cat,items])=>(
             <div key={cat} style={{marginBottom:12}}>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat}</div>
-              {items.map((ing,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+t.BORDER+"66"}}>
-                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{ing.item}</span>
-                  <span style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{ing.amount}</span>
-                </div>
-              ))}
+              {items.map((ing,i)=>{
+                // Scale amount based on servings (base = 2 servings)
+                const scaleAmount=(amount)=>{
+                  const num=parseFloat(amount);
+                  if(isNaN(num))return amount;
+                  const scaled=Math.round((num/2*servings)*100)/100;
+                  return amount.replace(/^[d.]+/,scaled);
+                };
+                return (
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+t.BORDER+"66"}}>
+                    <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{ing.item}</span>
+                    <span style={{fontSize:12,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{scaleAmount(ing.amount)}</span>
+                  </div>
+                );
+              })}
             </div>
           ))}
+          <div style={{marginTop:10,padding:"8px 12px",background:t.CARD2,borderRadius:7,display:"flex",justifyContent:"space-between"}}>
+            {[{l:"Calories",v:Math.round((r.calories||0)/2*servings)},{l:"Protein",v:Math.round((r.protein||0)/2*servings)+"g"},{l:"Carbs",v:Math.round((r.carbs||0)/2*servings)+"g"},{l:"Fat",v:Math.round((r.fat||0)/2*servings)+"g"}].map(m=>(
+              <div key={m.l} style={{textAlign:"center"}}>
+                <div style={{fontSize:13,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{m.v}</div>
+                <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:.5}}>{m.l}</div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card style={{marginBottom:14}}>
@@ -4337,7 +4372,14 @@ function RecipesPage({profile}){
           {!loading&&recipes.length>0&&(
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {recipes.map((r,i)=>(
-                <Card key={i} style={{cursor:"pointer",padding:14}} onClick={()=>setSelected(r)}>
+                <Card key={i} style={{cursor:"pointer",padding:0,overflow:"hidden"}} onClick={()=>setSelected(r)}>
+                  <img
+                    src={"https://source.unsplash.com/featured/400x200/?"+encodeURIComponent(r.title+",food")}
+                    alt={r.title}
+                    style={{width:"100%",height:120,objectFit:"cover",display:"block"}}
+                    onError={e=>{e.target.style.display="none";}}
+                  />
+                  <div style={{padding:12}}>
                   <div style={{fontSize:8,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{r.mealType}</div>
                   <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:6,lineHeight:1.3}}>{r.title}</div>
                   <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
@@ -4355,6 +4397,7 @@ function RecipesPage({profile}){
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <button onClick={e=>{e.stopPropagation();addToShoppingList(r);}} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 8px",color:t.GREEN,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>+ List</button>
                     <button onClick={e=>{e.stopPropagation();toggleFav(r);}} style={{background:"none",border:"none",color:isFav(r)?t.GOLD:t.MUTED,cursor:"pointer",fontSize:14}}>{isFav(r)?"S":"S"}</button>
+                  </div>
                   </div>
                 </Card>
               ))}
