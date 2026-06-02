@@ -4052,13 +4052,21 @@ function RecipesPage({profile}){
     setLoading(false);
   };
 
-  const addToShoppingList=(recipe)=>{
+  const addToShoppingList=(recipe,srvgs)=>{
+    const s=srvgs||servings||2;
     setShoppingList(sl=>{
       const existing=[...sl];
       (recipe.ingredients||[]).forEach(ing=>{
         const key=ing.item.toLowerCase().trim();
         if(!existing.find(x=>x.item.toLowerCase().trim()===key)){
-          existing.push({...ing,fromRecipe:recipe.title,checked:false,id:Date.now()+Math.random()});
+          // Scale the amount
+          const scaleAmount=(amount)=>{
+            const num=parseFloat(amount);
+            if(isNaN(num))return amount;
+            const scaled=Math.round((num/2*s)*100)/100;
+            return amount.replace(/^[\d.]+/,scaled);
+          };
+          existing.push({...ing,amount:scaleAmount(ing.amount),fromRecipe:recipe.title+" ("+s+" servings)",checked:false,id:Date.now()+Math.random()});
         }
       });
       return existing;
@@ -4118,7 +4126,7 @@ function RecipesPage({profile}){
             <button onClick={()=>toggleFav(r)} style={{background:isFav(r)?t.GOLD+"22":"transparent",border:"1px solid "+(isFav(r)?t.GOLD:t.BORDER),borderRadius:7,padding:"6px 12px",color:isFav(r)?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
               {isFav(r)?"Saved":"Save"}
             </button>
-            <button onClick={()=>{addToShoppingList(r);setSelected(null);setShowShoppingList(true);}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:7,padding:"6px 14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>
+            <button onClick={()=>{addToShoppingList(r,servings);setSelected(null);setShowShoppingList(true);}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:7,padding:"6px 14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>
               Add to Shopping List
             </button>
           </div>
@@ -4210,7 +4218,7 @@ function RecipesPage({profile}){
           ))}
         </Card>
 
-        <button onClick={()=>{addToShoppingList(r);setSelected(null);setShowShoppingList(true);}} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
+        <button onClick={()=>{addToShoppingList(r,servings);setSelected(null);setShowShoppingList(true);}} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:t.BG,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
           Add to Shopping List
         </button>
       </div>
@@ -4404,7 +4412,7 @@ function RecipesPage({profile}){
                     ))}
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <button onClick={e=>{e.stopPropagation();addToShoppingList(r);}} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 8px",color:t.GREEN,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>+ List</button>
+                    <button onClick={e=>{e.stopPropagation();addToShoppingList(r,servings);}} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 8px",color:t.GREEN,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>+ List</button>
                     <button onClick={e=>{e.stopPropagation();toggleFav(r);}} style={{background:"none",border:"none",color:isFav(r)?t.GOLD:t.MUTED,cursor:"pointer",fontSize:14}}>{isFav(r)?"S":"S"}</button>
                   </div>
                   </div>
