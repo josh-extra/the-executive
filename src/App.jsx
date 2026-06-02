@@ -4075,25 +4075,19 @@ function RecipesPage({profile}){
 
   const downloadShoppingList=()=>{
     const cats={};
-    shoppingList.forEach(item=>{
-      const cat=item.category||"Other";
-      if(!cats[cat])cats[cat]=[];
-      cats[cat].push(item);
-    });
-    let content="THE EXECUTIVE - SHOPPING LIST\n";
-    content+="Generated: "+new Date().toLocaleDateString("en-AU")+"\n\n";
-    Object.entries(cats).forEach(([cat,items])=>{
-      content+=cat.toUpperCase()+"\n";
-      content+="----------------------------\n";
-      items.forEach(item=>{
-        content+=(item.checked?"[x] ":"[ ] ")+item.amount+" "+item.item+"\n";
-      });
-      content+="\n";
-    });
-    const blob=new Blob([content],{type:"text/plain"});
+    shoppingList.forEach(item=>{const cat=item.category||"Other";if(!cats[cat])cats[cat]=[];cats[cat].push(item);});
+    const date=new Date().toLocaleDateString("en-AU",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    const recipes=[...new Set(shoppingList.map(x=>x.fromRecipe).filter(Boolean))];
+    const catSections=Object.entries(cats).map(([cat,items])=>{
+      const rows=items.map(item=>'<div class="item"><div class="checkbox"></div><div class="item-name">'+item.item+'</div><div class="item-amount">'+item.amount+'</div></div>').join("");
+      return '<div class="category"><div class="cat-header"><div class="cat-icon">'+cat[0]+'</div><div class="cat-name">'+cat+'</div><div class="cat-count">'+items.length+' item'+(items.length!==1?'s':'')+'</div></div>'+rows+'</div>';
+    }).join("");
+    const recipeTags=recipes.map(r=>'<div class="recipe-tag">'+r+'</div>').join("");
+    const html='<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><title>Shopping List</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#F5F0E8;font-family:-apple-system,BlinkMacSystemFont,sans-serif;min-height:100vh;}.header{background:#080808;padding:24px 20px 20px;text-align:center;}.header-label{font-size:9px;letter-spacing:4px;color:#C9A84C;text-transform:uppercase;margin-bottom:8px;}.header-title{font-size:26px;color:#fff;font-weight:300;margin-bottom:4px;}.header-date{font-size:11px;color:#6A6050;margin-bottom:16px;}.header-stats{display:flex;justify-content:center;gap:20px;}.stat{text-align:center;}.stat-val{font-size:20px;color:#C9A84C;font-weight:700;}.stat-lbl{font-size:9px;color:#6A6050;text-transform:uppercase;letter-spacing:1px;}.recipes{background:#111;padding:10px 20px;display:flex;flex-wrap:wrap;gap:6px;}.recipe-tag{background:rgba(201,168,76,.15);border:1px solid rgba(201,168,76,.3);border-radius:10px;padding:3px 10px;font-size:10px;color:#C9A84C;}.content{padding:16px 16px 40px;max-width:540px;margin:0 auto;}.category{background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);}.cat-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f9f7f3;border-bottom:1px solid #EDE8DC;}.cat-icon{width:28px;height:28px;border-radius:7px;background:#C9A84C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}.cat-name{flex:1;font-size:13px;color:#1A1208;font-weight:600;}.cat-count{font-size:10px;color:#8A7A60;}.item{display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid #F0EBE0;cursor:pointer;transition:background .15s;}.item:last-child{border-bottom:none;}.item:active{background:#F0EBE0;}.checkbox{width:24px;height:24px;border-radius:50%;border:2px solid #DDD5C0;flex-shrink:0;transition:all .2s;}.item-name{flex:1;font-size:15px;color:#1A1208;font-weight:400;transition:all .2s;}.item-amount{font-size:12px;color:#C9A84C;font-weight:600;background:#FDF8EE;border:1px solid #EDE8DC;border-radius:6px;padding:3px 9px;flex-shrink:0;}.done .checkbox{background:#7A9E7E;border-color:#7A9E7E;}.done .item-name{text-decoration:line-through;color:#9A9080;}.footer{text-align:center;padding:20px;font-size:10px;color:#8A7A60;}@media print{.header,.cat-icon{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body><div class="header"><div class="header-label">The Executive</div><div class="header-title">Shopping List</div><div class="header-date">'+date+'</div><div class="header-stats"><div class="stat"><div class="stat-val">'+shoppingList.length+'</div><div class="stat-lbl">Items</div></div><div class="stat"><div class="stat-val">'+Object.keys(cats).length+'</div><div class="stat-lbl">Categories</div></div><div class="stat"><div class="stat-val">'+recipes.length+'</div><div class="stat-lbl">Recipes</div></div></div></div>'+(recipes.length?'<div class="recipes">'+recipeTags+'</div>':'')+'<div class="content">'+catSections+'</div><div class="footer">The Executive &nbsp;·&nbsp; Tap items to check off as you shop</div><script>document.querySelectorAll(".item").forEach(function(el){el.addEventListener("click",function(){this.classList.toggle("done");});});<\/script></body></html>';
+    const blob=new Blob([html],{type:"text/html"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download="shopping-list.txt";a.click();
+    a.href=url;a.download="shopping-list.html";a.click();
     URL.revokeObjectURL(url);
   };
 
