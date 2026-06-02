@@ -1,11 +1,14 @@
 import{useState,useEffect,useRef,useCallback,Component}from"react";
 
 const THEMES={
-  dark:{BG:"#080808",CARD:"#111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
-  light:{BG:"#F5F0E8",CARD:"#FFFDF8",CARD2:"#F0EBE0",BORDER:"#E5DDD0",BORDER2:"#D5C8B8",TEXT:"#1A1208",MUTED:"#8A7A60",MUTED2:"#C5B8A0",GOLD:"#A07830",GL:"#C9A84C",RED:"#A05050",GREEN:"#507850",BLUE:"#507890",PURPLE:"#805090"}
+  obsidian:{BG:"#080808",CARD:"#111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
+  charcoal:{BG:"#141414",CARD:"#1E1E1E",CARD2:"#252525",BORDER:"#2E2E2E",BORDER2:"#383838",TEXT:"#E0E0E0",MUTED:"#666666",MUTED2:"#404040",GOLD:"#BFBFBF",GL:"#D8D8D8",RED:"#C07070",GREEN:"#70A870",BLUE:"#70A8C0",PURPLE:"#A070C0"},
+  parchment:{BG:"#F5F0E8",CARD:"#FFFDF8",CARD2:"#F0EBE0",BORDER:"#E5DDD0",BORDER2:"#D5C8B8",TEXT:"#1A1208",MUTED:"#8A7A60",MUTED2:"#C5B8A0",GOLD:"#A07830",GL:"#C9A84C",RED:"#A05050",GREEN:"#507850",BLUE:"#507890",PURPLE:"#805090"},
+  minimal:{BG:"#FFFFFF",CARD:"#F7F7F7",CARD2:"#EFEFEF",BORDER:"#E8E8E8",BORDER2:"#D8D8D8",TEXT:"#111111",MUTED:"#888888",MUTED2:"#C8C8C8",GOLD:"#222222",GL:"#555555",RED:"#C0392B",GREEN:"#2A7A2A",BLUE:"#1A5A9A",PURPLE:"#6A3A9A"}
 };
-let _themeKey="dark";
-const T=()=>THEMES[_themeKey]||THEMES.dark;
+const THEME_ALIASES={dark:"obsidian",light:"parchment"};
+let _themeKey="obsidian";
+const T=()=>THEMES[_themeKey]||THEMES[THEME_ALIASES[_themeKey]]||THEMES.obsidian;
 const LOCALES={
   "en-AU":{label:"Australia",flag:"AU",currency:"AUD",symbol:"$",taxPage:true,superLabel:"Superannuation"},
   "en-US":{label:"United States",flag:"US",currency:"USD",symbol:"$",taxPage:false,superLabel:"401k"},
@@ -481,9 +484,9 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             );
           })}
           {/* Theme toggle */}
-          <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
-            <span style={{fontSize:20,lineHeight:1}}>{theme==="dark"?"Sun":"Moon"}</span>
-            <span style={{fontSize:9,letterSpacing:.3}}>{theme==="dark"?"Light":"Dark"}</span>
+          <button onClick={()=>{const order=["obsidian","charcoal","parchment","minimal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
+            <span style={{fontSize:16,lineHeight:1}}>{theme==="obsidian"||theme==="charcoal"?"Sun":"Moon"}</span>
+            <span style={{fontSize:9,letterSpacing:.3}}>Theme</span>
           </button>
           {/* More button */}
           <button onClick={()=>setMenuOpen(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
@@ -3765,7 +3768,7 @@ function SetupPage({onComplete}){
     healthGoals:[],currentHabits:[],riskProfile:"Growth - accept volatility",
     annualIncome:"",propertyValue:"",mortgageDebt:"",investLoanDebt:"",
     cashSavings:"",superBalance:"",carDebt:"",creditCardDebt:"",personalDebt:"",
-    netWorthTarget:""
+    netWorthTarget:"",theme:"obsidian"
   });
   const[initGoals,setInitGoals]=useState([]);
   const[initSupps,setInitSupps]=useState([]);
@@ -3976,6 +3979,35 @@ function SetupPage({onComplete}){
           </div>
         )}
 
+        {cur==="appearance"&&(
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Appearance</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose your theme</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Pick the look that suits you. You can change this anytime in Profile.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[
+                {id:"obsidian",label:"Obsidian",sub:"Dark - gold accents",bg:"#0D0D0D",card:"#141414",border:"#2A2A2A",accent:"#C9A84C",text:"#E8E0D0",muted:"#7A7060"},
+                {id:"charcoal",label:"Charcoal",sub:"Dark - grey tones",bg:"#141414",card:"#1E1E1E",border:"#2E2E2E",accent:"#AFAFAF",text:"#E0E0E0",muted:"#666"},
+                {id:"parchment",label:"Parchment",sub:"Light - warm beige",bg:"#F5F0E8",card:"#FFFDF8",border:"#E5DDD0",accent:"#A07830",text:"#1A1208",muted:"#8A7A60"},
+                {id:"minimal",label:"Minimal",sub:"Light - pure white",bg:"#FFFFFF",card:"#F7F7F7",border:"#E8E8E8",accent:"#111111",text:"#111111",muted:"#888"},
+              ].map(th=>(
+                <div key={th.id} onClick={()=>{setP(f=>({...f,theme:th.id}));_themeKey=th.id;setThemeState&&setThemeState(th.id);}} style={{background:th.card,border:"2px solid "+(p.theme===th.id?th.accent:th.border),borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
+                  <div style={{background:th.bg,borderRadius:7,padding:10,marginBottom:10,border:"1px solid "+th.border}}>
+                    <div style={{fontSize:8,color:th.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Today's Score</div>
+                    <div style={{fontSize:22,color:th.accent,fontFamily:"sans-serif",fontWeight:700,marginBottom:6}}>78%</div>
+                    <div style={{height:3,background:th.border,borderRadius:99,overflow:"hidden"}}><div style={{width:"78%",height:"100%",background:th.accent,borderRadius:99}}/></div>
+                    <div style={{display:"flex",gap:4,marginTop:8}}>
+                      {[80,71,83].map((v,i)=><div key={i} style={{flex:1,height:3,background:th.border,borderRadius:99,overflow:"hidden"}}><div style={{width:v+"%",height:"100%",background:th.accent,opacity:.6+i*.1,borderRadius:99}}/></div>)}
+                    </div>
+                  </div>
+                  <div style={{fontSize:13,color:th.text,fontFamily:"sans-serif",fontWeight:600,marginBottom:2}}>{th.label}</div>
+                  <div style={{fontSize:10,color:th.muted,fontFamily:"sans-serif"}}>{th.sub}</div>
+                  {p.theme===th.id&&<div style={{marginTop:6,fontSize:9,color:th.accent,fontFamily:"sans-serif"}}>Selected</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {cur==="risk"&&(
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Investment Profile</div>
@@ -4569,7 +4601,7 @@ function App(){
   const[hydrated,setHydrated]=useState(false);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
-  const[theme,setThemeState]=useState("dark");
+  const[theme,setThemeState]=useState("obsidian");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
   const[tasks,setTasks]=useState(D_TASKS);
@@ -4612,7 +4644,7 @@ function App(){
     let saved=loadData();
     if(saved){
       saved=applyDailyReset(saved,today);
-      if(saved.theme){_themeKey=saved.theme;setThemeState(saved.theme);}
+      if(saved.theme){const k=THEME_ALIASES[saved.theme]||saved.theme;_themeKey=k;setThemeState(k);}
       if(saved.profile){setProfile(saved.profile);if(saved.profile.locale)_locale=saved.profile.locale;}
       if(saved.tasks)setTasks(saved.tasks);
       if(saved.goals)setGoals(saved.goals);
@@ -4645,7 +4677,7 @@ function App(){
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
-  const setTheme=th=>{_themeKey=th;setThemeState(th);};
+  const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const tDone=tasks.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
   const tS=tasks.length?Math.round(tDone/tasks.length*40):0;
@@ -4692,6 +4724,7 @@ function App(){
     setHabitLog({});setHoldings([]);setCryptoHoldings([]);
     setSeenMilestones([]);setNwHistory({});setBudgets({});
     setAdvisorMessages([]);
+    if(data.profile.theme){_themeKey=data.profile.theme;setThemeState(data.profile.theme);}
     setShowSetup(false);
     setPage("dashboard");
   };
