@@ -4015,6 +4015,7 @@ function RecipesPage({profile}){
   const[dietFilter,setDietFilter]=useState("all");
   const[recipes,setRecipes]=useState([]);
   const[loading,setLoading]=useState(false);
+  const[error,setError]=useState("");
   const[selected,setSelected]=useState(null);
   const[favourites,setFavourites]=useState([]);
   const[shoppingList,setShoppingList]=useState([]);
@@ -4027,7 +4028,7 @@ function RecipesPage({profile}){
   const healthGoals=(profile.healthGoals||[]);
 
   const generateRecipes=async()=>{
-    setLoading(true);setRecipes([]);setSelected(null);
+    setLoading(true);setRecipes([]);setSelected(null);setError("");
     const goalStr=healthGoals.join(", ")||"general health";
     const mealStr=mealFilter==="all"?"any meal type":mealFilter;
     const dietStr=dietFilter==="all"?"no specific diet":dietFilter;
@@ -4363,6 +4364,9 @@ function RecipesPage({profile}){
             {loading?"Generating recipes...":"Generate Recipes for My Goals"}
           </button>
 
+          {error&&!loading&&(
+            <div style={{padding:"10px 14px",background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:8,fontSize:12,color:t.RED,fontFamily:"sans-serif",marginBottom:12}}>{error}</div>
+          )}
           {loading&&(
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               {[1,2,3].map(i=><Card key={i} style={{padding:16}}><Skeleton height={14} width="60%" style={{marginBottom:8}}/><Skeleton height={10} width="40%" style={{marginBottom:12}}/><div style={{display:"flex",gap:8}}>{[1,2,3,4].map(j=><Skeleton key={j} width={52} height={40}/>)}</div></Card>)}
