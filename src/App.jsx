@@ -4182,15 +4182,14 @@ function RecipesPage({profile}){
             <div key={cat} style={{marginBottom:12}}>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat}</div>
               {items.map((ing,i)=>{
-                // Scale amount based on servings (base = 2 servings)
                 const scaleAmount=(amount)=>{
                   const num=parseFloat(amount);
                   if(isNaN(num))return amount;
                   const scaled=Math.round((num/2*servings)*100)/100;
-                  return amount.replace(/^[d.]+/,scaled);
+                  return amount.replace(/^[\d.]+/,scaled);
                 };
                 return (
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+t.BORDER+"66"}}>
+                  <div key={i+"-"+servings} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+t.BORDER+"66"}}>
                     <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{ing.item}</span>
                     <span style={{fontSize:12,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{scaleAmount(ing.amount)}</span>
                   </div>
