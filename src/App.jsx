@@ -4151,6 +4151,7 @@ function RecipesPage({profile}){
               <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.7}}>{r.whyItFits}</div>
             </div>
           )}
+          </div>
         </Card>
 
         <Card style={{marginBottom:14}}>
