@@ -4035,10 +4035,10 @@ function RecipesPage({profile}){
     const bodyStr=profile.weight?"Weight: "+profile.weight+"kg, Target: "+(profile.targetWeight||"?")+"kg":"";
     try{
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        model:"claude-sonnet-4-6",
-        max_tokens:4000,
+        model:"claude-haiku-4-5",
+        max_tokens:2000,
         system:"You are a nutritionist and chef. You MUST return ONLY a valid JSON array with no markdown, no backticks, no explanation text before or after. Start your response with [ and end with ].",
-        messages:[{role:"user",content:"Generate 4 recipes for health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet: "+dietStr+". Return a JSON array of 4 objects. Each object must have exactly these fields: title (string), mealType (string), prepTime (string), cookTime (string), difficulty (string), calories (number), protein (number), carbs (number), fat (number), whyItFits (string), ingredients (array of {item, amount, category} where category is one of: Produce, Meat and Fish, Dairy and Eggs, Pantry, Spices, Other), steps (array of strings)."}]
+        messages:[{role:"user",content:"Generate 2 recipes for health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet: "+dietStr+". Return a JSON array of 2 objects. Each object must have exactly these fields: title (string), mealType (string), prepTime (string), cookTime (string), difficulty (string), calories (number), protein (number), carbs (number), fat (number), whyItFits (string), ingredients (array of {item, amount, category} where category is one of: Produce, Meat and Fish, Dairy and Eggs, Pantry, Spices, Other), steps (array of strings)."}]
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
@@ -4378,7 +4378,8 @@ function RecipesPage({profile}){
 
           {/* Recipe cards */}
           {!loading&&recipes.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {recipes.map((r,i)=>(
                 <Card key={i} style={{cursor:"pointer",padding:0,overflow:"hidden"}} onClick={()=>setSelected(r)}>
                   <img
@@ -4410,6 +4411,8 @@ function RecipesPage({profile}){
                 </Card>
               ))}
             </div>
+            <button onClick={generateRecipes} style={{width:"100%",marginTop:10,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:600}}>Generate More Recipes</button>
+            </>
           )}
 
           {!loading&&recipes.length===0&&(
