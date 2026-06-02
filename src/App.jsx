@@ -1819,7 +1819,6 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </div>
         )}
         {safeH.length>0&&sP.totalValue>0&&(
-          <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginLeft:-14,marginRight:-14,paddingLeft:14,paddingRight:14}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[{l:"Current Value",v:fmt(sP.totalValue),c:t.GOLD},{l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain),c:sP.totalGain>=0?t.GREEN:t.RED},{l:"Return",v:(sP.totalGainPct>=0?"+":"")+sP.totalGainPct.toFixed(1)+"%",c:sP.totalGainPct>=0?t.GREEN:t.RED}].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
@@ -1932,7 +1931,6 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             )}
           </div>
         )}
-        </div>
         {!(cryptoHoldings||[]).length&&!showCryptoAdd&&(
           <div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif"}}>
             <div style={{fontSize:28,marginBottom:8}}>₿</div>
@@ -1940,7 +1938,6 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             <div style={{fontSize:11}}>Add coins to track live AUD prices</div>
           </div>
         )}
-        <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch",marginLeft:-14,marginRight:-14,paddingLeft:14,paddingRight:14}}>
         {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.totalValue>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[
