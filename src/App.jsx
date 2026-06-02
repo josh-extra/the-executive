@@ -42,11 +42,11 @@ const WTYPES=["Strength","Hypertrophy","Cardio","HIIT","Mobility","Sport"];
 const WCOLORS={Strength:"#C9A84C",Hypertrophy:"#B07EC9",Cardio:"#7A9E7E",HIIT:"#C97E7E",Mobility:"#7EB8C9",Sport:"#D4956A"};
 const JP=["What is my number 1 priority today?","What am I grateful for?","What would make today a win?","What obstacle must I overcome?","What did I learn yesterday?"];
 const NAV=[
-  ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
+  ["dashboard","🏠","Dashboard"],["search","🔍","Search"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
   ["wealth","💸","Wealth"],["projector","📈","Wealth Forecast"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
-  ["budget","📊","Budget"],["tax","📋","Tax"],["debt","📉","Debt"],
+  ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["profile","👤","Profile"]
@@ -133,8 +133,8 @@ function useMarket(){
         ]);
         setData({
           sp500:{price:j.price,pct:j.pct,loading:false,error:false},
-          asx:{price:a.price,pct:a.pct,loading:false,error:!!a.error},
-          audusd:{price:u.price,pct:u.pct,loading:false,error:!!u.error},
+          asx:{price:a.error?null:a.price,pct:a.error?null:a.pct,loading:false,error:!!a.error},
+          audusd:{price:u.error?null:u.price,pct:u.error?null:u.pct,loading:false,error:!!u.error},
           lastUpdated:new Date()
         });
         return;
@@ -410,9 +410,9 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   ];
 
   const groups=[
-    ["Command",["dashboard","weekly","advisor"]],
+    ["Command",["dashboard","search","weekly","advisor"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","projector","cashflow","bills","budget","tax","debt","invest"]],
+    ["Wealth",["wealth","projector","cashflow","bills","budget","debt","invest"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -480,6 +480,11 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               </button>
             );
           })}
+          {/* Theme toggle */}
+          <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
+            <span style={{fontSize:20,lineHeight:1}}>{theme==="dark"?"Sun":"Moon"}</span>
+            <span style={{fontSize:9,letterSpacing:.3}}>{theme==="dark"?"Light":"Dark"}</span>
+          </button>
           {/* More button */}
           <button onClick={()=>setMenuOpen(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
             <span style={{fontSize:20,lineHeight:1}}>☰</span>
@@ -582,7 +587,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Dashboard</div>
           <div style={{fontSize:24,color:t.TEXT}}>
-            {"Good "+(new Date().getHours()<12?"morning":"afternoon")+", "}
+            {"Good "+(new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening")+", "}
             <span style={{color:t.GOLD}}>{profile.firstName}</span>
           </div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
@@ -2099,62 +2104,6 @@ function ProjectorPage({profile}){
   );
 }
 
-function TaxPage({profile}){
-  const t=T();const loc=L();
-  if(!loc.taxPage){
-    return (
-      <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
-        <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Tax Planning</div>
-        <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Tax Estimate</div>
-        <Card style={{textAlign:"center",padding:48}}>
-          <div style={{fontSize:36,marginBottom:12}}>{loc.flag}</div>
-          <div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",marginBottom:8}}>{"Tax estimates for "+loc.label+" coming soon"}</div>
-          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7}}>Currently covers Australian brackets. Ask the AI Advisor to estimate your tax manually.</div>
-        </Card>
-      </div>
-    );
-  }
-  const income=parseFloat(profile.annualIncome)||0;
-  const tax=calcTax(income);
-  const eff=income>0?((tax/income)*100).toFixed(1):"0.0";
-  const brackets=[
-    {l:"Tax-Free",up:18200,rate:"0%",c:t.GREEN},{l:"19c/dollar",up:45000,rate:"19%",c:t.GOLD},
-    {l:"32.5c/dollar",up:120000,rate:"32.5%",c:"#D4956A"},{l:"37c/dollar",up:180000,rate:"37%",c:t.RED},
-    {l:"45c/dollar",up:Infinity,rate:"45%",c:t.PURPLE}
-  ];
-  const curB=brackets.findIndex((b,i)=>income<=b.up&&(i===0||income>brackets[i-1].up));
-  return (
-    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
-      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>EOFY Planning</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Tax Estimate</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-        <StatCard label="Gross Income" value={fmt(income)} color={t.GOLD}/>
-        <StatCard label="Est. Tax" value={fmt(tax)} color={t.RED}/>
-        <StatCard label="After Tax" value={fmt(income-tax)} color={t.GREEN}/>
-        <StatCard label="Effective Rate" value={eff+"%"} color={t.BLUE}/>
-      </div>
-      <Card>
-        <SectionLabel>Australian Tax Brackets FY2025-26</SectionLabel>
-        {brackets.map((b,i)=>{
-          const isCur=i===curB;
-          return (
-            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:isCur?"10px 8px":"7px 0",background:isCur?b.c+"10":"transparent",borderRadius:6,border:isCur?"1px solid "+b.c+"33":"none",marginBottom:4}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:b.c,flexShrink:0}}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:12,color:isCur?b.c:t.TEXT,fontFamily:"sans-serif",fontWeight:isCur?600:400}}>
-                  {b.l+(isCur?" - You are here":"")}
-                </div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"Up to "+fmt(b.up===Infinity?9999999:b.up)}</div>
-              </div>
-              <div style={{fontSize:12,color:b.c,fontFamily:"sans-serif",fontWeight:600}}>{b.rate}</div>
-            </div>
-          );
-        })}
-      </Card>
-    </div>
-  );
-}
-
 function DebtPage({profile,setProfile}){
   const t=T();
   const[extra,setExtra]=useState(500);
@@ -2578,7 +2527,8 @@ function BillsPage({bills,setBills}){
 function InvestPage({profile}){
   const t=T();
   const[tab,setTab]=useState("ideas");
-  const[aiOpps,setAiOpps]=useState("");
+  const[aiOpps,setAiOpps]=useState(()=>{try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
+  const[aiOppsDate,setAiOppsDate]=useState(()=>{try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
   const[loading,setLoading]=useState(false);
   const[watchlist,setWatchlist]=useState([]);
   const[wForm,setWForm]=useState({ticker:"",name:"",notes:""});
@@ -2588,7 +2538,9 @@ function InvestPage({profile}){
     try{
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
       const d=await r.json();
-      setAiOpps((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
+      const result=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
+      setAiOpps(result);setAiOppsDate(new Date().toLocaleDateString());
+      try{localStorage.setItem("invest_ai_cache",result);localStorage.setItem("invest_ai_date",new Date().toLocaleDateString());}catch{}
     }catch{setAiOpps("Connection error.");}
     setLoading(false);
   };
@@ -3278,13 +3230,14 @@ function ReadingPage({books,setBooks}){
   );
 }
 
-function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog}){
+function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections}){
   const t=T();
   const[aiReview,setAiReview]=useState("");
   const[loading,setLoading]=useState(false);
   const[reflection,setReflection]=useState("");
-  const[savedReflection,setSavedReflection]=useState("");
   const[showReflection,setShowReflection]=useState(false);
+  const weekKey="week_"+weekStart;
+  const savedReflection=(weeklyReflections||{})[weekKey]||"";
   const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
   const weekStart=last7[0],weekEnd=last7[6];
   const scores=last7.map(d=>history[d]?.score||0);
@@ -3364,7 +3317,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         {showReflection&&(
           <div>
             <textarea value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
-            <Btn onClick={()=>{setSavedReflection(reflection);setShowReflection(false);}}>Save Reflection</Btn>
+            <Btn onClick={()=>{setWeeklyReflections(r=>({...(r||{}),[weekKey]:reflection}));setShowReflection(false);}}>Save Reflection</Btn>
           </div>
         )}
         {!showReflection&&savedReflection&&(
@@ -3465,7 +3418,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme}){
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -3558,6 +3511,23 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme}){
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75,marginBottom:8}}>Data saved to this device only. AI questions sent to Anthropic API only. No accounts, no cloud, no tracking.</div>
         <div style={{padding:"8px 10px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:6,fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>
           Multi-device sync and account login are coming in a future update. Your data will be automatically migrated when accounts are enabled.
+        </div>
+      </Card>
+      <Card style={{marginBottom:12}}>
+        <SectionLabel>Export Data</SectionLabel>
+        <div style={{display:"flex",flexDirection:"column",gap:7}}>
+          {[
+            {l:"Net Worth History",fn:()=>{const h=Object.entries(nwHistory||{});if(!h.length)return alert("No history yet.");exportCSV(h.map(([d,v])=>({date:d,value:v})),"networth-history.csv");}},
+            {l:"Tasks",fn:()=>tasks.length?exportCSV(tasks.map(({id,...r})=>r),"tasks.csv"):alert("No tasks.")},
+            {l:"Goals",fn:()=>goals.length?exportCSV(goals.map(({id,milestones,actions,...r})=>r),"goals.csv"):alert("No goals.")},
+            {l:"Workouts",fn:()=>workouts.length?exportCSV(workouts.map(w=>({date:w.date,type:w.type,duration:w.duration,exercises:w.sets?.length||0})),"workouts.csv"):alert("No workouts.")},
+            {l:"Transactions",fn:()=>transactions.length?exportCSV(transactions.map(({id,...r})=>r),"transactions.csv"):alert("No transactions.")},
+            {l:"Journal",fn:()=>journal.length?exportCSV(journal.map(({id,...r})=>r),"journal.csv"):alert("No journal entries.")},
+          ].map(ex=>(
+            <button key={ex.l} onClick={ex.fn} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              {ex.l}<span style={{color:t.GOLD,fontSize:10}}>CSV</span>
+            </button>
+          ))}
         </div>
       </Card>
       <div style={{padding:"12px 14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:7}}>
@@ -4477,6 +4447,85 @@ function RecipesPage({profile}){
   );
 }
 
+function SearchPage({tasks,goals,journal,books,workouts,setPage}){
+  const t=T();
+  const[query,setQuery]=useState("");
+  const q=query.toLowerCase().trim();
+
+  const results=q.length<2?[]:[
+    ...(tasks||[]).filter(x=>x.text?.toLowerCase().includes(q)).map(x=>({type:"Task",title:x.text,sub:x.priority+" priority",page:"tasks",color:t.GREEN})),
+    ...(goals||[]).filter(x=>x.title?.toLowerCase().includes(q)||(x.notes||"").toLowerCase().includes(q)).map(x=>({type:"Goal",title:x.title,sub:x.category+" - "+x.progress+"%",page:"goals",color:t.GOLD})),
+    ...(journal||[]).filter(x=>x.text?.toLowerCase().includes(q)).map(x=>({type:"Journal",title:x.date,sub:x.text.slice(0,80),page:"journal",color:t.PURPLE})),
+    ...(books||[]).filter(x=>x.title?.toLowerCase().includes(q)||x.author?.toLowerCase().includes(q)||(x.review||"").toLowerCase().includes(q)).map(x=>({type:"Book",title:x.title,sub:x.author||"",page:"reading",color:t.BLUE})),
+    ...(workouts||[]).filter(x=>x.date?.includes(q)||x.type?.toLowerCase().includes(q)||(x.notes||"").toLowerCase().includes(q)).map(x=>({type:"Workout",title:x.type+" - "+x.date,sub:x.sets?.length+" exercises",page:"workout",color:"#D4956A"})),
+  ].slice(0,20);
+
+  return (
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Find Anything</div>
+        <div style={{fontSize:26,color:t.TEXT,marginBottom:14}}>Search</div>
+        <div style={{position:"relative"}}>
+          <Inp
+            value={query}
+            onChange={e=>setQuery(e.target.value)}
+            placeholder="Search tasks, goals, journal, books, workouts..."
+            autoFocus
+            style={{fontSize:15,padding:"13px 16px",borderRadius:12}}
+          />
+          {query&&<button onClick={()=>setQuery("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}>X</button>}
+        </div>
+      </div>
+
+      {q.length>0&&q.length<2&&(
+        <div style={{textAlign:"center",padding:24,color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>Type at least 2 characters to search</div>
+      )}
+
+      {q.length>=2&&results.length===0&&(
+        <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:28,marginBottom:10}}>S</div>
+          <div style={{fontSize:14,marginBottom:4}}>No results for "{query}"</div>
+          <div style={{fontSize:12}}>Try searching tasks, goals, journal entries, books or workouts</div>
+        </div>
+      )}
+
+      {results.length>0&&(
+        <div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{results.length+" result"+(results.length!==1?"s":"")+" for "+chr34+query+chr34}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {results.map((r,i)=>(
+              <Card key={i} style={{cursor:"pointer",borderLeft:"3px solid "+r.color}} onClick={()=>setPage(r.page)}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:9,color:r.color,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{r.type}</div>
+                    <div style={{fontSize:13,color:t.TEXT,fontWeight:500,marginBottom:2}}>{r.title}</div>
+                    {r.sub&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{r.sub}</div>}
+                  </div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,marginLeft:10}}>Go</div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!query&&(
+        <div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Search across</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            {[{l:"Tasks",c:t.GREEN,pg:"tasks"},{l:"Goals",c:t.GOLD,pg:"goals"},{l:"Journal",c:t.PURPLE,pg:"journal"},{l:"Books",c:t.BLUE,pg:"reading"},{l:"Workouts",c:"#D4956A",pg:"workout"},{l:"Recipes",c:t.RED,pg:"recipes"}].map(x=>(
+              <div key={x.l} onClick={()=>setPage(x.pg)} style={{background:x.c+"18",border:"1px solid "+x.c+"33",borderRadius:8,padding:"12px 10px",textAlign:"center",cursor:"pointer"}}>
+                <div style={{fontSize:12,color:x.c,fontFamily:"sans-serif",fontWeight:600}}>{x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const chr34='"';
+
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[profile,setProfile]=useState(null);
@@ -4499,6 +4548,7 @@ function App(){
   const[habitLog,setHabitLog]=useState({});
   const[holdings,setHoldings]=useState([]);
   const[budgets,setBudgets]=useState({});
+  const[weeklyReflections,setWeeklyReflections]=useState({});
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
@@ -4544,6 +4594,7 @@ function App(){
       if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
       if(saved.budgets)setBudgets(saved.budgets);
+      if(saved.weeklyReflections)setWeeklyReflections(saved.weeklyReflections);
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
     setHydrated(true);
@@ -4551,7 +4602,7 @@ function App(){
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -4573,7 +4624,7 @@ function App(){
     setNwHistory(h=>({...h,[monthStr()]:profile.netWorth||0}));
   },[profile,hydrated]);
 
-  const streak=(()=>{let s=0;for(let i=0;i<365;i++){const k=new Date(Date.now()-i*864e5).toISOString().split("T")[0];if(history[k]?.score>=50)s++;else if(i>0)break;}return s;})();
+  const streak=(()=>{let s=0,graced=false;for(let i=0;i<365;i++){const k=new Date(Date.now()-i*864e5).toISOString().split("T")[0];if(history[k]?.score>=50){s++;graced=false;}else if(i===0){}else if(!graced){graced=true;}else break;}return s;})();
 
   const prevNW=useRef(null);
   useEffect(()=>{
@@ -4666,6 +4717,7 @@ function App(){
         ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
           <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"16px 14px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
+          {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
@@ -4676,7 +4728,6 @@ function App(){
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
-          {page==="tax"&&<TaxPage profile={liveProfile}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile}/>}
           {page==="invest"&&<InvestPage profile={liveProfile}/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
