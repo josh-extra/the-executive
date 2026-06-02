@@ -4042,10 +4042,13 @@ function RecipesPage({profile}){
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-      const clean=text.replace(/```json|```/g,"").trim();
-      const parsed=JSON.parse(clean);
-      setRecipes(Array.isArray(parsed)?parsed:[]);
-    }catch(e){console.error(e);setRecipes([]);}
+      const start=text.indexOf("[");
+      const end=text.lastIndexOf("]");
+      if(start===-1||end===-1){setError("No recipes returned. Please try again.");setLoading(false);return;}
+      const parsed=JSON.parse(text.slice(start,end+1));
+      setRecipes(Array.isArray(parsed)&&parsed.length>0?parsed:[]);
+      if(!Array.isArray(parsed)||parsed.length===0)setError("No recipes returned. Please try again.");
+    }catch(e){console.error("Recipe error:",e.message);setError("Failed to generate recipes: "+e.message);}
     setLoading(false);
   };
 
