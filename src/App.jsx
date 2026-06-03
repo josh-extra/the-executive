@@ -28,6 +28,7 @@ const fmt=n=>{
 };
 const todayStr=()=>new Date().toISOString().split("T")[0];
 const monthStr=()=>new Date().toISOString().slice(0,7);
+const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
 const AU_TAX=[[18200,0,0],[45000,.19,0],[120000,.325,5092],[180000,.37,29467],[Infinity,.45,51667]];
 const calcTax=inc=>{for(let i=AU_TAX.length-1;i>=0;i--)if(inc>AU_TAX[i][0])return AU_TAX[i][2]+AU_TAX[i][1]*(inc-AU_TAX[i][0]);return 0;};
@@ -78,7 +79,7 @@ const applyDailyReset=(saved,today)=>{
   return saved;
 };
 const DEMO={
-  firstName:"William",lastName:"Sterling",age:"34",location:"Brisbane, QLD",
+  firstName:"William",lastName:"Sterling",dob:"1991-01-15",age:"34",location:"Brisbane, QLD",
   occupation:"Founder & Investor",locale:"en-AU",height:"182",weight:"88",
   targetWeight:"82",bodyFat:"18",sleepHours:"7.2",annualIncome:"320000",
   shareValue:"187400",propertyValue:"1250000",cashSavings:"85000",
@@ -3355,7 +3356,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   const tDone=(tasks||[]).filter(tk=>tk.done).length;
   const sDone=(supplements||[]).filter(s=>s.taken).length;
   const hDone=(habits||[]).filter(h=>!!habitLog?.[h.id+"_"+todayStr()]).length;
-  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+profile.age+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt(parseFloat(profile.propertyValue)||0)+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY: Tasks "+tDone+"/"+(tasks||[]).length+" | Habits "+hDone+"/"+(habits||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
+  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt(parseFloat(profile.propertyValue)||0)+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY: Tasks "+tDone+"/"+(tasks||[]).length+" | Habits "+hDone+"/"+(habits||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
   const send=async text=>{
     const q=text||input.trim();if(!q||loading)return;setInput("");
     const updated=[...msgs,{role:"user",content:q}];setMessages(updated);setLoading(true);
@@ -3434,7 +3435,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
         <Btn onClick={save}>{saved?"Saved":"Save Changes"}</Btn>
       </div>
       {(()=>{
-        const fields=["firstName","lastName","age","location","occupation","height","weight","annualIncome","netWorthTarget"];
+        const fields=["firstName","lastName","dob","location","occupation","height","weight","annualIncome","netWorthTarget"];
         const filled=fields.filter(f=>profile[f]&&String(profile[f]).trim()).length;
         const pct=Math.round(filled/fields.length*100);
         return pct<100?(
@@ -3483,7 +3484,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
       <Card style={{marginBottom:12}}>
         <SectionLabel>Personal</SectionLabel>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[["firstName","First Name","text"],["lastName","Last Name","text"],["age","Age","number"],["location","Location","text"],["occupation","Occupation","text"]].map(([k,l,tp])=>(
+          {[["firstName","First Name","text"],["lastName","Last Name","text"],["dob","Date of Birth","date"],["location","Location","text"],["occupation","Occupation","text"]].map(([k,l,tp])=>(
             <div key={k} style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",minWidth:90,flexShrink:0}}>{l}</div>
               <Inp type={tp} value={form[k]||""} onChange={e=>setForm(x=>({...x,[k]:e.target.value}))} style={{flex:1,padding:"7px 10px",fontSize:12}}/>
@@ -3833,7 +3834,7 @@ function SetupPage({onComplete}){
             <div style={{fontSize:22,color:t.TEXT,marginBottom:20}}>Tell us about yourself</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div style={{display:"flex",gap:10}}>{inp("firstName","First Name","William")}{inp("lastName","Last Name","Sterling")}</div>
-              {inp("age","Age","34","number")}
+              {inp("dob","Date of Birth","","date")}
               {inp("location","City / State","Brisbane, QLD")}
               {inp("occupation","Occupation","Founder / Investor")}
             </div>
