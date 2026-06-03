@@ -173,7 +173,7 @@ class ErrorBoundary extends Component{
   static getDerivedStateFromError(e){return{error:e};}
   render(){
     if(this.state.error){
-      const t=THEMES.dark;
+      const t=THEMES.obsidian;
       return (
         <div style={{minHeight:"100vh",background:t.BG,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,padding:40,textAlign:"center"}}>
           <div style={{fontSize:32,color:t.RED}}>!</div>
@@ -460,10 +460,10 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                   <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{profile.occupation||"The Executive"}</div>
                 </div>
               </div>
-              <div style={{display:"flex",gap:8}}>
-                {["dark","light"].map(th=>(
-                  <button key={th} onClick={()=>setTheme(th)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(theme===th?t.GOLD:t.BORDER),background:theme===th?t.GOLD+"18":"transparent",color:theme===th?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
-                    {th==="dark"?"Dark":"Light"}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+                {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"},{id:"parchment",l:"Parchment"},{id:"minimal",l:"Minimal"}].map(th=>(
+                  <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"6px 4px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+                    {th.l}
                   </button>
                 ))}
               </div>
@@ -533,10 +533,10 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               <div style={{fontSize:9,color:savedLabel?t.GREEN:t.MUTED,fontFamily:"sans-serif"}}>{savedLabel||profile.occupation||"The Executive"}</div>
             </div>
           </div>
-          <div style={{display:"flex",gap:5}}>
-            {["dark","light"].map(th=>(
-              <button key={th} onClick={()=>setTheme(th)} style={{flex:1,padding:"4px",borderRadius:5,border:"1px solid "+(theme===th?t.GOLD:t.BORDER),background:theme===th?t.GOLD+"18":"transparent",color:theme===th?t.GOLD:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>
-                {th==="dark"?"Dark":"Light"}
+          <div style={{display:"flex",gap:4}}>
+            {[{id:"obsidian",l:"Ob"},{id:"charcoal",l:"Ch"},{id:"parchment",l:"Pa"},{id:"minimal",l:"Mi"}].map(th=>(
+              <button key={th.id} onClick={()=>setTheme(th.id)} style={{flex:1,padding:"4px 2px",borderRadius:5,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>
+                {th.l}
               </button>
             ))}
           </div>
@@ -3454,10 +3454,10 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
       })()}
       <Card style={{marginBottom:12}}>
         <SectionLabel>Appearance</SectionLabel>
-        <div style={{display:"flex",gap:8}}>
-          {["dark","light"].map(th=>(
-            <button key={th} onClick={()=>setTheme(th)} style={{flex:1,padding:"10px",borderRadius:7,border:"1px solid "+(theme===th?t.GOLD:t.BORDER),background:theme===th?t.GOLD+"14":t.CARD2,color:theme===th?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
-              {th==="dark"?"Dark Mode":"Light Mode"}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+          {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"},{id:"parchment",l:"Parchment"},{id:"minimal",l:"Minimal"}].map(th=>(
+            <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"10px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":t.CARD2,color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+              {th.l}
             </button>
           ))}
         </div>
