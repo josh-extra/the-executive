@@ -2104,6 +2104,7 @@ function ProjectorPage({profile}){
 function DebtPage({profile,setProfile,debts,setDebts}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
+  const[editing,setEditing]=useState(null);
   const[expanded,setExpanded]=useState({});
   const[payingDebt,setPayingDebt]=useState(null);
   const[payAmount,setPayAmount]=useState("");
@@ -2112,7 +2113,8 @@ function DebtPage({profile,setProfile,debts,setDebts}){
   const[extra,setExtra]=useState(500);
   const[strategy,setStrategy]=useState("avalanche");
   const[confirmDel,setConfirmDel]=useState(null);
-  const[form,setForm]=useState({name:"",type:"Mortgage",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""});
+  const emptyForm={name:"",type:"Mortgage",originalBalance:"",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""};
+  const[form,setForm]=useState(emptyForm);
 
   const DEBT_TYPES=["Mortgage","Investment Loan","Car Finance","Credit Card","Personal Loan","Student Loan","Business Loan","Other"];
 
@@ -2162,20 +2164,42 @@ function DebtPage({profile,setProfile,debts,setDebts}){
     return 0;
   });
 
-  const addDebt=()=>{
+  const saveDebt=()=>{
     if(!form.name||!form.balance)return;
-    const newDebt={
-      id:Date.now(),name:form.name,type:form.type,
-      balance:parseFloat(form.balance),originalBalance:parseFloat(form.balance),
-      rate:parseFloat(form.rate)||0,minPayment:parseFloat(form.minPayment)||0,
-      startDate:form.startDate,endDate:form.endDate,lender:form.lender,notes:form.notes,
-      payments:[]
-    };
-    setDebts(ds=>[...(ds||[]),...(allDebts.filter(d=>d.id!==newDebt.id)),...[newDebt]].filter((d,i,arr)=>arr.findIndex(x=>x.id===d.id)===i));
-    if(allDebts===debts||!debts?.length) setDebts([...allDebts,newDebt]);
-    else setDebts(ds=>[...ds,newDebt]);
-    setForm({name:"",type:"Mortgage",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""});
-    setShowAdd(false);
+    const origBal=parseFloat(form.originalBalance)||parseFloat(form.balance);
+    const curBal=parseFloat(form.balance);
+    if(editing){
+      setDebts(ds=>(ds||allDebts).map(d=>d.id===editing?{
+        ...d,...form,
+        balance:curBal,
+        originalBalance:origBal,
+        rate:parseFloat(form.rate)||0,
+        minPayment:parseFloat(form.minPayment)||0,
+      }:d));
+    } else {
+      const newDebt={
+        id:Date.now(),name:form.name,type:form.type,
+        balance:curBal,originalBalance:origBal,
+        rate:parseFloat(form.rate)||0,minPayment:parseFloat(form.minPayment)||0,
+        startDate:form.startDate,endDate:form.endDate,lender:form.lender,notes:form.notes,
+        payments:[]
+      };
+      if(!debts?.length) setDebts([...allDebts,newDebt]);
+      else setDebts(ds=>[...ds,newDebt]);
+    }
+    setForm(emptyForm);setShowAdd(false);setEditing(null);
+  };
+
+  const openEdit=(d)=>{
+    setForm({
+      name:d.name||"",type:d.type||"Mortgage",
+      originalBalance:d.originalBalance||d.balance||"",
+      balance:d.balance||"",
+      rate:d.rate||"",minPayment:d.minPayment||"",
+      startDate:d.startDate||"",endDate:d.endDate||"",
+      lender:d.lender||"",notes:d.notes||""
+    });
+    setEditing(d.id);setShowAdd(true);
   };
 
   const recordPayment=(id,amount)=>{
@@ -2217,7 +2241,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
           <div style={{fontSize:26,color:t.TEXT}}>Debt Tracker</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{allDebts.length+" debts - "+fmt(totalDebt)+" total"}</div>
         </div>
-        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Debt</Btn>
+        <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(s=>!s);}}>+ Add Debt</Btn>
       </div>
 
       {/* Summary stats */}
@@ -2284,7 +2308,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
       {/* Add debt form */}
       {showAdd&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <SectionLabel>New Debt</SectionLabel>
+          <SectionLabel>{editing?"Edit Debt":"New Debt"}</SectionLabel>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div style={{display:"flex",gap:8}}>
               <div style={{flex:2}}>
@@ -2294,15 +2318,23 @@ function DebtPage({profile,setProfile,debts,setDebts}){
               <div style={{flex:1}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Type</div>
                 <Sel value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
-                  {DEBT_TYPES.map(t=><option key={t}>{t}</option>)}
+                  {DEBT_TYPES.map(tp=><option key={tp}>{tp}</option>)}
                 </Sel>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Balance ($)</div>
-                <Inp type="number" value={form.balance} onChange={e=>setForm(f=>({...f,balance:e.target.value}))} placeholder="250000"/>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Original Balance ($)</div>
+                <Inp type="number" value={form.originalBalance} onChange={e=>setForm(f=>({...f,originalBalance:e.target.value}))} placeholder="e.g. 600000"/>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>What you originally borrowed</div>
               </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Current Balance ($)</div>
+                <Inp type="number" value={form.balance} onChange={e=>setForm(f=>({...f,balance:e.target.value}))} placeholder="e.g. 480000"/>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>Where it sits right now</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Interest Rate (%)</div>
                 <Inp type="number" value={form.rate} onChange={e=>setForm(f=>({...f,rate:e.target.value}))} placeholder="6.2"/>
@@ -2310,6 +2342,10 @@ function DebtPage({profile,setProfile,debts,setDebts}){
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Min Payment ($/mo)</div>
                 <Inp type="number" value={form.minPayment} onChange={e=>setForm(f=>({...f,minPayment:e.target.value}))} placeholder="2400"/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Lender</div>
+                <Inp value={form.lender} onChange={e=>setForm(f=>({...f,lender:e.target.value}))} placeholder="ANZ, Westpac..."/>
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -2322,19 +2358,13 @@ function DebtPage({profile,setProfile,debts,setDebts}){
                 <Inp type="date" value={form.endDate} onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}/>
               </div>
             </div>
-            <div style={{display:"flex",gap:8}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Lender</div>
-                <Inp value={form.lender} onChange={e=>setForm(f=>({...f,lender:e.target.value}))} placeholder="ANZ, Westpac..."/>
-              </div>
-              <div style={{flex:2}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Notes</div>
-                <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Fixed/variable, special terms..."/>
-              </div>
+            <div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Notes</div>
+              <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Fixed/variable rate, special terms, offset account..."/>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <Btn onClick={addDebt}>Add Debt</Btn>
-              <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
+              <Btn onClick={saveDebt}>{editing?"Save Changes":"Add Debt"}</Btn>
+              <Btn onClick={()=>{setShowAdd(false);setEditing(null);setForm(emptyForm);}} variant="ghost">Cancel</Btn>
             </div>
           </div>
         </Card>
@@ -2443,6 +2473,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
             ):(
               <div style={{display:"flex",gap:7,marginTop:4}}>
                 <button onClick={()=>setPayingDebt(d.id)} style={{background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Record Payment</button>
+                <button onClick={()=>openEdit(d)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Edit</button>
                 <button onClick={()=>setExpanded(x=>({...x,[d.id]:!x[d.id]}))} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{isExpanded?"Less":"Details"}</button>
               </div>
             )}
@@ -2455,7 +2486,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
           <div style={{fontSize:32,marginBottom:12}}>D</div>
           <div style={{fontSize:14,marginBottom:8}}>No debts tracked</div>
           <div style={{fontSize:12,marginBottom:16}}>Add your debts to get a personalised payoff strategy</div>
-          <Btn onClick={()=>setShowAdd(true)}>+ Add First Debt</Btn>
+          <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(true);}}>+ Add First Debt</Btn>
         </div>
       )}
     </div>
