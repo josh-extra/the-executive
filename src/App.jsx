@@ -2101,67 +2101,363 @@ function ProjectorPage({profile}){
   );
 }
 
-function DebtPage({profile,setProfile}){
+function DebtPage({profile,setProfile,debts,setDebts}){
   const t=T();
-  const[extra,setExtra]=useState(500);
+  const[showAdd,setShowAdd]=useState(false);
+  const[expanded,setExpanded]=useState({});
   const[payingDebt,setPayingDebt]=useState(null);
   const[payAmount,setPayAmount]=useState("");
-  const recordPayment=(k,amount)=>{
-    const current=parseFloat(profile[k])||0;
-    const newBal=Math.max(0,current-amount);
-    const tD=["mortgageDebt","investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,dk)=>s+(dk===k?newBal:parseFloat(profile[dk])||0),0);
-    const tA=parseFloat(profile.totalAssets)||0;
-    setProfile(p=>({...p,[k]:newBal,totalDebt:tD,netWorth:tA-tD}));
+  const[aiAdvice,setAiAdvice]=useState("");
+  const[aiLoading,setAiLoading]=useState(false);
+  const[extra,setExtra]=useState(500);
+  const[strategy,setStrategy]=useState("avalanche");
+  const[confirmDel,setConfirmDel]=useState(null);
+  const[form,setForm]=useState({name:"",type:"Mortgage",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""});
+
+  const DEBT_TYPES=["Mortgage","Investment Loan","Car Finance","Credit Card","Personal Loan","Student Loan","Business Loan","Other"];
+
+  // Migrate legacy debts from profile on first load
+  const allDebts = debts && debts.length > 0 ? debts : [
+    {k:"mortgageDebt",name:"Mortgage",type:"Mortgage",rate:6.2},
+    {k:"investLoanDebt",name:"Investment Loan",type:"Investment Loan",rate:7.0},
+    {k:"carDebt",name:"Car Finance",type:"Car Finance",rate:9.5},
+    {k:"creditCardDebt",name:"Credit Card",type:"Credit Card",rate:19.9},
+    {k:"personalDebt",name:"Personal Loan",type:"Personal Loan",rate:12.0},
+  ].filter(d=>parseFloat(profile[d.k])>0).map(d=>({
+    id:d.k,name:d.name,type:d.type,
+    balance:parseFloat(profile[d.k]),
+    rate:d.rate,minPayment:"",startDate:"",endDate:"",lender:"",notes:"",
+    payments:[],originalBalance:parseFloat(profile[d.k])
+  }));
+
+  const totalDebt=allDebts.reduce((s,d)=>s+parseFloat(d.balance||0),0);
+  const totalMinPayment=allDebts.reduce((s,d)=>s+parseFloat(d.minPayment||0),0);
+
+  // Payoff calc
+  const calcPayoff=(bal,rate,payment)=>{
+    if(!payment||payment<=0)return null;
+    const r=parseFloat(rate)/100/12;
+    const b=parseFloat(bal);
+    if(r===0)return Math.ceil(b/payment);
+    if(payment<=b*r)return null; // interest only
+    return Math.ceil(Math.log(payment/(payment-b*r))/Math.log(1+r));
+  };
+
+  const calcTotalInterest=(bal,rate,payment)=>{
+    const months=calcPayoff(bal,rate,payment);
+    if(!months)return null;
+    return Math.round(payment*months-parseFloat(bal));
+  };
+
+  const payoffDate=(months)=>{
+    if(!months)return null;
+    const d=new Date();d.setMonth(d.getMonth()+months);
+    return d.toLocaleDateString(_locale,{month:"short",year:"numeric"});
+  };
+
+  // Sort by strategy
+  const sorted=[...allDebts].sort((a,b)=>{
+    if(strategy==="avalanche")return parseFloat(b.rate||0)-parseFloat(a.rate||0);
+    if(strategy==="snowball")return parseFloat(a.balance||0)-parseFloat(b.balance||0);
+    return 0;
+  });
+
+  const addDebt=()=>{
+    if(!form.name||!form.balance)return;
+    const newDebt={
+      id:Date.now(),name:form.name,type:form.type,
+      balance:parseFloat(form.balance),originalBalance:parseFloat(form.balance),
+      rate:parseFloat(form.rate)||0,minPayment:parseFloat(form.minPayment)||0,
+      startDate:form.startDate,endDate:form.endDate,lender:form.lender,notes:form.notes,
+      payments:[]
+    };
+    setDebts(ds=>[...(ds||[]),...(allDebts.filter(d=>d.id!==newDebt.id)),...[newDebt]].filter((d,i,arr)=>arr.findIndex(x=>x.id===d.id)===i));
+    if(allDebts===debts||!debts?.length) setDebts([...allDebts,newDebt]);
+    else setDebts(ds=>[...ds,newDebt]);
+    setForm({name:"",type:"Mortgage",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""});
+    setShowAdd(false);
+  };
+
+  const recordPayment=(id,amount)=>{
+    const amt=parseFloat(amount)||0;
+    if(!amt)return;
+    setDebts(ds=>(ds||allDebts).map(d=>{
+      if(d.id!==id)return d;
+      const newBal=Math.max(0,parseFloat(d.balance)-amt);
+      return{...d,balance:newBal,payments:[...(d.payments||[]),{date:todayStr(),amount:amt,id:Date.now()}]};
+    }));
     setPayingDebt(null);setPayAmount("");
   };
-  const debts=[{l:"Mortgage",k:"mortgageDebt",rate:6.2},{l:"Investment Loan",k:"investLoanDebt",rate:7.0},{l:"Car Finance",k:"carDebt",rate:9.5},{l:"Credit Cards",k:"creditCardDebt",rate:19.9},{l:"Personal Loans",k:"personalDebt",rate:12.0}].filter(d=>parseFloat(profile[d.k])>0).map(d=>({...d,balance:parseFloat(profile[d.k])}));
-  const calcM=(bal,rate,ex)=>{
-    const r=rate/100/12,mp=bal*r*1.1,total=mp+ex/Math.max(debts.length,1);
-    if(total<=bal*r)return 999;
-    return Math.ceil(Math.log(total/(total-bal*r))/Math.log(1+r));
+
+  const getAiAdvice=async()=>{
+    setAiLoading(true);setAiAdvice("");
+    const debtSummary=allDebts.map(d=>{
+      const payment=parseFloat(d.minPayment)||0;
+      const months=calcPayoff(d.balance,d.rate,payment+extra/Math.max(allDebts.length,1));
+      return d.name+" - Balance: "+fmt(d.balance)+" - Rate: "+(d.rate||0)+"% - Min payment: "+fmt(payment)+" - Payoff: "+(months?"~"+months+" months":"unknown");
+    }).join("\n");
+    try{
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-sonnet-4-6",max_tokens:800,
+        system:"You are a personal finance expert. Give direct, specific debt payoff advice. No fluff.",
+        messages:[{role:"user",content:"My debts:\n"+debtSummary+"\n\nTotal debt: "+fmt(totalDebt)+"\nExtra monthly budget: "+fmt(extra)+"\nCurrent strategy: "+strategy+"\n\nGive me: 1) Which debt to attack first and why, 2) Specific monthly payment plan, 3) One quick win I can do this week to reduce debt faster. Be specific with numbers."}]
+      })});
+      const d=await r.json();
+      setAiAdvice((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate advice.");
+    }catch{setAiAdvice("Connection error.");}
+    setAiLoading(false);
   };
-  const totalDebt=debts.reduce((s,d)=>s+d.balance,0);
+
   return (
-    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
-      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Debt Freedom</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Payoff Calculator</div>
-      <Card style={{marginBottom:14}}>
-        <SectionLabel>Extra Monthly Payment</SectionLabel>
-        <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <input type="range" min={0} max={5000} step={100} value={extra} onChange={e=>setExtra(Number(e.target.value))} style={{flex:1,accentColor:t.GOLD}}/>
-          <div style={{fontSize:18,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,minWidth:90}}>{fmt(extra)+"/mo"}</div>
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Debt Freedom</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Debt Tracker</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{allDebts.length+" debts - "+fmt(totalDebt)+" total"}</div>
         </div>
+        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Debt</Btn>
+      </div>
+
+      {/* Summary stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        <StatCard label="Total Debt" value={fmt(totalDebt)} color={t.RED}/>
+        <StatCard label="Min Payments" value={fmt(totalMinPayment)+"/mo"} color={t.MUTED} sub="Combined"/>
+        <StatCard label="Debts" value={allDebts.length} color={t.GOLD} sub="Active"/>
+      </div>
+
+      {/* Strategy + Extra */}
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:200}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Payoff Strategy</div>
+            <div style={{display:"flex",gap:7}}>
+              {[{id:"avalanche",l:"Avalanche",sub:"Highest rate first"},{id:"snowball",l:"Snowball",sub:"Smallest balance first"},{id:"custom",l:"Custom",sub:"Your order"}].map(s=>(
+                <button key={s.id} onClick={()=>setStrategy(s.id)} style={{flex:1,padding:"8px 6px",borderRadius:7,border:"1px solid "+(strategy===s.id?t.GOLD:t.BORDER),background:strategy===s.id?t.GOLD+"18":"transparent",cursor:"pointer",fontFamily:"sans-serif"}}>
+                  <div style={{fontSize:11,color:strategy===s.id?t.GOLD:t.TEXT,fontWeight:600}}>{s.l}</div>
+                  <div style={{fontSize:9,color:t.MUTED,marginTop:2}}>{s.sub}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{flex:1,minWidth:180}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Extra Monthly Payment</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <input type="range" min={0} max={5000} step={100} value={extra} onChange={e=>setExtra(Number(e.target.value))} style={{flex:1,accentColor:t.GOLD}}/>
+              <div style={{fontSize:16,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,minWidth:80,textAlign:"right"}}>{fmt(extra)+"/mo"}</div>
+            </div>
+          </div>
+        </div>
+        {/* Priority order hint */}
+        {strategy!=="custom"&&allDebts.length>1&&(
+          <div style={{padding:"8px 12px",background:t.CARD2,borderRadius:7}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Attack Order</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {sorted.map((d,i)=>(
+                <div key={d.id} style={{display:"flex",alignItems:"center",gap:5,background:i===0?t.RED+"22":t.CARD,border:"1px solid "+(i===0?t.RED:t.BORDER),borderRadius:20,padding:"3px 10px"}}>
+                  <div style={{width:16,height:16,borderRadius:"50%",background:i===0?t.RED:t.BORDER,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:i===0?t.BG:t.MUTED,fontWeight:700,flexShrink:0}}>{i+1}</div>
+                  <span style={{fontSize:10,color:i===0?t.RED:t.MUTED,fontFamily:"sans-serif"}}>{d.name}</span>
+                  <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{d.rate||0}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
-      {debts.map(d=>{
-        const months=calcM(d.balance,d.rate,extra);
-        const years=Math.floor(months/12),mos=months%12;
-        const pct=Math.round(d.balance/totalDebt*100);
-        return (
-          <Card key={d.k} style={{marginBottom:8,borderLeft:"3px solid "+t.RED}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
-              <div>
-                <div style={{fontSize:13,color:t.TEXT}}>{d.l}</div>
-                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{d.rate+"% p.a. - "+pct+"% of total"}</div>
+
+      {/* AI Advice */}
+      <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiAdvice||aiLoading?12:0}}>
+          <div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>AI Debt Advisor</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised payoff strategy based on your debts</div>
+          </div>
+          <button onClick={getAiAdvice} disabled={aiLoading||!allDebts.length} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:t.GOLD,cursor:aiLoading||!allDebts.length?"default":"pointer",fontFamily:"sans-serif",fontSize:11,opacity:!allDebts.length?.5:1}}>
+            {aiLoading?"Analysing...":"Get Strategy"}
+          </button>
+        </div>
+        {aiLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85].map((w,i)=><Skeleton key={i} width={w+"%"} height={12}/>)}</div>}
+        {aiAdvice&&!aiLoading&&<div style={{fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiAdvice}</div>}
+      </Card>
+
+      {/* Add debt form */}
+      {showAdd&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>New Debt</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:2}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Name</div>
+                <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. ANZ Home Loan"/>
               </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:14,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{"-"+fmt(d.balance)}</div>
-                <div style={{fontSize:10,color:months<999?t.GREEN:t.MUTED,fontFamily:"sans-serif"}}>{months<999?(years>0?years+"y ":"")+(mos+"m to clear"):"Increase payment"}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Type</div>
+                <Sel value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))}>
+                  {DEBT_TYPES.map(t=><option key={t}>{t}</option>)}
+                </Sel>
               </div>
             </div>
-            <PB value={pct} color={t.RED} height={4}/>
-            {payingDebt===d.k?(
-              <div style={{marginTop:10,display:"flex",gap:7,alignItems:"center"}}>
-                <Inp type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="Payment amount" style={{flex:1,fontSize:12}}/>
-                <Btn onClick={()=>recordPayment(d.k,parseFloat(payAmount)||0)} disabled={!payAmount} style={{fontSize:11}}>Record</Btn>
-                <Btn onClick={()=>{setPayingDebt(null);setPayAmount("");}} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Balance ($)</div>
+                <Inp type="number" value={form.balance} onChange={e=>setForm(f=>({...f,balance:e.target.value}))} placeholder="250000"/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Interest Rate (%)</div>
+                <Inp type="number" value={form.rate} onChange={e=>setForm(f=>({...f,rate:e.target.value}))} placeholder="6.2"/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Min Payment ($/mo)</div>
+                <Inp type="number" value={form.minPayment} onChange={e=>setForm(f=>({...f,minPayment:e.target.value}))} placeholder="2400"/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Start Date</div>
+                <Inp type="date" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))}/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>End Date / Due Date</div>
+                <Inp type="date" value={form.endDate} onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Lender</div>
+                <Inp value={form.lender} onChange={e=>setForm(f=>({...f,lender:e.target.value}))} placeholder="ANZ, Westpac..."/>
+              </div>
+              <div style={{flex:2}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Notes</div>
+                <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Fixed/variable, special terms..."/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn onClick={addDebt}>Add Debt</Btn>
+              <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Debt cards */}
+      {sorted.map((d,idx)=>{
+        const bal=parseFloat(d.balance||0);
+        const payment=(parseFloat(d.minPayment)||0)+(idx===0?extra:0);
+        const months=calcPayoff(bal,d.rate,payment);
+        const totalInt=calcTotalInterest(bal,d.rate,payment);
+        const pct=totalDebt>0?Math.round(bal/totalDebt*100):0;
+        const paidOff=d.originalBalance?Math.round((1-bal/d.originalBalance)*100):0;
+        const isExpanded=!!expanded[d.id];
+        const isPriority=idx===0&&strategy!=="custom";
+
+        return (
+          <Card key={d.id} style={{marginBottom:10,borderLeft:"3px solid "+(isPriority?t.RED:t.BORDER)}}>
+            {/* Header row */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,cursor:"pointer"}} onClick={()=>setExpanded(x=>({...x,[d.id]:!x[d.id]}))}>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                  {isPriority&&<div style={{fontSize:8,color:t.RED,fontFamily:"sans-serif",background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:4,padding:"1px 6px",letterSpacing:1,textTransform:"uppercase"}}>Priority</div>}
+                  <div style={{fontSize:14,color:t.TEXT,fontWeight:600}}>{d.name}</div>
+                </div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{d.type}</span>
+                  {d.lender&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{d.lender}</span>}
+                  <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(d.rate||0)+"%"+" p.a."}</span>
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                <div style={{fontSize:18,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{"-"+fmt(bal)}</div>
+                {months&&<div style={{fontSize:10,color:t.GREEN,fontFamily:"sans-serif",marginTop:1}}>Free {payoffDate(months)}</div>}
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {d.originalBalance&&d.originalBalance>0&&(
+              <div style={{marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                  <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{paidOff+"% paid off"}</span>
+                  <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(d.originalBalance-bal)+" paid"}</span>
+                </div>
+                <PB value={paidOff} color={t.GREEN} height={5}/>
+              </div>
+            )}
+
+            {/* Key metrics row */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7,marginBottom:8}}>
+              {[
+                {l:"Balance",v:fmt(bal),c:t.RED},
+                {l:"Rate",v:(d.rate||0)+"%",c:t.MUTED},
+                {l:"Monthly",v:payment>0?fmt(payment)+"/mo":"Not set",c:t.GOLD},
+                {l:"Est. Interest",v:totalInt?fmt(totalInt):"N/A",c:t.MUTED},
+              ].map(m=>(
+                <div key={m.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:11,color:m.c,fontFamily:"sans-serif",fontWeight:600}}>{m.v}</div>
+                  <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",marginTop:2,textTransform:"uppercase",letterSpacing:.5}}>{m.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Expanded detail */}
+            {isExpanded&&(
+              <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:10,marginBottom:8}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                  {d.startDate&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>Start Date</div><div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{d.startDate}</div></div>}
+                  {d.endDate&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>End Date</div><div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{d.endDate}</div></div>}
+                  {months&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>Payoff Date (est.)</div><div style={{fontSize:12,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>{payoffDate(months)+" ("+months+" months)"}</div></div>}
+                  <div><div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>Share of total debt</div><div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{pct+"%"}</div></div>
+                </div>
+                {d.notes&&<div style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{d.notes}</div>}
+                {/* Payment history */}
+                {(d.payments||[]).length>0&&(
+                  <div style={{marginBottom:10}}>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Payment History</div>
+                    {(d.payments||[]).slice(-5).reverse().map(p=>(
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:"1px solid "+t.BORDER+"66",fontSize:11,fontFamily:"sans-serif"}}>
+                        <span style={{color:t.MUTED}}>{p.date}</span>
+                        <span style={{color:t.GREEN,fontWeight:600}}>{"-"+fmt(p.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Delete */}
+                {confirmDel===d.id?(
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginTop:6}}>
+                    <span style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Delete this debt?</span>
+                    <button onClick={()=>{setDebts(ds=>(ds||allDebts).filter(x=>x.id!==d.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 8px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                    <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 8px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                  </div>
+                ):(
+                  <button onClick={()=>setConfirmDel(d.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",opacity:.6}}>Delete debt</button>
+                )}
+              </div>
+            )}
+
+            {/* Record payment */}
+            {payingDebt===d.id?(
+              <div style={{display:"flex",gap:7,alignItems:"center",marginTop:6}}>
+                <Inp type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="Payment amount $" style={{flex:1,fontSize:12}}/>
+                <Btn onClick={()=>recordPayment(d.id,payAmount)} disabled={!payAmount}>Record</Btn>
+                <Btn onClick={()=>{setPayingDebt(null);setPayAmount("");}} variant="ghost">Cancel</Btn>
               </div>
             ):(
-              <button onClick={()=>setPayingDebt(d.k)} style={{marginTop:8,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Record Payment</button>
+              <div style={{display:"flex",gap:7,marginTop:4}}>
+                <button onClick={()=>setPayingDebt(d.id)} style={{background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Record Payment</button>
+                <button onClick={()=>setExpanded(x=>({...x,[d.id]:!x[d.id]}))} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{isExpanded?"Less":"Details"}</button>
+              </div>
             )}
           </Card>
         );
       })}
-      {!debts.length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>No debts recorded. Update your profile.</div>}
+
+      {!allDebts.length&&(
+        <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:32,marginBottom:12}}>D</div>
+          <div style={{fontSize:14,marginBottom:8}}>No debts tracked</div>
+          <div style={{fontSize:12,marginBottom:16}}>Add your debts to get a personalised payoff strategy</div>
+          <Btn onClick={()=>setShowAdd(true)}>+ Add First Debt</Btn>
+        </div>
+      )}
     </div>
   );
 }
@@ -4595,6 +4891,7 @@ function App(){
   const[journal,setJournal]=useState([]);
   const[books,setBooks]=useState(D_BOOKS);
   const[bills,setBills]=useState([]);
+  const[debts,setDebts]=useState([]);
   const[history,setHistory]=useState({});
   const[bodyLog,setBodyLog]=useState([]);
   const[habits,setHabits]=useState(D_HABITS);
@@ -4637,6 +4934,7 @@ function App(){
       if(saved.journal)setJournal(saved.journal);
       if(saved.books)setBooks(saved.books);
       if(saved.bills)setBills(saved.bills);
+      if(saved.debts)setDebts(saved.debts);
       if(saved.history)setHistory(saved.history);
       if(saved.bodyLog)setBodyLog(saved.bodyLog);
       if(saved.habits)setHabits(saved.habits);
@@ -4655,7 +4953,7 @@ function App(){
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -4782,7 +5080,7 @@ function App(){
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
-          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile}/>}
+          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts}/>}
           {page==="invest"&&<InvestPage profile={liveProfile}/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
