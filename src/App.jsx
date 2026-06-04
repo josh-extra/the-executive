@@ -796,16 +796,16 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         {/* Habits */}
         <Card>
           <SectionLabel action={<button onClick={()=>setPage("habits")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All habits</button>}>Today's Habits</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {(habits||[]).slice(0,7).map(h=>{
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {(habits||[]).slice(0,8).map(h=>{
               const done=!!habitLog[h.id+"_"+todayStr()];
               return (
-                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"5px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
-                  <div style={{width:22,height:22,borderRadius:"50%",border:"1.5px solid "+(done?h.color:t.BORDER2),background:done?h.color:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-                    {done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
+                  <div style={{width:26,height:26,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,transition:"all .2s"}}>
+                    {h.icon}
                   </div>
-                  <span style={{fontSize:14,lineHeight:1}}>{h.icon}</span>
                   <span style={{flex:1,fontSize:12,color:done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
+                  {done&&<span style={{fontSize:9,color:h.color,fontFamily:"sans-serif",fontWeight:600}}>done</span>}
                 </div>
               );
             })}
@@ -1047,62 +1047,58 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
               const pct=weekPct(h);
               const isExpanded=!!expandHabit[h.id];
               return (
-                <Card key={h.id} style={{marginBottom:8}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                    <div onClick={()=>tog(h.id,todayStr())} style={{width:40,height:40,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18,transition:"all .2s"}}>
+                <Card key={h.id} style={{marginBottom:6,padding:"8px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {/* Icon tap to toggle today */}
+                    <div onClick={()=>tog(h.id,todayStr())} style={{width:32,height:32,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:15,transition:"all .2s"}}>
                       {h.icon}
                     </div>
+                    {/* Name + streak */}
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                        <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{h.name}</span>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          {streak>0&&(
-                            <div style={{display:"flex",alignItems:"center",gap:3,background:h.color+"22",borderRadius:10,padding:"2px 7px"}}>
-                              <span style={{fontSize:10}}>🔥</span>
-                              <span style={{fontSize:10,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</span>
-                            </div>
-                          )}
-                          <span style={{fontSize:10,color:wDone>=h.target?t.GREEN:t.MUTED,fontFamily:"sans-serif",fontWeight:wDone>=h.target?600:400}}>{wDone>=h.target?"Target met":wDone+"/"+h.target+" this week"}</span>
-                        </div>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                        <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.name}</span>
+                        {streak>0&&<div style={{display:"flex",alignItems:"center",gap:2,background:h.color+"22",borderRadius:8,padding:"1px 5px",flexShrink:0}}>
+                          <span style={{fontSize:9}}>🔥</span>
+                          <span style={{fontSize:9,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</span>
+                        </div>}
                       </div>
-                      <PB value={pct} color={pct>=100?t.GREEN:h.color} height={3}/>
+                      <PB value={pct} color={pct>=100?t.GREEN:h.color} height={2}/>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <button onClick={()=>moveUp(allIdx)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,lineHeight:1,opacity:.6}}>▲</button>
-                      <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,lineHeight:1,opacity:.6}}>▼</button>
-                    </div>
-                    <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.7}}>{isExpanded?"^":"v"}</button>
-                    {confirmDelete===h.id?(
-                      <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
-                        <button onClick={()=>{setHabits(hs=>hs.filter(x=>x.id!==h.id));setConfirmDelete(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
-                        <button onClick={()=>setConfirmDelete(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
-                      </div>
-                    ):(
-                      <button onClick={()=>setConfirmDelete(h.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
-                    )}
-                  </div>
-
-                  <div style={{display:"flex",gap:5,marginBottom:isExpanded?10:0}}>
-                    {last7.map(d=>{
-                      const done=!!habitLog[h.id+"_"+d];
-                      const isT=d===todayStr();
-                      const dl=dayLetters[new Date(d+"T12:00:00").getDay()];
-                      return (
-                        <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                          <div style={{fontSize:8,color:isT?h.color:t.MUTED,fontFamily:"sans-serif",fontWeight:isT?700:400}}>{dl}</div>
-                          <div onClick={()=>tog(h.id,d)} style={{width:"100%",aspectRatio:"1",borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}>
-                            {done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                    {/* 7-day dots inline */}
+                    <div style={{display:"flex",gap:3,flexShrink:0}}>
+                      {last7.map(d=>{
+                        const done=!!habitLog[h.id+"_"+d];
+                        const isT=d===todayStr();
+                        return (
+                          <div key={d} onClick={()=>tog(h.id,d)} style={{width:18,height:18,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s",flexShrink:0}}>
+                            {done&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}>V</span>}
                           </div>
+                        );
+                      })}
+                    </div>
+                    {/* Controls */}
+                    <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+                      <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.7,padding:"2px 4px"}}>{isExpanded?"^":"v"}</button>
+                      <div style={{display:"flex",flexDirection:"column",gap:1}}>
+                        <button onClick={()=>moveUp(allIdx)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▲</button>
+                        <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▼</button>
+                      </div>
+                      {confirmDelete===h.id?(
+                        <div style={{display:"flex",alignItems:"center",gap:4}}>
+                          <span style={{fontSize:9,color:t.RED,fontFamily:"sans-serif"}}>Del?</span>
+                          <button onClick={()=>{setHabits(hs=>hs.filter(x=>x.id!==h.id));setConfirmDelete(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:4,padding:"1px 5px",color:t.RED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>Y</button>
+                          <button onClick={()=>setConfirmDelete(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"1px 5px",color:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>N</button>
                         </div>
-                      );
-                    })}
+                      ):(
+                        <button onClick={()=>setConfirmDelete(h.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,padding:"2px 4px"}}>X</button>
+                      )}
+                    </div>
                   </div>
 
                   {isExpanded&&(
-                    <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>30-Day History</div>
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:3,marginBottom:10}}>
+                    <div style={{borderTop:"1px solid "+t.BORDER,marginTop:8,paddingTop:8}}>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>30-Day History</div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:3,marginBottom:8}}>
                         {last30.map((d,i)=>{
                           const done=!!habitLog[h.id+"_"+d];
                           const isT=d===todayStr();
@@ -1112,17 +1108,17 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         })}
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
-                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</div>
-                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Current streak</div>
+                        <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
+                          <div style={{fontSize:16,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>Streak</div>
                         </div>
-                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
-                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{last30.filter(d=>!!habitLog[h.id+"_"+d]).length}</div>
-                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Last 30 days</div>
+                        <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
+                          <div style={{fontSize:16,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{last30.filter(d=>!!habitLog[h.id+"_"+d]).length}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>Last 30 days</div>
                         </div>
-                        <div style={{textAlign:"center",padding:"8px",background:t.CARD2,borderRadius:7}}>
-                          <div style={{fontSize:18,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{Math.round(last30.filter(d=>!!habitLog[h.id+"_"+d]).length/30*100)+"%"}</div>
-                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>30-day rate</div>
+                        <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
+                          <div style={{fontSize:16,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{Math.round(last30.filter(d=>!!habitLog[h.id+"_"+d]).length/30*100)+"%"}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>30-day rate</div>
                         </div>
                       </div>
                     </div>
@@ -4185,27 +4181,107 @@ function SetupPage({onComplete}){
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Health Goals</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What are you working toward?</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Select all that apply. Used to personalise supplement and health recommendations.</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {HEALTH_GOALS.map(g=>{
-                const on=p.healthGoals.includes(g);
-                return <button key={g} onClick={()=>toggleArr("healthGoals",g)} style={{padding:"8px 14px",borderRadius:20,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"22":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>{on?"V ":""}{g}</button>;
-              })}
-            </div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Select all that apply — used to personalise your supplement recommendations, recipes and AI advice.</div>
+            {[
+              {cat:"Body Composition",items:[
+                {id:"Build Muscle",icon:"W",desc:"Increase lean mass and strength"},
+                {id:"Lose Fat",icon:"F",desc:"Reduce body fat percentage"},
+                {id:"Maintain Weight",icon:"S",desc:"Keep current body composition"},
+              ]},
+              {cat:"Performance",items:[
+                {id:"Increase Energy",icon:"E",desc:"More sustained energy through the day"},
+                {id:"Boost Testosterone",icon:"T",desc:"Optimise hormonal health"},
+                {id:"Improve HRV",icon:"H",desc:"Better recovery and readiness"},
+                {id:"Athletic Performance",icon:"A",desc:"Sport-specific strength and endurance"},
+              ]},
+              {cat:"Wellbeing",items:[
+                {id:"Improve Sleep",icon:"Z",desc:"Deeper, more restorative sleep"},
+                {id:"Reduce Stress",icon:"M",desc:"Lower cortisol, calmer baseline"},
+                {id:"Mental Clarity",icon:"B",desc:"Sharper focus and cognition"},
+                {id:"Longevity",icon:"L",desc:"Long-term health optimisation"},
+              ]},
+            ].map(group=>(
+              <div key={group.cat} style={{marginBottom:16}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {group.items.map(g=>{
+                    const on=p.healthGoals.includes(g.id);
+                    return (
+                      <div key={g.id} onClick={()=>toggleArr("healthGoals",g.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:on?t.GOLD+"18":t.CARD,border:"1px solid "+(on?t.GOLD:t.BORDER),borderRadius:8,cursor:"pointer",transition:"all .2s"}}>
+                        <div style={{width:32,height:32,borderRadius:8,background:on?t.GOLD+"33":t.CARD2,border:"1px solid "+(on?t.GOLD:t.BORDER),display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{g.icon}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,color:on?t.GOLD:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{g.id}</div>
+                          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{g.desc}</div>
+                        </div>
+                        <div style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          {on&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {p.healthGoals.length>0&&<div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",marginTop:4}}>{p.healthGoals.length+" selected"}</div>}
           </div>
         )}
 
         {cur==="habits"&&(
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Daily Habits</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What do you already practise?</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>These will be added to your habit tracker automatically.</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {HABITS_LIST.map(h=>{
-                const on=p.currentHabits.includes(h);
-                return <button key={h} onClick={()=>toggleArr("currentHabits",h)} style={{padding:"8px 14px",borderRadius:20,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"22":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>{on?"V ":""}{h}</button>;
-              })}
-            </div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Build your daily routine</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Select habits you already practise or want to start. Each one goes straight into your habit tracker with streak tracking.</div>
+            {[
+              {cat:"Morning",color:"#C9A84C",items:[
+                {id:"Morning Routine",icon:"S",desc:"Structured start - journal, plan, review",freq:"Daily"},
+                {id:"Cold Exposure",icon:"C",desc:"Cold shower or ice bath for alertness",freq:"Daily"},
+                {id:"Meditation",icon:"M",desc:"Mindfulness or breathwork practice",freq:"Daily"},
+                {id:"Journalling",icon:"J",desc:"Capture thoughts, intentions and gratitude",freq:"Daily"},
+              ]},
+              {cat:"Physical",color:"#7A9E7E",items:[
+                {id:"Strength Training",icon:"W",desc:"Weightlifting or resistance work",freq:"4x/week"},
+                {id:"Cardio",icon:"R",desc:"Running, cycling, rowing or HIIT",freq:"3x/week"},
+                {id:"Mobility Work",icon:"Y",desc:"Stretching, yoga or foam rolling",freq:"Daily"},
+                {id:"Evening Walk",icon:"E",desc:"Low intensity movement to wind down",freq:"Daily"},
+              ]},
+              {cat:"Nutrition",color:"#7EB8C9",items:[
+                {id:"Intermittent Fasting",icon:"F",desc:"16:8 or similar eating window",freq:"Daily"},
+                {id:"No Alcohol",icon:"A",desc:"Alcohol-free lifestyle",freq:"Daily"},
+                {id:"No Processed Food",icon:"N",desc:"Whole foods only",freq:"Daily"},
+                {id:"Hydration",icon:"H",desc:"2-3L water minimum per day",freq:"Daily"},
+              ]},
+              {cat:"Mind",color:"#B07EC9",items:[
+                {id:"Reading Daily",icon:"B",desc:"Books - non-fiction or fiction",freq:"Daily"},
+                {id:"No Social Media",icon:"X",desc:"Cut the scroll, protect focus",freq:"Daily"},
+                {id:"Learning",icon:"L",desc:"Online course, podcast or skill building",freq:"Daily"},
+                {id:"Gratitude Practice",icon:"G",desc:"Note 3 things you are grateful for",freq:"Daily"},
+              ]},
+            ].map(group=>(
+              <div key={group.cat} style={{marginBottom:16}}>
+                <div style={{fontSize:9,color:group.color,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {group.items.map(h=>{
+                    const on=p.currentHabits.includes(h.id);
+                    return (
+                      <div key={h.id} onClick={()=>toggleArr("currentHabits",h.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:on?group.color+"18":t.CARD,border:"1px solid "+(on?group.color:t.BORDER),borderRadius:8,cursor:"pointer",transition:"all .2s"}}>
+                        <div style={{width:32,height:32,borderRadius:8,background:on?group.color+"33":t.CARD2,border:"1px solid "+(on?group.color:t.BORDER),display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{h.icon}</div>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:13,color:on?group.color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{h.id}</div>
+                          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{h.desc}</div>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
+                          <div style={{fontSize:9,color:on?group.color:t.MUTED,fontFamily:"sans-serif",background:on?group.color+"18":t.CARD2,padding:"2px 6px",borderRadius:6}}>{h.freq}</div>
+                          <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(on?group.color:t.BORDER),background:on?group.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {on&&<span style={{fontSize:8,color:t.BG,fontWeight:700}}>V</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {p.currentHabits.length>0&&<div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",marginTop:4}}>{p.currentHabits.length+" habits selected"}</div>}
           </div>
         )}
 
@@ -4237,31 +4313,90 @@ function SetupPage({onComplete}){
         {cur==="goals"&&(
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:6}}>Goals</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Set your first goals</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:16}}>Add 1-3 to get started. You can add more anytime from the Goals tab.</div>
-            {initGoals.map((g,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{g.title}</div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{g.category+" - "+g.period}</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What do you want to achieve?</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Pick from suggestions or write your own. You can add, edit and track progress in the Goals tab.</div>
+
+            {/* Suggested goals by category */}
+            {[
+              {cat:"Wealth",color:"#C9A84C",icon:"W",goals:[
+                {title:"Reach my net worth target",period:"year",category:"wealth"},
+                {title:"Save 3 months emergency fund",period:"year",category:"wealth"},
+                {title:"Max out superannuation contributions",period:"year",category:"wealth"},
+                {title:"Pay off credit card debt",period:"month",category:"wealth"},
+              ]},
+              {cat:"Career",color:"#7EB8C9",icon:"C",goals:[
+                {title:"Launch a new revenue stream",period:"year",category:"career"},
+                {title:"Get a promotion or raise",period:"year",category:"career"},
+                {title:"Complete a professional course",period:"year",category:"career"},
+                {title:"Hit monthly revenue target",period:"month",category:"career"},
+              ]},
+              {cat:"Health",color:"#7A9E7E",icon:"H",goals:[
+                {title:"Drop to target body fat",period:"year",category:"health"},
+                {title:"Complete 4 workouts per week",period:"week",category:"health"},
+                {title:"Run a 5K",period:"year",category:"health"},
+                {title:"Sleep 8 hours consistently",period:"month",category:"health"},
+              ]},
+              {cat:"Education",color:"#D4956A",icon:"E",goals:[
+                {title:"Read 24 books this year",period:"year",category:"education"},
+                {title:"Complete an online course",period:"year",category:"education"},
+                {title:"Read for 30 minutes daily",period:"week",category:"education"},
+              ]},
+              {cat:"Personal",color:"#B07EC9",icon:"P",goals:[
+                {title:"No social media",period:"week",category:"personal"},
+                {title:"Travel to 2 new countries",period:"year",category:"personal"},
+                {title:"Spend quality time with family weekly",period:"week",category:"personal"},
+              ]},
+            ].map(group=>(
+              <div key={group.cat} style={{marginBottom:16}}>
+                <div style={{fontSize:9,color:group.color,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {group.goals.map(g=>{
+                    const on=initGoals.some(x=>x.title===g.title);
+                    return (
+                      <div key={g.title} onClick={()=>on?setInitGoals(gs=>gs.filter(x=>x.title!==g.title)):setInitGoals(gs=>[...gs,{...g,id:Date.now()+Math.random(),progress:0,milestones:[],actions:[]}])} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:on?group.color+"18":t.CARD,border:"1px solid "+(on?group.color:t.BORDER),borderRadius:7,cursor:"pointer",transition:"all .2s"}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,color:on?group.color:t.TEXT,fontFamily:"sans-serif",fontWeight:on?600:400}}>{g.title}</div>
+                        </div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:5,flexShrink:0}}>{g.period==="week"?"Weekly":g.period==="month"?"Monthly":"Annual"}</div>
+                        <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(on?group.color:t.BORDER),background:on?group.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                          {on&&<span style={{fontSize:8,color:t.BG,fontWeight:700}}>V</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <button onClick={()=>setInitGoals(gs=>gs.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
               </div>
             ))}
-            {initGoals.length<5&&(
-              <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",marginTop:8}}>
-                <Inp value={newGoal.title} onChange={e=>setNewGoal(g=>({...g,title:e.target.value}))} placeholder="Goal title..." style={{marginBottom:8}}/>
-                <div style={{display:"flex",gap:8,marginBottom:8}}>
-                  <Sel value={newGoal.period} onChange={e=>setNewGoal(g=>({...g,period:e.target.value}))} style={{flex:1}}>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                    <option value="year">This Year</option>
-                  </Sel>
-                  <Sel value={newGoal.category} onChange={e=>setNewGoal(g=>({...g,category:e.target.value}))} style={{flex:1}}>
-                    {["financial","career","health","education","personal"].map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-                  </Sel>
-                </div>
-                <Btn onClick={()=>{if(!newGoal.title.trim())return;setInitGoals(gs=>[...gs,{...newGoal}]);setNewGoal({title:"",period:"month",category:"financial"});}}>Add Goal</Btn>
+
+            {/* Custom goal entry */}
+            <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",marginTop:8}}>
+              <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add a Custom Goal</div>
+              <Inp value={newGoal.title} onChange={e=>setNewGoal(g=>({...g,title:e.target.value}))} placeholder="e.g. Close $500k in new revenue..." style={{marginBottom:8}}/>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                <Sel value={newGoal.period} onChange={e=>setNewGoal(g=>({...g,period:e.target.value}))} style={{flex:1}}>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="year">This Year</option>
+                </Sel>
+                <Sel value={newGoal.category} onChange={e=>setNewGoal(g=>({...g,category:e.target.value}))} style={{flex:1}}>
+                  {["wealth","career","health","education","personal"].map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+                </Sel>
+              </div>
+              <Btn onClick={()=>{if(!newGoal.title.trim())return;setInitGoals(gs=>[...gs,{...newGoal,id:Date.now(),progress:0,milestones:[],actions:[]}]);setNewGoal({title:"",period:"month",category:"wealth"});}}>Add Goal</Btn>
+            </div>
+
+            {initGoals.length>0&&(
+              <div style={{marginTop:16}}>
+                <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>{initGoals.length+" goal"+(initGoals.length!==1?"s":"")+" selected"}</div>
+                {initGoals.map((g,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,marginBottom:5}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{g.title}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{g.category+" - "+g.period}</div>
+                    </div>
+                    <button onClick={()=>setInitGoals(gs=>gs.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:8}}>X</button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
