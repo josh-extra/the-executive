@@ -550,6 +550,13 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 
 function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile}){
   const t=T();
+  const[visibleRows,setVisibleRows]=useState([]);
+  useEffect(()=>{
+    const delays=[0,120,240,360,480];
+    const timers=delays.map((d,i)=>setTimeout(()=>setVisibleRows(r=>[...r,i]),d));
+    return()=>timers.forEach(clearTimeout);
+  },[]);
+  const rowStyle=i=>({opacity:visibleRows.includes(i)?1:0,transform:visibleRows.includes(i)?"none":"translateY(16px)",transition:"opacity .45s ease, transform .45s ease"});
   const tDone=tasks.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
   const hDone=(habits||[]).filter(h=>!!habitLog[h.id+"_"+todayStr()]).length;
@@ -589,7 +596,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* ── HEADER ── */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:isMobile?"center":"flex-start",flexDirection:isMobile?"column":"row",gap:isMobile?10:0,textAlign:isMobile?"center":"left"}}>
+      <div style={{...rowStyle(0),display:"flex",justifyContent:"space-between",alignItems:isMobile?"center":"flex-start",flexDirection:isMobile?"column":"row",gap:isMobile?10:0,textAlign:isMobile?"center":"left"}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Dashboard</div>
           <div style={{fontSize:isMobile?22:26,color:t.TEXT}}>
@@ -604,7 +611,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         </div>
       </div>
       {/* ── ROW 1: Score + Rings + Net Worth ── */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(1),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
         {/* Score */}
         <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",display:"flex",alignItems:"center",gap:14}}>
           <div style={{flexShrink:0}}>
@@ -659,6 +666,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── ALERTS ── */}
+      <div style={rowStyle(2)}>
       {(()=>{
         const alerts=[];
         if(upcoming.length>0) alerts.push({type:"bill",msg:"Bill due: "+upcoming[0].name+" ("+fmt(upcoming[0].amount)+")",page:"bills",color:t.RED});
@@ -677,9 +685,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           </div>
         ));
       })()}
+      </div>
 
       {/* ── ROW 2: Markets + Cash Flow + Bills ── */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
         {/* Markets */}
         <Card>
           <SectionLabel action={
@@ -752,7 +761,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12}}>
         {/* Tasks */}
         <Card>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
@@ -816,12 +825,14 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── AI ADVISOR BANNER ── */}
+      <div style={rowStyle(5)}>
       <div onClick={()=>setPage("advisor")} style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:10,padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
           <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:3}}>AI Advisor - Full Dashboard Context - Web Search</div>
           <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>Ask for a review, get market insights, or explore investment ideas</div>
         </div>
         <div style={{fontSize:20,color:t.GOLD,marginLeft:16,flexShrink:0}}>✦</div>
+      </div>
       </div>
     </div>
   );
