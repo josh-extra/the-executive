@@ -5418,8 +5418,6 @@ function ServicesPage({services,setServices}){
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
-  useEffect(()=>{const t=setTimeout(()=>setSplash(false),2200);return()=>clearTimeout(t);},[]);
-  const[splash,setSplash]=useState(true);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
