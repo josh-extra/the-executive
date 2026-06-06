@@ -152,7 +152,6 @@ function useMarket(){
       lastUpdated:new Date()
     });
   },[]);
-  useEffect(()=>{setTimeout(()=>setSplash(false),2000);},[]); // splash timer
   useEffect(()=>{fetchAll();const id=setInterval(fetchAll,300000);return()=>clearInterval(id);},[]);
   return{...data,refresh:fetchAll};
 }
@@ -5418,6 +5417,7 @@ function ServicesPage({services,setServices}){
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
+  useEffect(()=>{const tid=setTimeout(()=>setSplash(false),2200);return()=>clearTimeout(tid);},[]);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
