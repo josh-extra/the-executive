@@ -53,6 +53,7 @@ const NAV=[
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
+  ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
 ];
 const POPULAR_COINS=[
@@ -151,6 +152,7 @@ function useMarket(){
       lastUpdated:new Date()
     });
   },[]);
+  useEffect(()=>{setTimeout(()=>setSplash(false),2000);},[]); // splash timer
   useEffect(()=>{fetchAll();const id=setInterval(fetchAll,300000);return()=>clearInterval(id);},[]);
   return{...data,refresh:fetchAll};
 }
@@ -414,7 +416,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   ];
 
   const groups=[
-    ["Command",["dashboard","search","weekly","advisor"]],
+    ["Command",["dashboard","search","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","projector","cashflow","bills","budget","debt","invest"]],
     ["Health",["health","body","workout","recipes"]],
@@ -5041,8 +5043,383 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 }
 const chr34='"';
 
+// ── Learn Page ────────────────────────────────────────────────────────────────
+function LearnPage({profile,goals,habits}){
+  const t=T();
+  const[recs,setRecs]=useState([]);
+  const[loading,setLoading]=useState(false);
+  const[saved,setSaved]=useState([]);
+  const[activeTab,setActiveTab]=useState("discover");
+  const[filter,setFilter]=useState("all");
+
+  const TYPES=[
+    {id:"all",label:"All"},
+    {id:"podcast",label:"Podcasts"},
+    {id:"book",label:"Books"},
+    {id:"youtube",label:"YouTube"},
+    {id:"course",label:"Courses"},
+  ];
+
+  const TYPE_ICONS={podcast:"M",book:"B",youtube:"Y",course:"C",article:"A"};
+  const TYPE_COLORS={podcast:"#C9A84C",book:"#7EB8C9",youtube:"#C97E7E",course:"#7A9E7E",article:"#B07EC9"};
+
+  const getRecommendations=async()=>{
+    setLoading(true);setRecs([]);
+    const goalStr=(goals||[]).map(g=>g.title).join(", ")||"general self improvement";
+    const habitStr=(habits||[]).map(h=>h.name).join(", ")||"healthy habits";
+    try{
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-haiku-4-5",max_tokens:2000,
+        system:"You are a personal development expert. Return ONLY valid JSON array, no markdown.",
+        messages:[{role:"user",content:"Recommend 8 resources for someone with these goals: "+goalStr+" and these habits: "+habitStr+". Mix of podcasts, books, YouTube channels and courses. Return JSON array of 8 objects each with: {title, type (podcast/book/youtube/course), creator, description (1 sentence, why it fits their goals), category, searchUrl (Google search URL)}. Be specific with real titles and creators."}]
+      })});
+      const d=await r.json();
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const start=text.indexOf("["),end=text.lastIndexOf("]");
+      if(start>-1&&end>-1)setRecs(JSON.parse(text.slice(start,end+1)));
+    }catch(e){console.error(e);}
+    setLoading(false);
+  };
+
+  const toggleSave=r=>{
+    setSaved(ss=>ss.some(s=>s.title===r.title)?ss.filter(s=>s.title!==r.title):[...ss,{...r,savedAt:todayStr()}]);
+  };
+
+  const shown=filter==="all"?recs:recs.filter(r=>r.type===filter);
+
+  return (
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Personal Development</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Learn</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>Recommendations tailored to your goals</div>
+        </div>
+        {saved.length>0&&<button onClick={()=>setActiveTab(activeTab==="saved"?"discover":"saved")} style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{"Saved "+saved.length}</button>}
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        {["discover","saved"].map(tab=>(
+          <button key={tab} onClick={()=>setActiveTab(tab)} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid "+(activeTab===tab?t.GOLD:t.BORDER),background:activeTab===tab?t.GOLD+"18":"transparent",color:activeTab===tab?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textTransform:"capitalize"}}>{tab}</button>
+        ))}
+      </div>
+
+      {activeTab==="saved"&&(
+        <div>
+          {saved.length===0?<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:28,marginBottom:10}}>B</div><div>No saved resources yet</div></div>:
+          saved.map((r,i)=>(
+            <Card key={i} style={{marginBottom:10,borderLeft:"3px solid "+(TYPE_COLORS[r.type]||t.GOLD)}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+                    <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",padding:"2px 7px",borderRadius:5}}>{r.type}</div>
+                  </div>
+                  <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:3}}>{r.title}</div>
+                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{r.creator}</div>
+                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>{r.description}</div>
+                </div>
+                <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:10}}>
+                  <button onClick={()=>window.open(r.searchUrl,"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Find</button>
+                  <button onClick={()=>toggleSave(r)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11}}>X</button>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {activeTab==="discover"&&(
+        <>
+          <button onClick={getRecommendations} disabled={loading} style={{width:"100%",background:loading?t.BORDER:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:loading?t.MUTED:"#080808",cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginBottom:14}}>
+            {loading?"Finding recommendations...":"Get Personalised Recommendations"}
+          </button>
+
+          {loading&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{[1,2,3].map(i=><Card key={i}><Skeleton height={14} width="60%" style={{marginBottom:8}}/><Skeleton height={10} width="40%"/></Card>)}</div>}
+
+          {recs.length>0&&(
+            <>
+              <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,scrollbarWidth:"none"}}>
+                {TYPES.map(tp=>(
+                  <button key={tp.id} onClick={()=>setFilter(tp.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===tp.id?t.GOLD:t.BORDER),background:filter===tp.id?t.GOLD+"22":"transparent",color:filter===tp.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{tp.label}</button>
+                ))}
+              </div>
+              {shown.map((r,i)=>(
+                <Card key={i} style={{marginBottom:10,borderLeft:"3px solid "+(TYPE_COLORS[r.type]||t.GOLD)}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+                        <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",padding:"2px 7px",borderRadius:5}}>{r.type}</div>
+                        {r.category&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{r.category}</div>}
+                      </div>
+                      <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:3}}>{r.title}</div>
+                      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{r.creator}</div>
+                      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65}}>{r.description}</div>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:10,flexDirection:"column"}}>
+                      <button onClick={()=>window.open(r.searchUrl,"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Find</button>
+                      <button onClick={()=>toggleSave(r)} style={{background:saved.some(s=>s.title===r.title)?t.GREEN+"18":"transparent",border:"1px solid "+(saved.some(s=>s.title===r.title)?t.GREEN:t.BORDER),borderRadius:6,padding:"5px 10px",color:saved.some(s=>s.title===r.title)?t.GREEN:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{saved.some(s=>s.title===r.title)?"Saved":"Save"}</button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </>
+          )}
+
+          {!loading&&recs.length===0&&(
+            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:32,marginBottom:10}}>G</div>
+              <div style={{fontSize:14,marginBottom:8}}>Ready to learn?</div>
+              <div style={{fontSize:12}}>Tap Generate to get personalised podcasts, books, YouTube channels and courses based on your goals</div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Notes Page ────────────────────────────────────────────────────────────────
+function NotesPage({notes,setNotes}){
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[editing,setEditing]=useState(null);
+  const[viewing,setViewing]=useState(null);
+  const[filter,setFilter]=useState("all");
+  const emptyForm={title:"",content:"",category:"General",pinned:false};
+  const[form,setForm]=useState(emptyForm);
+  const CATS=["General","Ideas","Gifts","Meeting Notes","Goals","Personal","Work","Other"];
+  const CAT_COLORS_N={General:t.GOLD,Ideas:"#7EB8C9",Gifts:"#C97E7E",Meeting_Notes:"#7A9E7E","MeetingNotes":"#7A9E7E",Goals:"#B07EC9",Personal:"#D4956A",Work:"#7EB8C9",Other:t.MUTED};
+
+  const save=()=>{
+    if(!form.title.trim())return;
+    if(editing){setNotes(ns=>ns.map(n=>n.id===editing?{...n,...form,updatedAt:todayStr()}:n));}
+    else{setNotes(ns=>[{...form,id:Date.now(),createdAt:todayStr(),updatedAt:todayStr()},...ns]);}
+    setForm(emptyForm);setShowAdd(false);setEditing(null);
+  };
+
+  const openEdit=n=>{setForm({title:n.title,content:n.content,category:n.category,pinned:n.pinned||false});setEditing(n.id);setShowAdd(true);};
+  const pinned=notes.filter(n=>n.pinned);
+  const shown=(filter==="all"?notes:notes.filter(n=>n.category===filter)).sort((a,b)=>(b.pinned||0)-(a.pinned||0));
+
+  if(viewing){
+    const n=notes.find(x=>x.id===viewing);
+    return (
+      <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+        <div style={{display:"flex",gap:8,marginBottom:20,alignItems:"center"}}>
+          <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13}}>Back</button>
+          <div style={{flex:1}}/>
+          <button onClick={()=>{openEdit(n);setViewing(null);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 11px",color:t.GOLD,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Edit</button>
+          <button onClick={()=>{setNotes(ns=>ns.filter(x=>x.id!==n.id));setViewing(null);}} style={{background:t.RED+"18",border:"1px solid "+t.RED+"33",borderRadius:6,padding:"5px 11px",color:t.RED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Delete</button>
+        </div>
+        <Card>
+          <div style={{fontSize:9,color:(CAT_COLORS_N[n.category]||CAT_COLORS_N[n.category.replace(" ","")]||t.GOLD),fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>{n.category}</div>
+          <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>{n.title}</div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:16}}>{n.updatedAt}</div>
+          <div style={{fontSize:14,color:t.TEXT,lineHeight:1.85,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{n.content}</div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Private</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Notes</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{notes.length+" note"+(notes.length!==1?"s":"")}</div>
+        </div>
+        <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(s=>!s);}}>+ New Note</Btn>
+      </div>
+
+      {showAdd&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>{editing?"Edit Note":"New Note"}</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <Inp value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Title..."/>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
+                {CATS.map(c=><option key={c}>{c}</option>)}
+              </Sel>
+              <label style={{display:"flex",alignItems:"center",gap:6,color:t.TEXT,fontFamily:"sans-serif",fontSize:12,cursor:"pointer",flexShrink:0}}>
+                <input type="checkbox" checked={form.pinned} onChange={e=>setForm(f=>({...f,pinned:e.target.checked}))} style={{accentColor:t.GOLD}}/>Pin
+              </label>
+            </div>
+            <textarea value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))} placeholder="Write anything..." rows={6} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.8,boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:8}}><Btn onClick={save}>{editing?"Save":"Add"}</Btn><Btn onClick={()=>{setShowAdd(false);setEditing(null);}} variant="ghost">Cancel</Btn></div>
+          </div>
+        </Card>
+      )}
+
+      {/* Category filter */}
+      <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,scrollbarWidth:"none"}}>
+        {[{id:"all",label:"All"},...CATS.map(c=>({id:c,label:c}))].filter(c=>c.id==="all"||notes.some(n=>n.category===c.id)).map(c=>(
+          <button key={c.id} onClick={()=>setFilter(c.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===c.id?t.GOLD:t.BORDER),background:filter===c.id?t.GOLD+"22":"transparent",color:filter===c.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{c.label}</button>
+        ))}
+      </div>
+
+      {shown.length===0&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>N</div><div style={{fontSize:14,marginBottom:8}}>No notes yet</div><div style={{fontSize:12}}>Tap + New Note to start capturing ideas</div></div>}
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {shown.map(n=>(
+          <div key={n.id} onClick={()=>setViewing(n.id)} style={{background:t.CARD,border:"1px solid "+(n.pinned?t.GOLD:t.BORDER),borderRadius:10,padding:14,cursor:"pointer",borderTop:"3px solid "+(CAT_COLORS_N[n.category]||t.GOLD),transition:"border-color .2s"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div style={{fontSize:9,color:CAT_COLORS_N[n.category]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{n.category}{n.pinned&&" - Pinned"}</div>
+            </div>
+            <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:5,lineHeight:1.3}}>{n.title}</div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6,overflow:"hidden",maxHeight:40}}>{n.content.slice(0,80)}{n.content.length>80?"...":""}</div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8}}>{n.updatedAt}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Services Page ─────────────────────────────────────────────────────────────
+function ServicesPage({services,setServices}){
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[editing,setEditing]=useState(null);
+  const[confirmDel,setConfirmDel]=useState(null);
+  const emptyForm={name:"",role:"Financial Advisor",firm:"",phone:"",email:"",lastContact:"",nextFollow:"",notes:""};
+  const[form,setForm]=useState(emptyForm);
+  const ROLES=["Financial Advisor","Mortgage Broker","Accountant","Solicitor / Lawyer","Insurance Broker","Real Estate Agent","Business Coach","Mentor","Other"];
+  const ROLE_COLORS={"Financial Advisor":"#C9A84C","Mortgage Broker":"#7EB8C9","Accountant":"#7A9E7E","Solicitor / Lawyer":"#B07EC9","Insurance Broker":"#D4956A","Business Coach":"#7EB8C9","Mentor":"#C9A84C","Real Estate Agent":"#7A9E7E",Other:t.MUTED};
+
+  const save=()=>{
+    if(!form.name.trim())return;
+    if(editing){setServices(ss=>ss.map(s=>s.id===editing?{...s,...form}:s));}
+    else{setServices(ss=>[...ss,{...form,id:Date.now(),addedAt:todayStr()}]);}
+    setForm(emptyForm);setShowAdd(false);setEditing(null);
+  };
+
+  const openEdit=s=>{setForm({name:s.name,role:s.role,firm:s.firm||"",phone:s.phone||"",email:s.email||"",lastContact:s.lastContact||"",nextFollow:s.nextFollow||"",notes:s.notes||""});setEditing(s.id);setShowAdd(true);};
+
+  const daysUntil=d=>{if(!d)return null;const diff=Math.round((new Date(d)-new Date())/(1000*60*60*24));return diff;};
+
+  return (
+    <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Professional Network</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Services</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>Your advisors and service providers</div>
+        </div>
+        <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(s=>!s);}}>+ Add</Btn>
+      </div>
+
+      {/* Follow-up alerts */}
+      {services.filter(s=>s.nextFollow&&daysUntil(s.nextFollow)<=7&&daysUntil(s.nextFollow)>=0).map(s=>(
+        <div key={s.id} style={{padding:"9px 13px",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:7,display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:t.GOLD,flexShrink:0}}/>
+          <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",flex:1}}>{"Follow up with "+s.name+" - "+daysUntil(s.nextFollow)+" day"+(daysUntil(s.nextFollow)!==1?"s":"")+" away"}</div>
+        </div>
+      ))}
+
+      {showAdd&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>{editing?"Edit Contact":"New Contact"}</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:2}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Name</div>
+                <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="John Smith"/>
+              </div>
+              <div style={{flex:1.5}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Role</div>
+                <Sel value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
+                  {ROLES.map(r=><option key={r}>{r}</option>)}
+                </Sel>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Firm</div>
+                <Inp value={form.firm} onChange={e=>setForm(f=>({...f,firm:e.target.value}))} placeholder="Firm name"/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Phone</div>
+                <Inp value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="0400 000 000"/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Email</div>
+                <Inp value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@firm.com"/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Last Contact</div>
+                <Inp type="date" value={form.lastContact} onChange={e=>setForm(f=>({...f,lastContact:e.target.value}))}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Follow-up Date</div>
+                <Inp type="date" value={form.nextFollow} onChange={e=>setForm(f=>({...f,nextFollow:e.target.value}))}/>
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Notes from last meeting</div>
+              <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Key points, action items, advice given..." rows={3} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
+            </div>
+            <div style={{display:"flex",gap:8}}><Btn onClick={save}>{editing?"Save":"Add"}</Btn><Btn onClick={()=>{setShowAdd(false);setEditing(null);}} variant="ghost">Cancel</Btn></div>
+          </div>
+        </Card>
+      )}
+
+      {ROLES.map(role=>{
+        const group=services.filter(s=>s.role===role);
+        if(!group.length)return null;
+        const col=ROLE_COLORS[role]||t.GOLD;
+        return (
+          <div key={role} style={{marginBottom:16}}>
+            <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{role}</div>
+            {group.map(s=>{
+              const followDays=daysUntil(s.nextFollow);
+              return (
+                <Card key={s.id} style={{marginBottom:8,borderLeft:"3px solid "+col}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:s.notes?8:0}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:15,color:t.TEXT,fontWeight:600,marginBottom:3}}>{s.name}</div>
+                      {s.firm&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{s.firm}</div>}
+                      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                        {s.phone&&<a href={"tel:"+s.phone} style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",textDecoration:"none"}}>{s.phone}</a>}
+                        {s.email&&<a href={"mailto:"+s.email} style={{fontSize:11,color:t.BLUE,fontFamily:"sans-serif",textDecoration:"none"}}>{s.email}</a>}
+                      </div>
+                      {s.lastContact&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"Last contact: "+s.lastContact}</div>}
+                      {s.nextFollow&&<div style={{fontSize:10,color:followDays<=7?t.GOLD:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{"Follow up: "+s.nextFollow+(followDays!==null?" ("+followDays+"d)":"")}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:10}}>
+                      <button onClick={()=>openEdit(s)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
+                      {confirmDel===s.id?(
+                        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                          <button onClick={()=>{setServices(ss=>ss.filter(x=>x.id!==s.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                          <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                        </div>
+                      ):(
+                        <button onClick={()=>setConfirmDel(s.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                      )}
+                    </div>
+                  </div>
+                  {s.notes&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65,borderTop:"1px solid "+t.BORDER,paddingTop:8,fontStyle:"italic"}}>"{s.notes}"</div>}
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {!services.length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>P</div><div style={{fontSize:14,marginBottom:8}}>No contacts yet</div><div style={{fontSize:12}}>Add your financial advisor, accountant, mortgage broker and other key contacts</div></div>}
+    </div>
+  );
+}
+
 function App(){
   const[hydrated,setHydrated]=useState(false);
+  const[splash,setSplash]=useState(true);
+  useEffect(()=>{const t=setTimeout(()=>setSplash(false),2200);return()=>clearTimeout(t);},[]);
+  const[splash,setSplash]=useState(true);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
@@ -5065,6 +5442,8 @@ function App(){
   const[holdings,setHoldings]=useState([]);
   const[budgets,setBudgets]=useState({});
   const[weeklyReflections,setWeeklyReflections]=useState({});
+  const[notes,setNotes]=useState([]);
+  const[services,setServices]=useState([]);
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
@@ -5112,6 +5491,8 @@ function App(){
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
       if(saved.budgets)setBudgets(saved.budgets);
       if(saved.weeklyReflections)setWeeklyReflections(saved.weeklyReflections);
+      if(saved.notes)setNotes(saved.notes);
+      if(saved.services)setServices(saved.services);
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
     setHydrated(true);
@@ -5119,7 +5500,7 @@ function App(){
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
+    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -5175,11 +5556,18 @@ function App(){
     setPage("dashboard");
   };
 
-  if(!hydrated){
+  if(!hydrated||splash){
     return (
-      <div style={{minHeight:"100vh",background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
-        <div style={{fontSize:11,letterSpacing:4,color:"#C9A84C",textTransform:"uppercase",fontFamily:"sans-serif"}}>The Executive</div>
-        <div style={{fontSize:11,color:"#6A6050",fontFamily:"sans-serif"}}>Loading...</div>
+      <div style={{minHeight:"100vh",background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,transition:"opacity .5s",opacity:hydrated?0:1}}>
+        <style>{"@keyframes splashIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}} @keyframes splashPulse{0%,100%{opacity:.3}50%{opacity:1}} @keyframes splashLine{from{width:0}to{width:50px}}"}</style>
+        <div style={{textAlign:"center",animation:"splashIn .9s ease forwards"}}>
+          <div style={{fontSize:9,letterSpacing:6,color:"#C9A84C",textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:20,opacity:.7}}>The Executive</div>
+          <div style={{width:50,height:1,background:"linear-gradient(90deg,transparent,#C9A84C,transparent)",margin:"0 auto 20px",animation:"splashLine .8s .3s ease forwards",width:0}}/>
+          <div style={{width:50,height:1,background:"linear-gradient(90deg,transparent,#C9A84C,transparent)",margin:"0 auto 20px"}}/>
+          <div style={{display:"flex",gap:6,justifyContent:"center"}}>
+            {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"#C9A84C",animation:"splashPulse 1.4s ease-in-out "+i*.2+"s infinite"}}/>)}
+          </div>
+        </div>
       </div>
     );
   }
@@ -5213,7 +5601,7 @@ function App(){
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
-      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;}}"}</style>
+      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
@@ -5233,8 +5621,8 @@ function App(){
             <button onClick={()=>setShowSetup(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
         ))}
-        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:"center",minHeight:"100vh"}}>
-          <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"16px 14px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
+        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:t.BG}}>
+          <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
@@ -5254,6 +5642,9 @@ function App(){
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog}/>}
+          {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits}/>}
+          {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
+          {page==="services"&&<ServicesPage services={services} setServices={setServices}/>}
           {page==="advisor"&&<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>}
           {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme}/>}
           </div>
