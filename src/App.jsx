@@ -5417,7 +5417,11 @@ function ServicesPage({services,setServices}){
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
-  useEffect(()=>{const tid=setTimeout(()=>setSplash(false),2200);return()=>clearTimeout(tid);},[]);
+  useEffect(()=>{
+    // Show splash for minimum 2.5s regardless of load speed
+    const tid=setTimeout(()=>setSplash(false),2500);
+    return()=>clearTimeout(tid);
+  },[]);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
@@ -5554,20 +5558,25 @@ function App(){
     setPage("dashboard");
   };
 
-  if(!hydrated||splash){
+  if(splash){
     return (
-      <div style={{minHeight:"100vh",background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,transition:"opacity .5s",opacity:hydrated?0:1}}>
-        <style>{"@keyframes splashIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}} @keyframes splashPulse{0%,100%{opacity:.3}50%{opacity:1}} @keyframes splashLine{from{width:0}to{width:50px}}"}</style>
+      <div style={{minHeight:"100vh",background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+        <style>{"@keyframes splashIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}} @keyframes splashPulse{0%,100%{opacity:.2}50%{opacity:1}}"}</style>
         <div style={{textAlign:"center",animation:"splashIn .9s ease forwards"}}>
-          <div style={{fontSize:9,letterSpacing:6,color:"#C9A84C",textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:20,opacity:.7}}>The Executive</div>
-          <div style={{width:50,height:1,background:"linear-gradient(90deg,transparent,#C9A84C,transparent)",margin:"0 auto 20px",animation:"splashLine .8s .3s ease forwards",width:0}}/>
-          <div style={{width:50,height:1,background:"linear-gradient(90deg,transparent,#C9A84C,transparent)",margin:"0 auto 20px"}}/>
-          <div style={{display:"flex",gap:6,justifyContent:"center"}}>
-            {[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:"50%",background:"#C9A84C",animation:"splashPulse 1.4s ease-in-out "+i*.2+"s infinite"}}/>)}
+          <div style={{fontSize:9,letterSpacing:6,color:"#C9A84C",textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:20,opacity:.8}}>The Executive</div>
+          <div style={{width:48,height:1,background:"linear-gradient(90deg,transparent,#C9A84C,transparent)",margin:"0 auto 24px"}}/>
+          <div style={{display:"flex",gap:7,justifyContent:"center"}}>
+            {[0,1,2].map(i=>(
+              <div key={i} style={{width:5,height:5,borderRadius:"50%",background:"#C9A84C",animation:"splashPulse 1.4s ease-in-out "+i*.25+"s infinite"}}/>
+            ))}
           </div>
         </div>
       </div>
     );
+  }
+
+  if(!hydrated){
+    return <div style={{minHeight:"100vh",background:"#080808"}}/>;
   }
 
   if(showSetup){
