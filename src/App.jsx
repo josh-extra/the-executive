@@ -41,6 +41,7 @@ const EXP_CATS={
 };
 const NW_MILESTONES=[250000,500000,750000,1000000,1500000,2000000,2500000,3000000,5000000,10000000];
 const MOODS=[{v:1,l:"Rough",c:"#C97E7E"},{v:2,l:"Low",c:"#D4956A"},{v:3,l:"OK",c:"#7A7060"},{v:4,l:"Good",c:"#7EB8C9"},{v:5,l:"Great",c:"#7A9E7E"}];
+// Habit emojis defined in JSX render, not here
 const EXERCISES=["Bench Press","Squat","Deadlift","Overhead Press","Pull-ups","Rows","Dips","Leg Press","Lat Pulldown","Bicep Curl","Romanian Deadlift"];
 const WTYPES=["Strength","Hypertrophy","Cardio","HIIT","Mobility","Sport"];
 const WCOLORS={Strength:"#C9A84C",Hypertrophy:"#B07EC9",Cardio:"#7A9E7E",HIIT:"#C97E7E",Mobility:"#7EB8C9",Sport:"#D4956A"};
@@ -910,6 +911,9 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const[form,setForm]=useState({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
   const[showEmojiPicker,setShowEmojiPicker]=useState(false);
   const[expandHabit,setExpandHabit]=useState({});
+  const[editingHabit,setEditingHabit]=useState(null);
+  const[editForm,setEditForm]=useState({});
+  const[showEmojiPicker,setShowEmojiPicker]=useState(false);
   const[dragIdx,setDragIdx]=useState(null);
   const[confirmDelete,setConfirmDelete]=useState(null);
 
@@ -918,6 +922,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const TIME_LABELS={morning:"Morning",afternoon:"Afternoon",evening:"Evening",anytime:"Anytime"};
 
   const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
+  // last7[6] is always today
   const last30=Array.from({length:30}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(29-i));return d.toISOString().split("T")[0];});
   const dayLetters=["S","M","T","W","T","F","S"];
 
@@ -954,6 +959,8 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
     if(i===0)return;
     setHabits(hs=>{const n=[...hs];[n[i-1],n[i]]=[n[i],n[i-1]];return n;});
   };
+  const openEditHabit=(h)=>{setEditForm({name:h.name,icon:h.icon,color:h.color,target:h.target||7,timeOfDay:h.timeOfDay||"anytime"});setEditingHabit(h.id);};
+  const saveEditHabit=()=>{if(!editForm.name.trim())return;setHabits(hs=>hs.map(h=>h.id===editingHabit?{...h,...editForm,target:parseInt(editForm.target)||7}:h));setEditingHabit(null);};
   const moveDown=(i,len)=>{
     if(i===len-1)return;
     setHabits(hs=>{const n=[...hs];[n[i],n[i+1]]=[n[i+1],n[i]];return n;});
@@ -1095,7 +1102,8 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         <button onClick={()=>moveUp(allIdx)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▲</button>
                         <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▼</button>
                       </div>
-                      {confirmDelete===h.id?(
+                      {editingHabit!==h.id&&<button onClick={()=>openEditHabit(h)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.6,padding:"2px 4px"}}>Edit</button>}
+                    {confirmDelete===h.id?(
                         <div style={{display:"flex",alignItems:"center",gap:4}}>
                           <span style={{fontSize:9,color:t.RED,fontFamily:"sans-serif"}}>Del?</span>
                           <button onClick={()=>{setHabits(hs=>hs.filter(x=>x.id!==h.id));setConfirmDelete(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:4,padding:"1px 5px",color:t.RED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>Y</button>
@@ -1107,6 +1115,43 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                     </div>
                   </div>
 
+                  {editingHabit===h.id&&(
+                    <div style={{borderTop:"1px solid "+t.BORDER,marginTop:8,paddingTop:8,display:"flex",flexDirection:"column",gap:8}}>
+                      <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>Edit Habit</div>
+                      <Inp value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} placeholder="Habit name..."/>
+                      <div style={{display:"flex",gap:7}}>
+                        <Sel value={editForm.timeOfDay} onChange={e=>setEditForm(f=>({...f,timeOfDay:e.target.value}))} style={{flex:1}}>
+                          {["morning","afternoon","evening","anytime"].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+                        </Sel>
+                        <div style={{flex:1,display:"flex",gap:5,alignItems:"center"}}>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Target/wk:</div>
+                          <Inp type="number" value={editForm.target} onChange={e=>setEditForm(f=>({...f,target:Math.max(1,Math.min(7,parseInt(e.target.value)||1))}))} style={{width:50,padding:"6px 8px",fontSize:12}}/>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Icon:</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5,background:t.CARD2,borderRadius:7,padding:8,maxHeight:120,overflowY:"auto"}}>
+                          {["🌅","🧊","🧘","📝","💪","🏃","🚴","📚","🚶","🔥","🎯","🏆","💰","📊","🧠","🎵","🎨","🙏","🏊","🤸","🚫","☕","🌊","🦁","💎","✨","🏅","🌙","🌿","🥗","💧","🍎"].map(e=>(
+                            <button key={e} onClick={()=>setEditForm(f=>({...f,icon:e}))} style={{background:editForm.icon===e?t.GOLD+"33":"transparent",border:"1px solid "+(editForm.icon===e?t.GOLD:"transparent"),borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:18,lineHeight:1}}>
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Colour:</div>
+                        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                          {["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A","#7EC8A0","#C8D870"].map(col=>(
+                            <div key={col} onClick={()=>setEditForm(f=>({...f,color:col}))} style={{width:26,height:26,borderRadius:"50%",background:col,border:"2px solid "+(editForm.color===col?"#fff":"transparent"),cursor:"pointer"}}/>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:7}}>
+                        <Btn onClick={saveEditHabit}>Save</Btn>
+                        <Btn onClick={()=>setEditingHabit(null)} variant="ghost">Cancel</Btn>
+                      </div>
+                    </div>
+                  )}
                   {isExpanded&&(
                     <div style={{borderTop:"1px solid "+t.BORDER,marginTop:8,paddingTop:8}}>
                       <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>30-Day History</div>
@@ -2859,6 +2904,7 @@ function BillsPage({bills,setBills}){
 function InvestPage({profile}){
   const t=T();
   const[tab,setTab]=useState("ideas");
+  const asOfDate=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
   const[aiOpps,setAiOpps]=useState(()=>{try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
   const[aiOppsDate,setAiOppsDate]=useState(()=>{try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
   const[loading,setLoading]=useState(false);
@@ -2868,7 +2914,7 @@ function InvestPage({profile}){
   const getAi=async()=>{
     setLoading(true);
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor. Shares "+fmt(parseFloat(profile.shareValue)||0)+", property "+fmt(parseFloat(profile.propertyValue)||0)+". Give 4-5 specific opportunities based on TODAY's market. Search for current data. For each: NAME, CLASS, WHY NOW, RISK. Add brief macro context.",messages:[{role:"user",content:"Best investment opportunities right now?"}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile.shareValue)||0)+", Property "+fmt(parseFloat(profile.propertyValue)||0)+", Super "+fmt(parseFloat(profile.superBalance)||0)+", Crypto "+fmt(parseFloat(profile.cryptoValue)||0)+". AVAILABLE CASH TO DEPLOY: "+fmt(parseFloat(profile.cashSavings)||0)+". First briefly assess their current holdings - any concentration risk or opportunities to rebalance. Then give 3-4 specific new opportunities based on their available cash of "+fmt(parseFloat(profile.cashSavings)||0)+". Search for current ASX and global market data. For each opportunity: NAME, ASSET CLASS, WHY NOW (specific catalyst), SUGGESTED ALLOCATION from available cash, RISK. Be specific with dollar amounts based on their cash position.",messages:[{role:"user",content:"Assess my portfolio and suggest where to deploy my available cash based on current market conditions."}]})});
       const d=await r.json();
       const result=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
       setAiOpps(result);setAiOppsDate(new Date().toLocaleDateString());
@@ -3117,16 +3163,45 @@ function BodyPage({bodyLog,setBodyLog,profile}){
   );
 }
 
-function WorkoutPage({workouts,setWorkouts}){
+function WorkoutPage({workouts,setWorkouts,profile}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[tab,setTab]=useState("log");
   const[wf,setWf]=useState({date:todayStr(),type:"Strength",duration:60,notes:"",sets:[]});
   const[sf,setSf]=useState({exercise:"Bench Press",sets:3,reps:8,weight:""});
+  const[plan,setPlan]=useState(null);const[planLoading,setPlanLoading]=useState(false);
+  const[selectedEx,setSelectedEx]=useState(null);
   const save=()=>{if(!wf.sets.length&&!wf.notes)return;setWorkouts(ws=>[{...wf,id:Date.now()},...ws]);setWf({date:todayStr(),type:"Strength",duration:60,notes:"",sets:[]});setShowAdd(false);};
   const prs={};
   [...(workouts||[])].reverse().forEach(w=>w.sets&&w.sets.forEach(s=>{
     if(s.weight&&parseFloat(s.weight)>0&&(!prs[s.exercise]||parseFloat(s.weight)>parseFloat(prs[s.exercise].weight)))
       prs[s.exercise]={weight:s.weight,reps:s.reps,date:w.date};
   }));
+
+  const EXERCISE_GUIDE={
+    "Bench Press":{muscle:"Chest, Triceps, Shoulders",level:"Beginner",steps:["Lie flat on bench, feet on floor","Grip bar slightly wider than shoulder width","Lower bar to mid-chest with control","Press back up to full extension","Keep wrists straight throughout"],tips:"Keep shoulder blades retracted and lower back neutral. Don't bounce bar off chest."},
+    "Squat":{muscle:"Quads, Glutes, Hamstrings",level:"Beginner",steps:["Stand with feet shoulder-width apart, toes slightly out","Brace core and keep chest up","Descend until thighs are parallel or below","Drive through heels to stand","Keep knees tracking over toes"],tips:"Depth is key - aim for parallel. If heels rise, work on ankle mobility."},
+    "Deadlift":{muscle:"Hamstrings, Glutes, Back, Traps",level:"Intermediate",steps:["Stand with bar over mid-foot","Hip-hinge to grip bar, hands just outside shins","Take slack out of bar, engage lats","Drive floor away, keep bar close to body","Lock out hips and knees at top"],tips:"The bar should drag up your shins. Never round your lower back under load."},
+    "Overhead Press":{muscle:"Shoulders, Triceps, Upper Chest",level:"Intermediate",steps:["Stand with feet shoulder-width, bar at collarbone","Grip just outside shoulders","Press bar straight up, tuck chin to let bar pass","Lock out at top, squeeze shoulders","Lower under control to starting position"],tips:"Squeeze glutes and abs throughout. Don't lean back excessively."},
+    "Pull-ups":{muscle:"Lats, Biceps, Rear Delts",level:"Intermediate",steps:["Hang from bar with overhand grip, hands shoulder-width","Depress shoulder blades to initiate","Pull elbows down and back toward hips","Chin clears bar at top","Lower slowly with control"],tips:"Think about pulling elbows to your pockets, not pulling your hands down."},
+    "Romanian Deadlift":{muscle:"Hamstrings, Glutes, Lower Back",level:"Intermediate",steps:["Stand with bar at hips, slight knee bend","Hinge at hips pushing them back","Lower bar down legs keeping it close","Feel hamstring stretch at bottom","Drive hips forward to return to start"],tips:"This is a hinge not a squat. Feel the stretch in your hamstrings at the bottom."},
+    "Rows":{muscle:"Lats, Rhomboids, Biceps",level:"Beginner",steps:["Hinge forward at hips to 45 degrees","Grip barbell with overhand or neutral grip","Pull bar to lower chest/upper abdomen","Squeeze shoulder blades at top","Lower with control"],tips:"Lead with your elbows, not your hands. Avoid using momentum."},
+  };
+
+  const getWorkoutPlan=async()=>{
+    setPlanLoading(true);setPlan(null);
+    const goals=(profile?.healthGoals||["Build Muscle"]).join(", ");
+    try{
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-haiku-4-5",max_tokens:1500,
+        system:"You are an expert personal trainer. Return ONLY valid JSON, no markdown.",
+        messages:[{role:"user",content:"Create a 4-day workout split for someone with goals: "+goals+". Return JSON: {split: string, days: [{name: string, focus: string, exercises: [{exercise: string, sets: number, reps: string, rest: string, note: string}]}]}"}]
+      })});
+      const d=await r.json();
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const start=text.indexOf("{"),end=text.lastIndexOf("}");
+      if(start>-1)setPlan(JSON.parse(text.slice(start,end+1)));
+    }catch(e){console.error(e);}
+    setPlanLoading(false);
+  };
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
@@ -3137,7 +3212,7 @@ function WorkoutPage({workouts,setWorkouts}){
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Log</Btn>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {[["log","Log"],["progress","Progress"],["records","Records"]].map(([id,label])=>(
+        {[["log","Log"],["progress","Progress"],["records","Records"],["exercises","Exercises"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"7px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
             {label}
           </button>
@@ -3254,6 +3329,106 @@ function WorkoutPage({workouts,setWorkouts}){
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* ── EXERCISES TAB ── */}
+      {tab==="exercises"&&(
+        <div>
+          <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:plan||planLoading?12:0}}>
+              <div>
+                <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>AI Workout Plan</div>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised to your health goals</div>
+              </div>
+              <button onClick={getWorkoutPlan} disabled={planLoading} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:t.GOLD,cursor:planLoading?"default":"pointer",fontFamily:"sans-serif",fontSize:11}}>
+                {planLoading?"Building...":"Generate Plan"}
+              </button>
+            </div>
+            {planLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85,70].map((w,i)=><Skeleton key={i} width={w+"%"} height={11}/>)}</div>}
+            {plan&&!planLoading&&(
+              <div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{plan.split}</div>
+                {(plan.days||[]).map((day,di)=>(
+                  <div key={di} style={{marginBottom:12}}>
+                    <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{day.name+" - "+day.focus}</div>
+                    {(day.exercises||[]).map((ex,ei)=>(
+                      <div key={ei} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>{ex.exercise}</div>
+                          {ex.note&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{ex.note}</div>}
+                        </div>
+                        <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:8}}>
+                          {[{v:ex.sets+"x",l:"sets"},{v:ex.reps,l:"reps"},{v:ex.rest,l:"rest"}].map(m=>(
+                            <div key={m.l} style={{textAlign:"center",background:t.CARD2,borderRadius:5,padding:"3px 7px"}}>
+                              <div style={{fontSize:11,color:t.GOLD,fontWeight:700}}>{m.v}</div>
+                              <div style={{fontSize:8,color:t.MUTED}}>{m.l}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Exercise Library</div>
+          {selectedEx?(
+            <Card style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                <div>
+                  <div style={{fontSize:18,color:t.TEXT,fontWeight:600}}>{selectedEx}</div>
+                  <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",marginTop:3}}>{EXERCISE_GUIDE[selectedEx]?.muscle}</div>
+                </div>
+                <button onClick={()=>setSelectedEx(null)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Back</button>
+              </div>
+              <div style={{background:t.CARD2,borderRadius:10,height:140,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+                <style>{"@keyframes exBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}} @keyframes exPush{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.65)}}"}</style>
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:52,animation:selectedEx==="Squat"||selectedEx==="Deadlift"||selectedEx==="Romanian Deadlift"?"exBounce 2s ease-in-out infinite":"exPush 2s ease-in-out infinite"}}>
+                    {selectedEx==="Bench Press"?"P":selectedEx==="Squat"?"S":selectedEx==="Deadlift"?"D":selectedEx==="Overhead Press"?"O":selectedEx==="Pull-ups"?"U":selectedEx==="Rows"?"R":"F"}
+                  </div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:6}}>{selectedEx}</div>
+                </div>
+              </div>
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>How to perform</div>
+                {(EXERCISE_GUIDE[selectedEx]?.steps||[]).map((step,i)=>(
+                  <div key={i} style={{display:"flex",gap:10,marginBottom:9,alignItems:"flex-start"}}>
+                    <div style={{width:20,height:20,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:t.GOLD,fontWeight:700,flexShrink:0}}>{i+1}</div>
+                    <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.65,paddingTop:1}}>{step}</div>
+                  </div>
+                ))}
+              </div>
+              {EXERCISE_GUIDE[selectedEx]?.tips&&(
+                <div style={{padding:"9px 12px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:7,marginBottom:10}}>
+                  <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Pro Tip</div>
+                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.65}}>{EXERCISE_GUIDE[selectedEx].tips}</div>
+                </div>
+              )}
+              {prs[selectedEx]&&(
+                <div style={{padding:"8px 12px",background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:7,display:"flex",justifyContent:"space-between"}}>
+                  <div style={{fontSize:11,color:t.GREEN,fontFamily:"sans-serif"}}>Your personal record</div>
+                  <div style={{fontSize:13,color:t.GREEN,fontFamily:"sans-serif",fontWeight:700}}>{prs[selectedEx].weight+"kg x "+prs[selectedEx].reps}</div>
+                </div>
+              )}
+            </Card>
+          ):(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {Object.keys(EXERCISE_GUIDE).map(ex=>(
+                <div key={ex} onClick={()=>setSelectedEx(ex)} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"12px 14px",cursor:"pointer"}}>
+                  <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:4}}>{ex}</div>
+                  <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",marginBottom:4}}>{EXERCISE_GUIDE[ex].muscle}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:4}}>{EXERCISE_GUIDE[ex].level}</div>
+                    {prs[ex]&&<div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>PR: {prs[ex].weight}kg</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -5659,7 +5834,7 @@ function App(){
           {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
-          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts}/>}
+          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog}/>}
           {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits}/>}
