@@ -49,7 +49,7 @@ const JP=["What is my number 1 priority today?","What am I grateful for?","What 
 const NAV=[
   ["dashboard","🏠","Dashboard"],["search","🔍","Search"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
-  ["wealth","💸","Wealth"],["projector","📈","Wealth Forecast"],["cashflow","💰","Cash Flow"],
+  ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
@@ -418,7 +418,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","search","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","projector","cashflow","bills","budget","debt","invest"]],
+    ["Wealth",["wealth","cashflow","bills","budget","debt","invest"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -3025,6 +3025,10 @@ function InvestPage({profile}){
 
 function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
+  const[editingSupp,setEditingSupp]=useState(null);
+  const[editForm,setEditForm]=useState({});
+  const openEditSupp=(s)=>{setEditForm({name:s.name,dose:s.dose||"",time:s.time||"morning",purpose:s.purpose||""});setEditingSupp(s.id);setShowAdd(false);};
+  const saveEditSupp=()=>{if(!editForm.name.trim())return;setSupplements(ss=>ss.map(s=>s.id===editingSupp?{...s,...editForm}:s));setEditingSupp(null);};
   const add=()=>{if(!form.name)return;setSupplements(ss=>[...ss,{...form,id:Date.now(),taken:false}]);setForm({name:"",dose:"",time:"morning",purpose:""});setShowAdd(false);};
   const done=(supplements||[]).filter(s=>s.taken).length;
   const latestLog=(bodyLog||[]).length?[...(bodyLog||[])].sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
@@ -3071,6 +3075,29 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
             </div>
           </div>
         )}
+        {editingSupp&&(
+          <div style={{marginBottom:12,padding:12,background:t.GOLD+"0A",borderRadius:7,border:"1px solid "+t.GOLD+"33"}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Edit Supplement</div>
+            <div style={{display:"flex",gap:7,marginBottom:7}}>
+              <Inp value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} placeholder="Name" style={{flex:2}}/>
+              <Inp value={editForm.dose} onChange={e=>setEditForm(f=>({...f,dose:e.target.value}))} placeholder="Dose" style={{flex:1}}/>
+            </div>
+            <div style={{display:"flex",gap:7,marginBottom:7}}>
+              <Sel value={editForm.time} onChange={e=>setEditForm(f=>({...f,time:e.target.value}))} style={{flex:1}}>
+                <option value="morning">Morning</option>
+                <option value="pre-workout">Pre-workout</option>
+                <option value="with food">With food</option>
+                <option value="afternoon">Afternoon</option>
+                <option value="evening">Evening</option>
+              </Sel>
+              <Inp value={editForm.purpose} onChange={e=>setEditForm(f=>({...f,purpose:e.target.value}))} placeholder="Purpose" style={{flex:2}}/>
+            </div>
+            <div style={{display:"flex",gap:7}}>
+              <Btn onClick={saveEditSupp} style={{fontSize:11}}>Save</Btn>
+              <Btn onClick={()=>setEditingSupp(null)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+            </div>
+          </div>
+        )}
         {(supplements||[]).map((s,i)=>(
           <div key={s.id}>
             {i>0&&<Divider/>}
@@ -3082,7 +3109,9 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
                 <span style={{fontSize:12,color:s.taken?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:s.taken?"line-through":"none"}}>{s.name}</span>
                 {s.dose&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{" - "+s.dose}</span>}
                 {s.time&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{" - "+s.time}</span>}
+                {s.purpose&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{s.purpose}</div>}
               </div>
+              <button onClick={()=>openEditSupp(s)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
               <button onClick={()=>setSupplements(ss=>(ss||[]).filter(x=>x.id!==s.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
             </div>
           </div>
@@ -5824,7 +5853,7 @@ function App(){
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio}/>}
-          {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
+          {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
