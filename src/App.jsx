@@ -584,7 +584,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const togHabit=id=>setHabitLog(l=>({...l,[id+"_"+todayStr()]:!l[id+"_"+todayStr()]}));
   const quotes=["Wealth is the slave of a wise man.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest.","Do not save what is left after spending.","Discipline is the bridge between goals and accomplishment.","Fortune favours the prepared mind.","Either you run the day or the day runs you.","The goal is living life on your own terms."];
   const quote=quotes[(new Date().getFullYear()*10000+new Date().getMonth()*100+new Date().getDate())%quotes.length];
-  const upcoming=(bills||[]).filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())/864e5<=3);
+  const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;});
   const highTasks=tasks.filter(tk=>tk.priority==="high");
   const rings=[
     {pct:tasks.length?Math.round(tDone/tasks.length*100):0,c:t.GREEN,label:"Tasks",sub:tDone+"/"+tasks.length,page:"tasks"},
@@ -1844,7 +1844,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </Card>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <StatCard label="Annual Income" value={fmt(parseFloat(profile.annualIncome)||0)} color={t.GOLD}/>
-            <StatCard label="After Tax" value={fmt((parseFloat(profile.annualIncome)||0)-calcTax(parseFloat(profile.annualIncome)||0))} color={t.GREEN}/>
+            
           </div>
         </div>
       </div>
@@ -2787,7 +2787,7 @@ function BillsPage({bills,setBills}){
     setShowAdd(false);
   };
   const totalMonthly=bills.reduce((s,b)=>s+monthlyEq(b),0);
-  const upcoming=bills.filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())/864e5<=14).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
+  const upcoming=bills.filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
