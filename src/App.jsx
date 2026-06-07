@@ -20,6 +20,19 @@ const LOCALES={
 };
 let _locale="en-AU";
 const L=()=>LOCALES[_locale]||LOCALES["en-AU"];
+// ── Supabase ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL="https://vvnnzepagtrlvnqyqbdr.supabase.co";
+const SUPABASE_KEY="sb_publishable_yh1Srs_fsONIuZQ7flIksg_f53KPcVn";
+const sbH=(token)=>({"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+(token||SUPABASE_KEY)});
+const supabase={
+  async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
+  async signIn(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
+  async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
+  async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
+  async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();return rows&&rows[0]?rows[0].data:null;},
+  async save(userId,token,data){await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});},
+};
+
 const fmt=n=>{
   if(!n&&n!==0)return L().symbol+"0";
   const s=L().symbol,v=Math.abs(n);
@@ -608,6 +621,15 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
           {!isMobile&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",maxWidth:280,textAlign:"right",lineHeight:1.6}}>"{quote}"</div>}
+          {syncing&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Syncing...</div>}
+          {authUser?(
+            <div style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px"}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
+              <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{authUser.email?.split("@")[0]}</span>
+            </div>
+          ):(
+            <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,whiteSpace:"nowrap"}}>Sign In</button>
+          )}
           <button onClick={()=>setShowBriefing(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"7px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap"}}>Morning Brief</button>
         </div>
       </div>
@@ -4084,6 +4106,21 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
           ))}
         </div>
       </Card>
+      {authUser&&<Card style={{marginBottom:12}}>
+        <SectionLabel>Account</SectionLabel>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{authUser.email}</div>
+            <div style={{fontSize:10,color:t.GREEN,fontFamily:"sans-serif",marginTop:2}}>Syncing across devices</div>
+          </div>
+          <button onClick={handleSignOut} style={{background:t.RED+"14",border:"1px solid "+t.RED+"33",borderRadius:7,padding:"6px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Sign Out</button>
+        </div>
+      </Card>}
+      {!authUser&&<Card style={{marginBottom:12}}>
+        <SectionLabel>Account</SectionLabel>
+        <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>Sign in to sync your data across all devices.</div>
+        <Btn onClick={()=>setShowAuth(true)}>Sign In / Create Account</Btn>
+      </Card>}
       <div style={{padding:"12px 14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:7}}>
         <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif",marginBottom:5}}>Danger Zone</div>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>Clears all data and resets to demo mode.</div>
@@ -5631,6 +5668,15 @@ function ServicesPage({services,setServices}){
 function App(){
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
+  const[authToken,setAuthToken]=useState(()=>{try{return localStorage.getItem("exec_token")||null;}catch{return null;}});
+  const[authUser,setAuthUser]=useState(null);
+  const[showAuth,setShowAuth]=useState(false);
+  const[authMode,setAuthMode]=useState("signin");
+  const[authEmail,setAuthEmail]=useState("");
+  const[authPassword,setAuthPassword]=useState("");
+  const[authLoading,setAuthLoading]=useState(false);
+  const[authError,setAuthError]=useState("");
+  const[syncing,setSyncing]=useState(false);
   useEffect(()=>{
     const tid=setTimeout(()=>setSplash(false),2500);
     return()=>clearTimeout(tid);
@@ -5710,12 +5756,17 @@ function App(){
       if(saved.services)setServices(saved.services);
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
-    setHydrated(true);
+      setHydrated(true);
+    })();
   },[]);
 
   useEffect(()=>{
     if(!hydrated)return;
-    saveData({lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections});
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    saveData(dataToSave);
+    if(authToken && authUser?.id){
+      supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
+    }
     setLastSaved(Date.now());
   },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
 
@@ -5799,6 +5850,72 @@ function App(){
     return <SetupPage onComplete={handleSetupComplete}/>;
   }
 
+  const handleSignIn=async()=>{
+    setAuthLoading(true);setAuthError("");
+    try{
+      const res = await supabase.signIn(authEmail, authPassword);
+      if(res.access_token){
+        localStorage.setItem("exec_token", res.access_token);
+        setAuthToken(res.access_token);
+        setAuthUser(res.user);
+        // Load cloud data
+        const cloudData = await supabase.load(res.user.id, res.access_token);
+        if(cloudData){
+          // Apply cloud data
+          if(cloudData.profile)setProfile(cloudData.profile);
+          if(cloudData.tasks)setTasks(cloudData.tasks);
+          if(cloudData.goals)setGoals(cloudData.goals);
+          if(cloudData.completed)setCompleted(cloudData.completed);
+          if(cloudData.supplements)setSupplements(cloudData.supplements);
+          if(cloudData.habits)setHabits(cloudData.habits);
+          if(cloudData.habitLog)setHabitLog(cloudData.habitLog);
+          if(cloudData.workouts)setWorkouts(cloudData.workouts);
+          if(cloudData.transactions)setTransactions(cloudData.transactions);
+          if(cloudData.journal)setJournal(cloudData.journal);
+          if(cloudData.books)setBooks(cloudData.books);
+          if(cloudData.bills)setBills(cloudData.bills);
+          if(cloudData.debts)setDebts(cloudData.debts);
+          if(cloudData.notes)setNotes(cloudData.notes);
+          if(cloudData.services)setServices(cloudData.services);
+          if(cloudData.bodyLog)setBodyLog(cloudData.bodyLog);
+          if(cloudData.nwHistory)setNwHistoryFull(prev=>({...prev,...cloudData.nwHistory}));
+          if(cloudData.theme){_themeKey=THEME_ALIASES[cloudData.theme]||cloudData.theme;setThemeState(cloudData.theme);}
+        } else {
+          // First login - migrate local data to cloud
+          const localData = loadData();
+          if(localData && res.user?.id){
+            await supabase.save(res.user.id, res.access_token, localData);
+          }
+        }
+        setShowAuth(false);
+      }else{
+        setAuthError(res.error_description||res.msg||"Sign in failed");
+      }
+    }catch(e){setAuthError("Connection error");}
+    setAuthLoading(false);
+  };
+
+  const handleSignUp=async()=>{
+    setAuthLoading(true);setAuthError("");
+    try{
+      const res = await supabase.signUp(authEmail, authPassword);
+      if(res.id||res.user?.id){
+        setAuthError("");
+        setAuthMode("signin");
+        setAuthError("Account created! Please sign in.");
+      }else{
+        setAuthError(res.error_description||res.msg||"Sign up failed");
+      }
+    }catch(e){setAuthError("Connection error");}
+    setAuthLoading(false);
+  };
+
+  const handleSignOut=async()=>{
+    if(authToken) await supabase.signOut(authToken).catch(()=>{});
+    localStorage.removeItem("exec_token");
+    setAuthToken(null);setAuthUser(null);
+  };
+
   const handleReset=()=>{
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
@@ -5828,6 +5945,29 @@ function App(){
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
+      {showAuth&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>The Executive</div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>{authMode==="signin"?"Sign In":"Create Account"}</div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>{authMode==="signin"?"Your data syncs across all devices":"Free account — your data stays private"}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+              <Inp type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email address"/>
+              <Inp type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Password (min 6 chars)" onKeyDown={e=>e.key==="Enter"&&(authMode==="signin"?handleSignIn():handleSignUp())}/>
+            </div>
+            {authError&&<div style={{fontSize:11,color:authError.includes("created")?t.GREEN:t.RED,fontFamily:"sans-serif",marginBottom:12,padding:"7px 10px",background:authError.includes("created")?t.GREEN+"14":t.RED+"14",borderRadius:6}}>{authError}</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <Btn onClick={authMode==="signin"?handleSignIn:handleSignUp} disabled={authLoading||!authEmail||!authPassword} style={{width:"100%",padding:"12px",fontSize:12}}>
+                {authLoading?(authMode==="signin"?"Signing in...":"Creating account..."):(authMode==="signin"?"Sign In":"Create Account")}
+              </Btn>
+              <button onClick={()=>{setAuthMode(m=>m==="signin"?"signup":"signin");setAuthError("");}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textDecoration:"underline",padding:"4px 0"}}>
+                {authMode==="signin"?"No account? Create one free":"Already have an account? Sign in"}
+              </button>
+              <button onClick={()=>setShowAuth(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,opacity:.6}}>Continue without account</button>
+            </div>
+          </div>
+        </div>
+      )}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto"}}>
         {!profile&&(isMobile?(
