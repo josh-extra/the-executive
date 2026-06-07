@@ -5756,8 +5756,7 @@ function App(){
       if(saved.services)setServices(saved.services);
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
-      setHydrated(true);
-    })();
+    setHydrated(true);
   },[]);
 
   useEffect(()=>{
