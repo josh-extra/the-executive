@@ -913,7 +913,6 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const[expandHabit,setExpandHabit]=useState({});
   const[editingHabit,setEditingHabit]=useState(null);
   const[editForm,setEditForm]=useState({});
-  const[showEmojiPicker,setShowEmojiPicker]=useState(false);
   const[dragIdx,setDragIdx]=useState(null);
   const[confirmDelete,setConfirmDelete]=useState(null);
 
