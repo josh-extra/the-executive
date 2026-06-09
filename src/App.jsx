@@ -5782,6 +5782,17 @@ function App(){
     setHistory(h=>({...h,[todayStr()]:{score:todayScore,tasks:tDone,supps:sDone}}));
   },[todayScore,hydrated]);
 
+  // Midnight reset — handles app left open overnight
+  useEffect(()=>{
+    const now=new Date();
+    const msUntilMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1)-now;
+    const tid=setTimeout(()=>{
+      setTasks(ts=>ts.map(t=>({...t,done:false})));
+      setSupplements(ss=>ss.map(s=>({...s,taken:false})));
+    },msUntilMidnight);
+    return()=>clearTimeout(tid);
+  },[]);
+
   useEffect(()=>{
     if(!hydrated||!profile)return;
     setNwHistory(h=>({...h,[monthStr()]:profile.netWorth||0}));
@@ -5860,25 +5871,26 @@ function App(){
         // Load cloud data
         const cloudData = await supabase.load(res.user.id, res.access_token);
         if(cloudData){
-          // Apply cloud data
-          if(cloudData.profile)setProfile(cloudData.profile);
-          if(cloudData.tasks)setTasks(cloudData.tasks);
-          if(cloudData.goals)setGoals(cloudData.goals);
-          if(cloudData.completed)setCompleted(cloudData.completed);
-          if(cloudData.supplements)setSupplements(cloudData.supplements);
-          if(cloudData.habits)setHabits(cloudData.habits);
-          if(cloudData.habitLog)setHabitLog(cloudData.habitLog);
-          if(cloudData.workouts)setWorkouts(cloudData.workouts);
-          if(cloudData.transactions)setTransactions(cloudData.transactions);
-          if(cloudData.journal)setJournal(cloudData.journal);
-          if(cloudData.books)setBooks(cloudData.books);
-          if(cloudData.bills)setBills(cloudData.bills);
-          if(cloudData.debts)setDebts(cloudData.debts);
-          if(cloudData.notes)setNotes(cloudData.notes);
-          if(cloudData.services)setServices(cloudData.services);
-          if(cloudData.bodyLog)setBodyLog(cloudData.bodyLog);
-          if(cloudData.nwHistory)setNwHistoryFull(prev=>({...prev,...cloudData.nwHistory}));
-          if(cloudData.theme){_themeKey=THEME_ALIASES[cloudData.theme]||cloudData.theme;setThemeState(cloudData.theme);}
+          // Apply daily reset then load
+          const d = applyDailyReset(cloudData, todayStr());
+          if(d.profile)setProfile(d.profile);
+          if(d.tasks)setTasks(d.tasks);
+          if(d.goals)setGoals(d.goals);
+          if(d.completed)setCompleted(d.completed);
+          if(d.supplements)setSupplements(d.supplements);
+          if(d.habits)setHabits(d.habits);
+          if(d.habitLog)setHabitLog(d.habitLog);
+          if(d.workouts)setWorkouts(d.workouts);
+          if(d.transactions)setTransactions(d.transactions);
+          if(d.journal)setJournal(d.journal);
+          if(d.books)setBooks(d.books);
+          if(d.bills)setBills(d.bills);
+          if(d.debts)setDebts(d.debts);
+          if(d.notes)setNotes(d.notes);
+          if(d.services)setServices(d.services);
+          if(d.bodyLog)setBodyLog(d.bodyLog);
+          if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
+          if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
         } else {
           // First login - migrate local data to cloud
           const localData = loadData();
