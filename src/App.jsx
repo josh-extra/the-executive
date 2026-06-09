@@ -3057,47 +3057,6 @@ function CashFlowPage({transactions,setTransactions}){
           {["all","income","expense"].map(f=>(
             <button key={f} onClick={()=>setFilter(f)} style={{padding:"4px 10px",borderRadius:14,border:"1px solid "+(filter===f?t.GOLD:t.BORDER),background:filter===f?t.GOLD+"14":"transparent",color:filter===f?t.GOLD:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif",textTransform:"capitalize"}}>{f}</button>
           ))}
-        </div>
-        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
-      </div>
-      {showAdd&&(
-        <Card style={{marginBottom:10,borderColor:t.GOLD+"44"}}>
-          <div style={{display:"flex",gap:6,marginBottom:8}}>
-            {["income","expense"].map(tp=>(
-              <button key={tp} onClick={()=>setForm(f=>({...f,type:tp,category:EXP_CATS[tp][0]}))} style={{flex:1,padding:"6px",borderRadius:5,border:"1px solid "+(form.type===tp?(tp==="income"?t.GREEN:t.RED):t.BORDER),background:form.type===tp?(tp==="income"?t.GREEN:t.RED)+"14":"transparent",color:form.type===tp?(tp==="income"?t.GREEN:t.RED):t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textTransform:"capitalize"}}>{tp}</button>
-            ))}
-          </div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <Inp type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={{flex:1}}/>
-            <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1.4}}>{EXP_CATS[form.type].map(c=><option key={c}>{c}</option>)}</Sel>
-            <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="Amount" style={{flex:1}}/>
-            <Inp value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Note" style={{flex:1.5}}/>
-            <Btn onClick={add}>Add</Btn>
-          </div>
-        </Card>
-      )}
-      <Card>
-        {shown.length===0&&<div style={{textAlign:"center",padding:32,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:28,marginBottom:8}}>$</div><div>Drop a bank statement above or add manually</div></div>}
-        {shown.map((tx,i)=>(
-          <div key={tx.id}>
-            {i>0&&<Divider/>}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{tx.category}{tx.note&&<span style={{color:t.MUTED,fontSize:10}}>{" - "+tx.note}</span>}</div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{tx.date}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{fontSize:12,color:tx.type==="income"?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(tx.type==="income"?"+":"-")+fmt(tx.amount)}</div>
-                <button onClick={()=>setTransactions(ts=>ts.filter(x=>x.id!==tx.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </Card>
-    </div>
-  );
-}
-
 function BillsPage({bills,setBills}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
