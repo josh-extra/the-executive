@@ -5870,8 +5870,9 @@ function App(){
         setAuthUser(res.user);
         // Load cloud data
         const cloudData = await supabase.load(res.user.id, res.access_token);
-        if(cloudData){
-          // Apply daily reset then load
+        const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
+        if(hasCloudData){
+          // Apply daily reset then load cloud data
           const d = applyDailyReset(cloudData, todayStr());
           if(d.profile)setProfile(d.profile);
           if(d.tasks)setTasks(d.tasks);
@@ -5892,10 +5893,30 @@ function App(){
           if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
           if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
         } else {
-          // First login - migrate local data to cloud
+          // No cloud data — migrate from localStorage
           const localData = loadData();
-          if(localData && res.user?.id){
-            await supabase.save(res.user.id, res.access_token, localData);
+          if(localData){
+            const d = applyDailyReset(localData, todayStr());
+            if(d.profile)setProfile(d.profile);
+            if(d.tasks)setTasks(d.tasks);
+            if(d.goals)setGoals(d.goals);
+            if(d.completed)setCompleted(d.completed);
+            if(d.supplements)setSupplements(d.supplements);
+            if(d.habits)setHabits(d.habits);
+            if(d.habitLog)setHabitLog(d.habitLog);
+            if(d.workouts)setWorkouts(d.workouts);
+            if(d.transactions)setTransactions(d.transactions);
+            if(d.journal)setJournal(d.journal);
+            if(d.books)setBooks(d.books);
+            if(d.bills)setBills(d.bills);
+            if(d.debts)setDebts(d.debts);
+            if(d.notes)setNotes(d.notes);
+            if(d.services)setServices(d.services);
+            if(d.bodyLog)setBodyLog(d.bodyLog);
+            if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
+            if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
+            // Push local data to cloud
+            await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
           }
         }
         setShowAuth(false);
