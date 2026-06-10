@@ -39,8 +39,8 @@ const fmt=n=>{
   const f=v>=1e6?s+(v/1e6).toFixed(2)+"M":v>=1e4?s+(v/1e3).toFixed(0)+"k":s+Math.round(v).toLocaleString();
   return n<0?"-"+f:f;
 };
-const todayStr=()=>new Date().toISOString().split("T")[0];
-const monthStr=()=>new Date().toISOString().slice(0,7);
+const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
 const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
 const AU_TAX=[[18200,0,0],[45000,.19,0],[120000,.325,5092],[180000,.37,29467],[Infinity,.45,51667]];
@@ -966,16 +966,16 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const TIME_GROUPS=["morning","afternoon","evening","anytime"];
   const TIME_LABELS={morning:"Morning",afternoon:"Afternoon",evening:"Evening",anytime:"Anytime"};
 
-  const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
+  const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");});
   // last7[6] is always today
-  const last30=Array.from({length:30}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(29-i));return d.toISOString().split("T")[0];});
+  const last30=Array.from({length:30}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(29-i));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");});
   const dayLetters=["S","M","T","W","T","F","S"];
 
   const getStreak=h=>{
     let s=0;
     for(let i=0;i<365;i++){
       const d=new Date();d.setDate(d.getDate()-i);
-      const k=h.id+"_"+d.toISOString().split("T")[0];
+      const k=h.id+"_"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
       if(habitLog[k])s++;
       else if(i>0)break;
     }
@@ -3131,7 +3131,7 @@ function BillsPage({bills,setBills}){
     else if(freq==="monthly")d.setMonth(d.getMonth()+1);
     else if(freq==="quarterly")d.setMonth(d.getMonth()+3);
     else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
-    return d.toISOString().split("T")[0];
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   };
   const[showHistory,setShowHistory]=useState(false);
   const markPaid=id=>setBills(bs=>bs.map(b=>{
@@ -4154,7 +4154,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const[showReflection,setShowReflection]=useState(false);
   const weekKey="week_"+weekStart;
   const savedReflection=(weeklyReflections||{})[weekKey]||"";
-  const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.toISOString().split("T")[0];});
+  const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");});
   const weekStart=last7[0],weekEnd=last7[6];
   const scores=last7.map(d=>history[d]?.score||0);
   const activeScores=scores.filter(s=>s>0);
