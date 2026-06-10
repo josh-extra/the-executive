@@ -2397,17 +2397,17 @@ function DebtPage({profile,setProfile,debts,setDebts}){
 
   const DEBT_TYPES=["Mortgage","Investment Loan","Car Finance","Credit Card","Personal Loan","Student Loan","Business Loan","Other"];
 
-  // Migrate legacy debts from profile on first load
+  // Migrate legacy debts from profile on first load - no default rates
   const allDebts = debts && debts.length > 0 ? debts : [
-    {k:"mortgageDebt",name:"Mortgage",type:"Mortgage",rate:6.2},
-    {k:"investLoanDebt",name:"Investment Loan",type:"Investment Loan",rate:7.0},
-    {k:"carDebt",name:"Car Finance",type:"Car Finance",rate:9.5},
-    {k:"creditCardDebt",name:"Credit Card",type:"Credit Card",rate:19.9},
-    {k:"personalDebt",name:"Personal Loan",type:"Personal Loan",rate:12.0},
+    {k:"mortgageDebt",name:"Mortgage",type:"Mortgage"},
+    {k:"investLoanDebt",name:"Investment Loan",type:"Investment Loan"},
+    {k:"carDebt",name:"Car Finance",type:"Car Finance"},
+    {k:"creditCardDebt",name:"Credit Card",type:"Credit Card"},
+    {k:"personalDebt",name:"Personal Loan",type:"Personal Loan"},
   ].filter(d=>parseFloat(profile[d.k])>0).map(d=>({
     id:d.k,name:d.name,type:d.type,
     balance:parseFloat(profile[d.k]),
-    rate:d.rate,minPayment:"",startDate:"",endDate:"",lender:"",notes:"",
+    rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:"",
     payments:[],originalBalance:parseFloat(profile[d.k])
   }));
 
@@ -2448,23 +2448,27 @@ function DebtPage({profile,setProfile,debts,setDebts}){
     const origBal=parseFloat(form.originalBalance)||parseFloat(form.balance);
     const curBal=parseFloat(form.balance);
     if(editing){
-      setDebts(ds=>(ds||allDebts).map(d=>d.id===editing?{
+      // Always write to setDebts — use allDebts as fallback base if debts not yet set
+      const base = debts?.length ? debts : allDebts;
+      setDebts(base.map(d=>d.id===editing?{
         ...d,...form,
         balance:curBal,
         originalBalance:origBal,
-        rate:parseFloat(form.rate)||0,
+        rate:form.rate===""?"":parseFloat(form.rate)||0,
         minPayment:parseFloat(form.minPayment)||0,
       }:d));
     } else {
       const newDebt={
         id:Date.now(),name:form.name,type:form.type,
         balance:curBal,originalBalance:origBal,
-        rate:parseFloat(form.rate)||0,minPayment:parseFloat(form.minPayment)||0,
-        startDate:form.startDate,endDate:form.endDate,lender:form.lender,notes:form.notes,
+        rate:form.rate===""?"":parseFloat(form.rate)||0,
+        minPayment:parseFloat(form.minPayment)||0,
+        startDate:form.startDate,endDate:form.endDate,
+        lender:form.lender,notes:form.notes,
         payments:[]
       };
-      if(!debts?.length) setDebts([...allDebts,newDebt]);
-      else setDebts(ds=>[...ds,newDebt]);
+      const base = debts?.length ? debts : allDebts;
+      setDebts([...base,newDebt]);
     }
     setForm(emptyForm);setShowAdd(false);setEditing(null);
   };
@@ -2484,7 +2488,8 @@ function DebtPage({profile,setProfile,debts,setDebts}){
   const recordPayment=(id,amount)=>{
     const amt=parseFloat(amount)||0;
     if(!amt)return;
-    setDebts(ds=>(ds||allDebts).map(d=>{
+    const base = debts?.length ? debts : allDebts;
+    setDebts(base.map(d=>{
       if(d.id!==id)return d;
       const newBal=Math.max(0,parseFloat(d.balance)-amt);
       return{...d,balance:newBal,payments:[...(d.payments||[]),{date:todayStr(),amount:amt,id:Date.now()}]};
@@ -2733,7 +2738,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
                 {confirmDel===d.id?(
                   <div style={{display:"flex",alignItems:"center",gap:8,marginTop:6}}>
                     <span style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Delete this debt?</span>
-                    <button onClick={()=>{setDebts(ds=>(ds||allDebts).filter(x=>x.id!==d.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 8px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                    <button onClick={()=>{const base=debts?.length?debts:allDebts;setDebts(base.filter(x=>x.id!==d.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 8px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
                     <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 8px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
                   </div>
                 ):(
