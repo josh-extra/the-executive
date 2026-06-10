@@ -90,7 +90,10 @@ const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
 const applyDailyReset=(saved,today)=>{
   if(!saved.lastSavedDate||saved.lastSavedDate!==today)
-    return{...saved,lastSavedDate:today,tasks:(saved.tasks||[]).map(t=>({...t,done:false})),supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
+    return{...saved,lastSavedDate:today,
+      // Completed tasks reset to undone, incomplete tasks roll over as-is
+      tasks:(saved.tasks||[]).map(t=>t.done?{...t,done:false}:t),
+      supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
   return saved;
 };
 const DEMO={
@@ -938,7 +941,28 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const[dragIdx,setDragIdx]=useState(null);
   const[confirmDelete,setConfirmDelete]=useState(null);
 
-  const EMOJIS=["🔥","💪","🧘","📚","🏃","🥗","💧","😴","🧠","\u2744\uFE0F","\u270D\uFE0F","🎯","🏋️","🚴","🧘","\u2600\uFE0F","🌙","\u26A1","🎵","🙏","💊","🥤","🍎","🫁","\u2764\uFE0F","🧘","🏊","🤸","📖","💰"];
+  const EMOJIS=[
+    // Fitness & Body
+    "💪","🏋️","🏃","🚴","🏊","🤸","🧘","🥊","⛹️","🏄","🤾","🚣","🧗","🤺","🏇",
+    // Health & Wellness
+    "💊","🥗","💧","🍎","🥦","🍳","🫁","❤️","🩺","🧬","🌡️","🫀","🦷","👁️","🩹",
+    // Mind & Focus
+    "🧠","📚","📖","✍️","🎯","🔬","💡","🎓","📝","🗺️","♟️","🧩","🔭","📐","✏️",
+    // Habits & Routine
+    "🌅","🌙","☀️","⏰","🛏️","🚿","🪥","🧹","🗓️","✅","🔑","⚡","🔥","💫","✨",
+    // Nature & Outdoors
+    "🌿","🌳","🌊","🏔️","🌸","🦁","🐯","🦅","🌻","🍃","🌺","🦋","🌈","🏕️","🌾",
+    // Food & Drink
+    "☕","🫖","🧃","🍵","🥤","🍇","🫐","🍊","🥑","🫚","🧄","🥕","🍓","🫛","🌰",
+    // Creativity & Hobbies
+    "🎵","🎨","🎸","🎹","📷","🎬","🎭","🎪","🎲","🎮","🧶","🪴","🎺","🥁","🎻",
+    // Money & Goals
+    "💰","📈","🏆","🥇","🎖️","💎","🏅","👑","🌟","⭐","🎊","🎯","🚀","💸","🪙",
+    // Social & Spiritual
+    "🙏","🤝","❤️","🫂","🕊️","☮️","🌍","🤲","💝","🙌","👏","🫶","💞","🌐","🕌",
+    // No/Stop habits
+    "🚫","🍷","🚬","📱","🍕","🍔","🍰","🧁","🍫","🥃",
+  ];
   const TIME_GROUPS=["morning","afternoon","evening","anytime"];
   const TIME_LABELS={morning:"Morning",afternoon:"Afternoon",evening:"Evening",anytime:"Anytime"};
 
@@ -1043,9 +1067,9 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                 {form.icon}
               </button>
               {showEmojiPicker&&(
-                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:4,width:200,boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
-                  {EMOJIS.map(e=>(
-                    <button key={e} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",padding:4,borderRadius:5,textAlign:"center"}}>
+                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:3,width:280,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
+                  {EMOJIS.map((e,ei)=>(
+                    <button key={ei} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",padding:4,borderRadius:5,textAlign:"center"}}>
                       {e}
                     </button>
                   ))}
@@ -1150,14 +1174,15 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         </div>
                       </div>
                       <div>
-                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Icon:</div>
-                        <div style={{display:"flex",flexWrap:"wrap",gap:5,background:t.CARD2,borderRadius:7,padding:8,maxHeight:120,overflowY:"auto"}}>
-                          {["🌅","🧊","🧘","📝","💪","🏃","🚴","📚","🚶","🔥","🎯","🏆","💰","📊","🧠","🎵","🎨","🙏","🏊","🤸","🚫","☕","🌊","🦁","💎","✨","🏅","🌙","🌿","🥗","💧","🍎"].map(e=>(
-                            <button key={e} onClick={()=>setEditForm(f=>({...f,icon:e}))} style={{background:editForm.icon===e?t.GOLD+"33":"transparent",border:"1px solid "+(editForm.icon===e?t.GOLD:"transparent"),borderRadius:5,padding:"4px 6px",cursor:"pointer",fontSize:18,lineHeight:1}}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Icon — tap to select</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:3,background:t.CARD2,borderRadius:7,padding:8,maxHeight:160,overflowY:"auto"}}>
+                          {EMOJIS.map((e,ei)=>(
+                            <button key={ei} onClick={()=>setEditForm(f=>({...f,icon:e}))} style={{background:editForm.icon===e?t.GOLD+"44":"transparent",border:"1.5px solid "+(editForm.icon===e?t.GOLD:"transparent"),borderRadius:6,padding:"4px 5px",cursor:"pointer",fontSize:20,lineHeight:1,transition:"all .15s"}}>
                               {e}
                             </button>
                           ))}
                         </div>
+                        {editForm.icon&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>Selected: <span style={{fontSize:18}}>{editForm.icon}</span></div>}
                       </div>
                       <div>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Colour:</div>
@@ -1679,24 +1704,87 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
 }
 
 function JournalPage({entries,setEntries}){
-  const t=T();const[text,setText]=useState("");const[mood,setMood]=useState(4);const[showNew,setShowNew]=useState(false);const[viewing,setViewing]=useState(null);
-  const td=todayStr();const todayEntry=(entries||[]).find(e=>e.date===td);
-  const save=()=>{if(!text.trim())return;setEntries(es=>[{id:Date.now(),date:td,text:text.trim(),mood},...es.filter(e=>e.date!==td)]);setText("");setShowNew(false);};
+  const t=T();
+  const[text,setText]=useState("");
+  const[mood,setMood]=useState(4);
+  const[showNew,setShowNew]=useState(false);
+  const[viewing,setViewing]=useState(null);
+  const[editing,setEditing]=useState(false);
+  const[editText,setEditText]=useState("");
+  const[editMood,setEditMood]=useState(4);
+  const[confirmDel,setConfirmDel]=useState(null);
+
+  const td=todayStr();
+  const todayEntry=(entries||[]).find(e=>e.date===td);
+
+  const save=()=>{
+    if(!text.trim())return;
+    setEntries(es=>[{id:Date.now(),date:td,text:text.trim(),mood,updatedAt:todayStr()},...(es||[]).filter(e=>e.date!==td)]);
+    setText("");setShowNew(false);
+  };
+
+  const saveEdit=(id)=>{
+    if(!editText.trim())return;
+    setEntries(es=>(es||[]).map(e=>e.id===id?{...e,text:editText.trim(),mood:editMood,updatedAt:todayStr()}:e));
+    setEditing(false);
+  };
+
+  const openEdit=(entry)=>{
+    setEditText(entry.text);
+    setEditMood(entry.mood||4);
+    setEditing(true);
+  };
+
+  // View / edit single entry
   if(viewing){
     const entry=(entries||[]).find(x=>x.id===viewing);
+    if(!entry){setViewing(null);return null;}
     return (
       <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
-        <button onClick={()=>setViewing(null)} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13,marginBottom:14}}>Back</button>
-        <Card>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{entry?.date}</div>
-          <div style={{display:"flex",gap:5,marginBottom:12}}>
-            {MOODS.map(m=><div key={m.v} style={{padding:"3px 9px",borderRadius:10,background:entry?.mood===m.v?m.c+"33":"transparent",border:"1px solid "+(entry?.mood===m.v?m.c:t.BORDER),fontSize:10,color:entry?.mood===m.v?m.c:t.MUTED,fontFamily:"sans-serif"}}>{m.l}</div>)}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <button onClick={()=>{setViewing(null);setEditing(false);}} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13}}>Back</button>
+          <div style={{display:"flex",gap:8}}>
+            {!editing&&<button onClick={()=>openEdit(entry)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Edit</button>}
+            {confirmDel===entry.id?(
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
+                <button onClick={()=>{setEntries(es=>(es||[]).filter(x=>x.id!==entry.id));setViewing(null);setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 8px",color:t.RED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Yes</button>
+                <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 8px",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>No</button>
+              </div>
+            ):(
+              <button onClick={()=>setConfirmDel(entry.id)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,opacity:.7}}>Delete</button>
+            )}
           </div>
-          <div style={{fontSize:13,color:t.TEXT,lineHeight:1.85,whiteSpace:"pre-wrap"}}>{entry?.text}</div>
+        </div>
+        <Card>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{entry.date}{entry.date===td&&<span style={{color:t.GOLD,marginLeft:6}}>Today</span>}</div>
+            {entry.updatedAt&&entry.updatedAt!==entry.date&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Updated {entry.updatedAt}</div>}
+          </div>
+          {editing?(
+            <div>
+              <div style={{display:"flex",gap:5,marginBottom:10}}>
+                {MOODS.map(m=><button key={m.v} onClick={()=>setEditMood(m.v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:"1px solid "+(editMood===m.v?m.c:t.BORDER),background:editMood===m.v?m.c+"22":"transparent",color:editMood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
+              </div>
+              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={10} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <div style={{display:"flex",gap:8,marginTop:10}}>
+                <Btn onClick={()=>saveEdit(entry.id)}>Save Changes</Btn>
+                <Btn onClick={()=>setEditing(false)} variant="ghost">Cancel</Btn>
+              </div>
+            </div>
+          ):(
+            <div>
+              <div style={{display:"flex",gap:5,marginBottom:14}}>
+                {MOODS.map(m=><div key={m.v} style={{padding:"3px 9px",borderRadius:10,background:entry.mood===m.v?m.c+"33":"transparent",border:"1px solid "+(entry.mood===m.v?m.c:t.BORDER),fontSize:10,color:entry.mood===m.v?m.c:t.MUTED,fontFamily:"sans-serif"}}>{m.l}</div>)}
+              </div>
+              <div style={{fontSize:14,color:t.TEXT,lineHeight:1.85,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{entry.text}</div>
+            </div>
+          )}
         </Card>
       </div>
     );
   }
+
   return (
     <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
@@ -1706,38 +1794,63 @@ function JournalPage({entries,setEntries}){
         </div>
         <Btn onClick={()=>setShowNew(s=>!s)}>+ Write</Btn>
       </div>
+
+      {/* Today's entry prompt */}
       {!todayEntry&&!showNew&&(
         <div onClick={()=>setShowNew(true)} style={{background:t.GOLD+"08",border:"1px dashed "+t.GOLD+"44",borderRadius:9,padding:14,cursor:"pointer",textAlign:"center",marginBottom:14}}>
           <div style={{fontSize:12,color:t.GOLD,fontFamily:"sans-serif",marginBottom:4}}>Today's entry is empty</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>{"\""+JP[new Date().getDate()%JP.length]+"\""}</div>
         </div>
       )}
+
+      {/* Today entry exists - show edit option prominently */}
+      {todayEntry&&!showNew&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"33",cursor:"pointer"}} onClick={()=>{setViewing(todayEntry.id);openEdit(todayEntry);}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase"}}>Today</span>
+              <span style={{fontSize:10,color:MOODS.find(m=>m.v===todayEntry.mood)?.c||t.MUTED,fontFamily:"sans-serif"}}>{MOODS.find(m=>m.v===todayEntry.mood)?.l}</span>
+            </div>
+            <button onClick={e=>{e.stopPropagation();setViewing(todayEntry.id);openEdit(todayEntry);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Edit</button>
+          </div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65,overflow:"hidden",maxHeight:48}}>{todayEntry.text.slice(0,120)+(todayEntry.text.length>120?"...":"")}</div>
+        </Card>
+      )}
+
+      {/* New entry form */}
       {showNew&&(
         <Card style={{marginBottom:16,borderColor:t.GOLD+"44"}}>
-          <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,marginBottom:6}}>{td}</div>
+          <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,marginBottom:4}}>{td}</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic",marginBottom:10}}>{"\""+JP[new Date().getDate()%JP.length]+"\""}</div>
           <div style={{display:"flex",gap:5,marginBottom:10}}>
             {MOODS.map(m=><button key={m.v} onClick={()=>setMood(m.v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:"1px solid "+(mood===m.v?m.c:t.BORDER),background:mood===m.v?m.c+"22":"transparent",color:mood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
           </div>
-          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Write freely..." rows={6} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Write freely..." rows={7} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:8,marginTop:10}}><Btn onClick={save}>Save</Btn><Btn onClick={()=>setShowNew(false)} variant="ghost">Cancel</Btn></div>
         </Card>
       )}
-      {(entries||[]).map(entry=>(
+
+      {/* Past entries */}
+      {(entries||[]).filter(e=>e.date!==td).map(entry=>(
         <Card key={entry.id} style={{marginBottom:8,cursor:"pointer"}} onClick={()=>setViewing(entry.id)}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>
-              {entry.date}
-              {entry.date===td&&<span style={{fontSize:9,color:t.GOLD,marginLeft:6}}>Today</span>}
-            </div>
+            <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{entry.date}</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:10,color:MOODS.find(m=>m.v===entry.mood)?.c||t.MUTED,fontFamily:"sans-serif"}}>{MOODS.find(m=>m.v===entry.mood)?.l}</span>
-              <button onClick={ev=>{ev.stopPropagation();setEntries(es=>es.filter(x=>x.id!==entry.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+              <button onClick={ev=>{ev.stopPropagation();setConfirmDel(entry.id);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
             </div>
           </div>
+          {confirmDel===entry.id&&(
+            <div onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:6,marginTop:4}}>
+              <span style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Delete this entry?</span>
+              <button onClick={()=>{setEntries(es=>(es||[]).filter(x=>x.id!==entry.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+              <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+            </div>
+          )}
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6,overflow:"hidden",maxHeight:34}}>{entry.text.slice(0,100)+(entry.text.length>100?"...":"")}</div>
         </Card>
       ))}
+
       {!(entries||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>J</div><div>No entries yet</div></div>}
     </div>
   );
@@ -5941,7 +6054,7 @@ function App(){
     const now=new Date();
     const msUntilMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1)-now;
     const tid=setTimeout(()=>{
-      setTasks(ts=>ts.map(t=>({...t,done:false})));
+      setTasks(ts=>ts.map(t=>t.done?{...t,done:false}:t));
       setSupplements(ss=>ss.map(s=>({...s,taken:false})));
     },msUntilMidnight);
     return()=>clearTimeout(tid);
