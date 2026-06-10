@@ -4166,12 +4166,23 @@ function ReadingPage({books,setBooks}){
                   {b.status==="reading"&&(
                     <>
                       <PB value={pct} color={col} height={4}/>
-                      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,marginBottom:6}}>{b.cur+" / "+b.tot+" pages"}</div>
-                      <div style={{display:"flex",gap:5}}>
+                      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,marginBottom:8}}>{b.cur+" / "+b.tot+" pages - "+pct+"%"}</div>
+                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         {[10,25,50].map(n=>(
-                          <Btn key={n} onClick={()=>addPages(b.id,n)} style={{flex:1,fontSize:10,padding:"4px"}}>{"+ "+n}</Btn>
+                          <button key={n} onClick={()=>addPages(b.id,n)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 8px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{"+ "+n}</button>
                         ))}
-                        <Btn onClick={()=>markFinished(b.id)} style={{flex:2,fontSize:10,padding:"4px"}}>Finished</Btn>
+                        <div style={{display:"flex",gap:4,flex:1,alignItems:"center"}}>
+                          <input
+                            type="number"
+                            placeholder="Page #"
+                            min={0}
+                            max={b.tot}
+                            onKeyDown={e=>{if(e.key==="Enter"&&e.target.value){const p=Math.min(Math.max(0,parseInt(e.target.value)||0),b.tot);setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p,status:p>=x.tot?"done":x.status,dateFinished:p>=x.tot?todayStr():x.dateFinished}:x));e.target.value="";}}}
+                            style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 8px",color:t.TEXT,fontFamily:"sans-serif",fontSize:11,outline:"none",minWidth:0}}
+                          />
+                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>Jump to page</span>
+                        </div>
+                        <button onClick={()=>markFinished(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0}}>Done</button>
                       </div>
                     </>
                   )}
