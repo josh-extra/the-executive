@@ -1715,9 +1715,17 @@ function JournalPage({entries,setEntries}){
   const[confirmDel,setConfirmDel]=useState(null);
   const[appending,setAppending]=useState(false);
   const[appendText,setAppendText]=useState("");
+  const[search,setSearch]=useState("");
+  const[moodFilter,setMoodFilter]=useState("all");
 
   const td=todayStr();
   const todayEntry=(entries||[]).find(e=>e.date===td);
+
+  const pastEntries=(entries||[])
+    .filter(e=>e.date!==td)
+    .filter(e=>moodFilter==="all"||e.mood===Number(moodFilter))
+    .filter(e=>!search||e.text.toLowerCase().includes(search.toLowerCase())||e.date.includes(search))
+    .sort((a,b)=>b.date.localeCompare(a.date));
 
   const save=()=>{
     if(!text.trim())return;
@@ -1885,8 +1893,27 @@ function JournalPage({entries,setEntries}){
         </Card>
       )}
 
+      {/* Search + filter */}
+      {(entries||[]).length>1&&(
+        <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+          <div style={{flex:1,position:"relative"}}>
+            <input
+              value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Search entries..."
+              style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"8px 12px 8px 32px",color:t.TEXT,fontFamily:"sans-serif",fontSize:12,outline:"none",boxSizing:"border-box"}}
+            />
+            <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:13,opacity:.4}}>S</div>
+            {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>}
+          </div>
+          <Sel value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{width:100,flexShrink:0}}>
+            <option value="all">All moods</option>
+            {MOODS.map(m=><option key={m.v} value={m.v}>{m.l}</option>)}
+          </Sel>
+        </div>
+      )}
+
       {/* Past entries */}
-      {(entries||[]).filter(e=>e.date!==td).map(entry=>(
+      {pastEntries.map(entry=>(
         <Card key={entry.id} style={{marginBottom:8,cursor:"pointer"}} onClick={()=>setViewing(entry.id)}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
             <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{entry.date}</div>
@@ -1902,9 +1929,19 @@ function JournalPage({entries,setEntries}){
               <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
             </div>
           )}
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6,overflow:"hidden",maxHeight:34}}>{entry.text.slice(0,100)+(entry.text.length>100?"...":"")}</div>
+          {/* Highlight search match */}
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6,overflow:"hidden",maxHeight:34}}>
+            {entry.text.slice(0,100)+(entry.text.length>100?"...":"")}
+          </div>
         </Card>
       ))}
+
+      {pastEntries.length===0&&(entries||[]).length>1&&(
+        <div style={{textAlign:"center",padding:32,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:13,marginBottom:6}}>No entries match</div>
+          <button onClick={()=>{setSearch("");setMoodFilter("all");}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 12px",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Clear filters</button>
+        </div>
+      )}
 
       {!(entries||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>J</div><div>No entries yet</div></div>}
     </div>
