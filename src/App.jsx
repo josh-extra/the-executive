@@ -3119,11 +3119,19 @@ function CashFlowPage({transactions,setTransactions}){
 
 function BillsPage({bills,setBills}){
   const t=T();
+  const emptyForm={name:"",amount:"",frequency:"monthly",category:"Housing",nextDue:todayStr(),autopay:false};
   const[showAdd,setShowAdd]=useState(false);
-  const[form,setForm]=useState({name:"",amount:"",frequency:"monthly",category:"Housing",nextDue:todayStr(),autopay:false});
+  const[editingId,setEditingId]=useState(null);
+  const[form,setForm]=useState(emptyForm);
+  const[showHistory,setShowHistory]=useState(false);
+  const[confirmDel,setConfirmDel]=useState(null);
   const freqs=["weekly","fortnightly","monthly","quarterly","annually"];
   const billCats=["Housing","Insurance","Utilities","Subscriptions","Finance","Health","Transport","Other"];
-  const monthlyEq=b=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return b.amount*(m[b.frequency]||1);};
+  const CAT_COLORS_B={Housing:"#C9A84C",Insurance:"#7EB8C9",Utilities:"#7A9E7E",Subscriptions:"#B07EC9",Finance:"#C97E7E",Health:"#7EC8A0",Transport:"#D4956A",Other:"#6A6050"};
+
+  const fmtAmt=n=>n!=null?"$"+Number(n).toFixed(2):"$0.00";
+  const monthlyEq=b=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return parseFloat(b.amount)*(m[b.frequency]||1);};
+
   const advanceDate=(ds,freq)=>{
     const d=new Date(ds+"T12:00:00");
     if(freq==="weekly")d.setDate(d.getDate()+7);
@@ -3133,20 +3141,34 @@ function BillsPage({bills,setBills}){
     else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
     return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   };
-  const[showHistory,setShowHistory]=useState(false);
+
   const markPaid=id=>setBills(bs=>bs.map(b=>{
     if(b.id!==id)return b;
-    const payment={date:todayStr(),amount:b.amount,name:b.name};
+    const payment={date:todayStr(),amount:parseFloat(b.amount),name:b.name};
     return{...b,nextDue:advanceDate(b.nextDue,b.frequency),lastPaid:todayStr(),paymentHistory:[payment,...(b.paymentHistory||[]).slice(0,23)]};
   }));
-  const add=()=>{
-    if(!form.name||!form.amount)return;
-    setBills(bs=>[...bs,{...form,id:Date.now(),amount:parseFloat(form.amount)}]);
-    setForm({name:"",amount:"",frequency:"monthly",category:"Housing",nextDue:todayStr(),autopay:false});
-    setShowAdd(false);
+
+  const openEdit=b=>{
+    setForm({name:b.name,amount:b.amount,frequency:b.frequency,category:b.category,nextDue:b.nextDue,autopay:b.autopay||false});
+    setEditingId(b.id);setShowAdd(true);
   };
+
+  const save=()=>{
+    if(!form.name||!form.amount)return;
+    if(editingId){
+      setBills(bs=>bs.map(b=>b.id===editingId?{...b,...form,amount:parseFloat(form.amount)}:b));
+    } else {
+      setBills(bs=>[...bs,{...form,id:Date.now(),amount:parseFloat(form.amount),paymentHistory:[]}]);
+    }
+    setForm(emptyForm);setShowAdd(false);setEditingId(null);
+  };
+
   const totalMonthly=bills.reduce((s,b)=>s+monthlyEq(b),0);
   const upcoming=bills.filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
+
+  // Group bills by category
+  const grouped=billCats.map(cat=>({cat,items:bills.filter(b=>b.category===cat)})).filter(g=>g.items.length>0);
+
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
@@ -3154,36 +3176,45 @@ function BillsPage({bills,setBills}){
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Recurring</div>
           <div style={{fontSize:26,color:t.TEXT}}>Bills</div>
         </div>
-        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
+        <Btn onClick={()=>{setForm(emptyForm);setEditingId(null);setShowAdd(s=>!s);}}>+ Add</Btn>
       </div>
+
+      {/* Summary */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-        <StatCard label="Monthly Total" value={fmt(totalMonthly)} color={t.RED}/>
-        <StatCard label="Annual Total" value={fmt(totalMonthly*12)} color={t.GOLD}/>
-        <StatCard label="Bills Tracked" value={bills.length} color={t.BLUE}/>
+        <Card style={{textAlign:"center",padding:"12px 8px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Monthly Total</div>
+          <div style={{fontSize:22,color:t.RED,fontWeight:700}}>{fmtAmt(totalMonthly)}</div>
+        </Card>
+        <Card style={{textAlign:"center",padding:"12px 8px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Annual Total</div>
+          <div style={{fontSize:22,color:t.GOLD,fontWeight:700}}>{fmtAmt(totalMonthly*12)}</div>
+        </Card>
+        <Card style={{textAlign:"center",padding:"12px 8px"}}>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Bills Tracked</div>
+          <div style={{fontSize:22,color:t.BLUE,fontWeight:700}}>{bills.length}</div>
+        </Card>
       </div>
+
+      {/* Due soon */}
       {upcoming.length>0&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <SectionLabel>Due Soon</SectionLabel>
+          <SectionLabel>Due in 7 Days</SectionLabel>
           {upcoming.map((b,i)=>{
             const diff=Math.round((new Date(b.nextDue+"T12:00:00")-new Date())/864e5);
-            const overdue=diff<0;
-            const dueLabel=overdue?("Overdue "+Math.abs(diff)+" days"):diff===0?"Due today":("Due in "+diff+" days");
+            const dueLabel=diff===0?"Due today":("Due in "+diff+" day"+(diff!==1?"s":""));
             return (
               <div key={b.id}>
                 {i>0&&<Divider/>}
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
                   <div>
                     <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>
-                      {b.name}
-                      {b.autopay&&<span style={{fontSize:9,color:t.GREEN,marginLeft:5,fontFamily:"sans-serif"}}>auto</span>}
+                      {b.name}{b.autopay&&<span style={{fontSize:9,color:t.GREEN,marginLeft:5,fontFamily:"sans-serif"}}>auto</span>}
                     </div>
-                    <div style={{fontSize:10,color:overdue?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{dueLabel+" - "+b.nextDue}</div>
+                    <div style={{fontSize:10,color:diff===0?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{dueLabel+" - "+b.nextDue}</div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(b.amount)}</span>
-                    <button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"4px 9px",color:t.GREEN,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>
-                      {b.autopay?"Auto":"Paid"}
-                    </button>
+                    <span style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmtAmt(b.amount)}</span>
+                    <button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"4px 9px",color:t.GREEN,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Paid</button>
                   </div>
                 </div>
               </div>
@@ -3191,13 +3222,15 @@ function BillsPage({bills,setBills}){
           })}
         </Card>
       )}
+
+      {/* Add/Edit form */}
       {showAdd&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <SectionLabel>New Bill</SectionLabel>
+          <SectionLabel>{editingId?"Edit Bill":"New Bill"}</SectionLabel>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <div style={{display:"flex",gap:8}}>
-              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Name" style={{flex:2}}/>
-              <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="$" style={{flex:1}}/>
+              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Bill name" style={{flex:2}}/>
+              <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="$0.00" style={{flex:1}}/>
             </div>
             <div style={{display:"flex",gap:8}}>
               <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))} style={{flex:1}}>
@@ -3215,11 +3248,14 @@ function BillsPage({bills,setBills}){
               </label>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <Btn onClick={add}>Add</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
+              <Btn onClick={save}>{editingId?"Save Changes":"Add"}</Btn>
+              <Btn onClick={()=>{setShowAdd(false);setEditingId(null);setForm(emptyForm);}} variant="ghost">Cancel</Btn>
             </div>
           </div>
         </Card>
       )}
+
+      {/* Payment history */}
       {bills.some(b=>(b.paymentHistory||[]).length>0)&&(
         <Card style={{marginBottom:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showHistory?12:0}}>
@@ -3233,10 +3269,10 @@ function BillsPage({bills,setBills}){
                   {i>0&&<Divider/>}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
                     <div>
-                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{p.name||p.billName}</div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{p.billName}</div>
                       <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{p.date}</div>
                     </div>
-                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{"-"+fmt(p.amount)}</div>
+                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{"-"+fmtAmt(p.amount)}</div>
                   </div>
                 </div>
               ))}
@@ -3244,43 +3280,71 @@ function BillsPage({bills,setBills}){
           )}
         </Card>
       )}
-      <Card>
-        {bills.length===0&&<div style={{textAlign:"center",padding:32,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:28,marginBottom:8}}>Bills</div><div>No bills tracked yet</div></div>}
-        {bills.map((b,i)=>{
-          const diff=Math.round((new Date(b.nextDue+"T12:00:00")-new Date())/864e5);
-          const urgent=diff<=3;
-          return (
-            <div key={b.id}>
-              {i>0&&<Divider/>}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>
-                    {b.name}
-                    {b.autopay&&<span style={{fontSize:9,color:t.GREEN,marginLeft:5}}>auto</span>}
-                  </div>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>
-                    {b.category+" - "+b.frequency+" - "}
-                    <span style={{color:urgent?t.RED:t.MUTED}}>{b.nextDue}</span>
-                    {b.lastPaid&&<span style={{marginLeft:7,color:t.GREEN}}>{"paid "+b.lastPaid}</span>}
-                  </div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmt(b.amount)}</div>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(monthlyEq(b))+"/mo"}</div>
-                  </div>
-                  <button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 7px",color:t.GREEN,cursor:"pointer",fontSize:10}}>Paid</button>
-                  <button onClick={()=>setBills(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
-                </div>
-              </div>
+
+      {/* Bills grouped by category */}
+      {bills.length===0&&(
+        <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:28,marginBottom:8}}>B</div>
+          <div>No bills tracked yet</div>
+        </div>
+      )}
+      {grouped.map(({cat,items})=>{
+        const catTotal=items.reduce((s,b)=>s+monthlyEq(b),0);
+        const col=CAT_COLORS_B[cat]||t.MUTED;
+        return (
+          <div key={cat} style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>{cat}</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{fmtAmt(catTotal)+"/mo"}</div>
             </div>
-          );
-        })}
-      </Card>
+            <Card style={{borderLeft:"3px solid "+col}}>
+              {items.map((b,i)=>{
+                const diff=Math.round((new Date(b.nextDue+"T12:00:00")-new Date())/864e5);
+                const urgent=diff<=3&&diff>=0;
+                return (
+                  <div key={b.id}>
+                    {i>0&&<Divider/>}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>
+                          {b.name}
+                          {b.autopay&&<span style={{fontSize:9,color:t.GREEN,marginLeft:6,fontFamily:"sans-serif"}}>auto</span>}
+                        </div>
+                        <div style={{display:"flex",gap:10,marginTop:2}}>
+                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{b.frequency.charAt(0).toUpperCase()+b.frequency.slice(1)}</span>
+                          <span style={{fontSize:9,color:urgent?t.RED:t.MUTED,fontFamily:"sans-serif"}}>
+                            {urgent?"Due soon: ":"Next: "}{b.nextDue}
+                          </span>
+                          {b.lastPaid&&<span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{"paid "+b.lastPaid}</span>}
+                        </div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0,marginLeft:10}}>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmtAmt(b.amount)}</div>
+                          {b.frequency!=="monthly"&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{fmtAmt(monthlyEq(b))+"/mo"}</div>}
+                        </div>
+                        <button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"3px 7px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Paid</button>
+                        <button onClick={()=>openEdit(b)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
+                        {confirmDel===b.id?(
+                          <div style={{display:"flex",gap:4}}>
+                            <button onClick={()=>{setBills(bs=>bs.filter(x=>x.id!==b.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:4,padding:"2px 6px",color:t.RED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>Yes</button>
+                            <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>No</button>
+                          </div>
+                        ):(
+                          <button onClick={()=>setConfirmDel(b.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}>X</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </Card>
+          </div>
+        );
+      })}
     </div>
   );
 }
-
 function InvestPage({profile}){
   const t=T();
   const[tab,setTab]=useState("ideas");
