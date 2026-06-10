@@ -1709,10 +1709,12 @@ function JournalPage({entries,setEntries}){
   const[mood,setMood]=useState(4);
   const[showNew,setShowNew]=useState(false);
   const[viewing,setViewing]=useState(null);
-  const[editing,setEditing]=useState(false);
+  const[editingId,setEditingId]=useState(null);
   const[editText,setEditText]=useState("");
   const[editMood,setEditMood]=useState(4);
   const[confirmDel,setConfirmDel]=useState(null);
+  const[appending,setAppending]=useState(false);
+  const[appendText,setAppendText]=useState("");
 
   const td=todayStr();
   const todayEntry=(entries||[]).find(e=>e.date===td);
@@ -1726,25 +1728,35 @@ function JournalPage({entries,setEntries}){
   const saveEdit=(id)=>{
     if(!editText.trim())return;
     setEntries(es=>(es||[]).map(e=>e.id===id?{...e,text:editText.trim(),mood:editMood,updatedAt:todayStr()}:e));
-    setEditing(false);
+    setEditingId(null);
   };
 
   const openEdit=(entry)=>{
     setEditText(entry.text);
     setEditMood(entry.mood||4);
-    setEditing(true);
+    setEditingId(entry.id);
+    setAppending(false);
   };
 
-  // View / edit single entry
+  // Append a new note to today's entry
+  const appendToToday=()=>{
+    if(!appendText.trim())return;
+    const timestamp=new Date().toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit"});
+    const newText=(todayEntry.text||"")+"\n\n---  "+timestamp+"  ---\n"+appendText.trim();
+    setEntries(es=>(es||[]).map(e=>e.id===todayEntry.id?{...e,text:newText,updatedAt:todayStr()}:e));
+    setAppendText("");setAppending(false);
+  };
+
+  // View single entry
   if(viewing){
     const entry=(entries||[]).find(x=>x.id===viewing);
     if(!entry){setViewing(null);return null;}
     return (
       <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <button onClick={()=>{setViewing(null);setEditing(false);}} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13}}>Back</button>
+          <button onClick={()=>{setViewing(null);setEditingId(null);}} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:13}}>Back</button>
           <div style={{display:"flex",gap:8}}>
-            {!editing&&<button onClick={()=>openEdit(entry)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Edit</button>}
+            {editingId!==entry.id&&<button onClick={()=>openEdit(entry)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Edit</button>}
             {confirmDel===entry.id?(
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <span style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
@@ -1759,17 +1771,17 @@ function JournalPage({entries,setEntries}){
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{entry.date}{entry.date===td&&<span style={{color:t.GOLD,marginLeft:6}}>Today</span>}</div>
-            {entry.updatedAt&&entry.updatedAt!==entry.date&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Updated {entry.updatedAt}</div>}
+            {entry.updatedAt&&entry.updatedAt!==entry.date&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Edited {entry.updatedAt}</div>}
           </div>
-          {editing?(
+          {editingId===entry.id?(
             <div>
               <div style={{display:"flex",gap:5,marginBottom:10}}>
                 {MOODS.map(m=><button key={m.v} onClick={()=>setEditMood(m.v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:"1px solid "+(editMood===m.v?m.c:t.BORDER),background:editMood===m.v?m.c+"22":"transparent",color:editMood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
               </div>
-              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={10} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={12} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
               <div style={{display:"flex",gap:8,marginTop:10}}>
                 <Btn onClick={()=>saveEdit(entry.id)}>Save Changes</Btn>
-                <Btn onClick={()=>setEditing(false)} variant="ghost">Cancel</Btn>
+                <Btn onClick={()=>setEditingId(null)} variant="ghost">Cancel</Btn>
               </div>
             </div>
           ):(
@@ -1778,6 +1790,21 @@ function JournalPage({entries,setEntries}){
                 {MOODS.map(m=><div key={m.v} style={{padding:"3px 9px",borderRadius:10,background:entry.mood===m.v?m.c+"33":"transparent",border:"1px solid "+(entry.mood===m.v?m.c:t.BORDER),fontSize:10,color:entry.mood===m.v?m.c:t.MUTED,fontFamily:"sans-serif"}}>{m.l}</div>)}
               </div>
               <div style={{fontSize:14,color:t.TEXT,lineHeight:1.85,whiteSpace:"pre-wrap",fontFamily:"Georgia,serif"}}>{entry.text}</div>
+              {/* Append note */}
+              {entry.date===td&&(
+                appending?(
+                  <div style={{marginTop:16,borderTop:"1px solid "+t.BORDER,paddingTop:14}}>
+                    <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add to today's entry</div>
+                    <textarea value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={5} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+                    <div style={{display:"flex",gap:8,marginTop:8}}>
+                      <Btn onClick={appendToToday}>Append</Btn>
+                      <Btn onClick={()=>{setAppending(false);setAppendText("");}} variant="ghost">Cancel</Btn>
+                    </div>
+                  </div>
+                ):(
+                  <button onClick={()=>setAppending(true)} style={{marginTop:14,background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:7,padding:"7px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,width:"100%"}}>+ Add to this entry</button>
+                )
+              )}
             </div>
           )}
         </Card>
@@ -1803,17 +1830,45 @@ function JournalPage({entries,setEntries}){
         </div>
       )}
 
-      {/* Today entry exists - show edit option prominently */}
+      {/* Today entry exists - quick actions */}
       {todayEntry&&!showNew&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"33",cursor:"pointer"}} onClick={()=>{setViewing(todayEntry.id);openEdit(todayEntry);}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase"}}>Today</span>
               <span style={{fontSize:10,color:MOODS.find(m=>m.v===todayEntry.mood)?.c||t.MUTED,fontFamily:"sans-serif"}}>{MOODS.find(m=>m.v===todayEntry.mood)?.l}</span>
             </div>
-            <button onClick={e=>{e.stopPropagation();setViewing(todayEntry.id);openEdit(todayEntry);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Edit</button>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={()=>{setViewing(todayEntry.id);setAppending(true);}} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>+ Add</button>
+              <button onClick={()=>openEdit(todayEntry)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Edit</button>
+              <button onClick={()=>setViewing(todayEntry.id)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Read</button>
+            </div>
           </div>
-          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65,overflow:"hidden",maxHeight:48}}>{todayEntry.text.slice(0,120)+(todayEntry.text.length>120?"...":"")}</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65,overflow:"hidden",maxHeight:48}}>{todayEntry.text.slice(0,140)+(todayEntry.text.length>140?"...":"")}</div>
+          {/* Inline append */}
+          {appending&&(
+            <div style={{marginTop:12,borderTop:"1px solid "+t.BORDER,paddingTop:12}}>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add to today</div>
+              <textarea value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <Btn onClick={appendToToday}>Append</Btn>
+                <Btn onClick={()=>{setAppending(false);setAppendText("");}} variant="ghost">Cancel</Btn>
+              </div>
+            </div>
+          )}
+          {/* Inline edit */}
+          {editingId===todayEntry.id&&(
+            <div style={{marginTop:12,borderTop:"1px solid "+t.BORDER,paddingTop:12}}>
+              <div style={{display:"flex",gap:5,marginBottom:10}}>
+                {MOODS.map(m=><button key={m.v} onClick={()=>setEditMood(m.v)} style={{flex:1,padding:"5px 2px",borderRadius:6,border:"1px solid "+(editMood===m.v?m.c:t.BORDER),background:editMood===m.v?m.c+"22":"transparent",color:editMood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
+              </div>
+              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={8} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <Btn onClick={()=>saveEdit(todayEntry.id)}>Save</Btn>
+                <Btn onClick={()=>setEditingId(null)} variant="ghost">Cancel</Btn>
+              </div>
+            </div>
+          )}
         </Card>
       )}
 
