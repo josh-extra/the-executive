@@ -36,7 +36,7 @@ const supabase={
 const fmt=n=>{
   if(!n&&n!==0)return L().symbol+"0";
   const s=L().symbol,v=Math.abs(n);
-  const f=v>=1e6?s+(v/1e6).toFixed(2)+"M":v>=1e4?s+(v/1e3).toFixed(0)+"k":s+Math.round(v).toLocaleString();
+  const f=v>=1e6?s+(v/1e6).toFixed(2)+"M":v>=1e4?s+(v/1e3).toFixed(1)+"k":s+v.toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});
   return n<0?"-"+f:f;
 };
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
@@ -3129,7 +3129,7 @@ function BillsPage({bills,setBills}){
   const billCats=["Housing","Insurance","Utilities","Subscriptions","Finance","Health","Transport","Other"];
   const CAT_COLORS_B={Housing:"#C9A84C",Insurance:"#7EB8C9",Utilities:"#7A9E7E",Subscriptions:"#B07EC9",Finance:"#C97E7E",Health:"#7EC8A0",Transport:"#D4956A",Other:"#6A6050"};
 
-  const fmtAmt=n=>n!=null?"$"+Number(n).toFixed(2):"$0.00";
+  const fmtAmt=n=>n!=null?"$"+Number(n).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}):"$0.00";
   const monthlyEq=b=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return parseFloat(b.amount)*(m[b.frequency]||1);};
 
   const advanceDate=(ds,freq)=>{
