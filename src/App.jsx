@@ -859,9 +859,9 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12,alignItems:"start"}}>
         {/* Tasks */}
-        <Card>
+        <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>
             <span>{tDone+"/"+tasks.length+" done"}</span>
@@ -871,7 +871,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           {tasks.slice(0,6).map((tk,i)=>(
             <div key={tk.id}>
               {i>0&&<Divider/>}
-              <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",cursor:"pointer"}}>
+              <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",cursor:"pointer"}}>
                 <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                   {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
                 </div>
@@ -880,9 +880,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
               </div>
             </div>
           ))}
+          {tasks.length===0&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",padding:"8px 0"}}>No tasks yet</div>}
         </Card>
         {/* Goals */}
-        <Card>
+        <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("goals")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All goals</button>}>Goals</SectionLabel>
           {goals.length===0?<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No goals set yet</div>:
           goals.slice(0,5).map(g=>{
@@ -902,23 +903,24 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           })}
         </Card>
         {/* Habits */}
-        <Card>
+        <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("habits")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All habits</button>}>Today's Habits</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
             {(habits||[]).slice(0,8).map(h=>{
               const done=!!habitLog[h.id+"_"+todayStr()];
               return (
-                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
-                  <div style={{width:26,height:26,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,transition:"all .2s"}}>
+                <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .2s"}}>
                     {h.icon}
                   </div>
-                  <span style={{flex:1,fontSize:12,color:done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
+                  <span style={{flex:1,fontSize:11,color:done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
                   {done&&<span style={{fontSize:9,color:h.color,fontFamily:"sans-serif",fontWeight:600}}>done</span>}
                 </div>
               );
             })}
           </div>
           <div style={{marginTop:10}}><PB value={(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0} color={t.GOLD} height={3}/></div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,textAlign:"right"}}>{hDone+"/"+(habits||[]).length+" today"}</div>
         </Card>
       </div>
 
