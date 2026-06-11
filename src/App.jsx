@@ -6318,7 +6318,7 @@ function App(){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
     }
     setLastSaved(Date.now());
-  },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,history,bodyLog,habits,habitLog,holdings,nwHistory,seenMilestones,sidebarCollapsed]);
+  },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const tDone=tasks.filter(tk=>tk.done).length;
