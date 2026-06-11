@@ -489,7 +489,7 @@ function useIsMobile(){
   return mobile;
 }
 
-function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,savedLabel}){
+function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,savedLabel,authUser,setShowAuth}){
   const t=T();
   const isMobile=useIsMobile();
   const[menuOpen,setMenuOpen]=useState(false);
@@ -575,6 +575,18 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               </button>
             );
           })}
+          {/* Sign in or user indicator */}
+          {authUser?(
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px"}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:t.GREEN}}/>
+              <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",letterSpacing:.3}}>{authUser.email?.split("@")[0]?.slice(0,8)}</span>
+            </div>
+          ):(
+            <button onClick={()=>setShowAuth(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid "+t.GOLD+"66",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif"}}>
+              <span style={{fontSize:16,lineHeight:1}}>👤</span>
+              <span style={{fontSize:9,letterSpacing:.3}}>Sign In</span>
+            </button>
+          )}
           {/* Theme toggle */}
           <button onClick={()=>{const order=["obsidian","charcoal","parchment","minimal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
             <span style={{fontSize:16,lineHeight:1}}>{theme==="obsidian"||theme==="charcoal"?"Sun":"Moon"}</span>
@@ -6654,7 +6666,7 @@ function App(){
           </div>
         </div>
       )}
-      <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel}/>
+      <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel} authUser={authUser} setShowAuth={setShowAuth}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto"}}>
         {!profile&&(isMobile?(
           <div style={{margin:"0 14px",marginTop:"calc(14px + env(safe-area-inset-top))",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
