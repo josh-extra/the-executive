@@ -631,7 +631,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
               <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{authUser.email?.split("@")[0]}</span>
             </div>
           ):(
-            <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,whiteSpace:"nowrap"}}>Sign In</button>
+            <button onClick={()=>(setAuthError(""),setShowAuth(true))} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,whiteSpace:"nowrap"}}>Sign In</button>
           )}
           <button onClick={()=>setShowBriefing(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"7px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap"}}>Morning Brief</button>
         </div>
@@ -4558,7 +4558,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
       {!authUser&&<Card style={{marginBottom:12}}>
         <SectionLabel>Account</SectionLabel>
         <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>Sign in to sync your data across all devices.</div>
-        <Btn onClick={()=>setShowAuth(true)}>Sign In / Create Account</Btn>
+        <Btn onClick={()=>(setAuthError(""),setShowAuth(true))}>Sign In / Create Account</Btn>
       </Card>}
       <div style={{padding:"12px 14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:7}}>
         <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif",marginBottom:5}}>Danger Zone</div>
@@ -6304,6 +6304,7 @@ function App(){
     try{
       const res = await supabase.signIn(authEmail, authPassword);
       if(res.access_token){
+        setAuthError("");
         localStorage.setItem("exec_token", res.access_token);
         setAuthToken(res.access_token);
         setAuthUser(res.user);
@@ -6311,7 +6312,6 @@ function App(){
         const cloudData = await supabase.load(res.user.id, res.access_token);
         const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
         if(hasCloudData){
-          // Apply daily reset then load cloud data
           const d = applyDailyReset(cloudData, todayStr());
           if(d.profile)setProfile(d.profile);
           if(d.tasks)setTasks(d.tasks);
@@ -6354,15 +6354,17 @@ function App(){
             if(d.bodyLog)setBodyLog(d.bodyLog);
             if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
             if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
-            // Push local data to cloud
             await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
           }
         }
         setShowAuth(false);
       }else{
-        setAuthError(res.error_description||res.msg||"Sign in failed");
+        // Only show error if there's no token — ignore non-critical warnings
+        const errMsg = res.error_description||res.msg||res.error||"";
+        if(errMsg) setAuthError(errMsg);
+        else setAuthError("Sign in failed. Check your email and password.");
       }
-    }catch(e){setAuthError("Connection error");}
+    }catch(e){setAuthError("Connection error. Please try again.");}
     setAuthLoading(false);
   };
 
