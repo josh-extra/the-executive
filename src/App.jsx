@@ -672,7 +672,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const togHabit=id=>setHabitLog(l=>({...l,[id+"_"+todayStr()]:!l[id+"_"+todayStr()]}));
   const quotes=["Wealth is the slave of a wise man.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest.","Do not save what is left after spending.","Discipline is the bridge between goals and accomplishment.","Fortune favours the prepared mind.","Either you run the day or the day runs you.","The goal is living life on your own terms."];
   const quote=quotes[(new Date().getFullYear()*10000+new Date().getMonth()*100+new Date().getDate())%quotes.length];
-  const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;});
+  const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   const highTasks=tasks.filter(tk=>tk.priority==="high");
   const rings=[
     {pct:tasks.length?Math.round(tDone/tasks.length*100):0,c:t.GREEN,label:"Tasks",sub:tDone+"/"+tasks.length,page:"tasks"},
@@ -849,24 +849,31 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         </Card>
         {/* Bills */}
         <Card style={{cursor:"pointer"}} onClick={()=>setPage("bills")}>
-          <SectionLabel>Bills</SectionLabel>
+          <SectionLabel action={<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Next 7 days</span>}>Bills Due Soon</SectionLabel>
           {!bills||bills.length===0?(
             <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",padding:"8px 0"}}>No bills tracked yet</div>
+          ):upcoming.length===0?(
+            <div style={{fontSize:11,color:t.GREEN,fontFamily:"sans-serif",padding:"8px 0"}}>No bills due in the next 7 days</div>
           ):(
-            <>
-              <div style={{marginBottom:10}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Monthly recurring</div>
-                <div style={{fontSize:24,color:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{fmt(monthlyBills)}</div>
-              </div>
-              {nextBill&&<div style={{borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Next due</div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{nextBill.name}</div>
-                  <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmt(nextBill.amount)}</div>
-                </div>
-                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{nextBill.nextDue}</div>
-              </div>}
-            </>
+            <div>
+              {upcoming.slice(0,4).map((b,i)=>{
+                const diff=Math.round((new Date(b.nextDue+"T12:00:00")-new Date())/864e5);
+                const urgent=diff===0;
+                return (
+                  <div key={b.id}>
+                    {i>0&&<Divider/>}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div>
+                        <div style={{fontSize:9,color:urgent?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{urgent?"Due today":"In "+diff+" day"+(diff!==1?"s":"")}</div>
+                      </div>
+                      <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:700,flexShrink:0,marginLeft:8}}>{fmt(b.amount)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {upcoming.length>4&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:6,textAlign:"right"}}>{"+"+(upcoming.length-4)+" more"}</div>}
+            </div>
           )}
         </Card>
       </div>
