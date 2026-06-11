@@ -6425,12 +6425,12 @@ function App(){
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>{authMode==="signin"?"Sign In":"Create Account"}</div>
             <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>{authMode==="signin"?"Your data syncs across all devices":"Free account - your data stays private"}</div>
             <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
-              <Inp type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email address"/>
-              <Inp type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} placeholder="Password (min 6 chars)" onKeyDown={e=>e.key==="Enter"&&(authMode==="signin"?handleSignIn():handleSignUp())}/>
+              <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email address" style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+              <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(authMode==="signin"?handleSignIn():handleSignUp())} placeholder="Password (min 6 chars)" style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
             </div>
             {authError&&<div style={{fontSize:11,color:authError.includes("created")?t.GREEN:t.RED,fontFamily:"sans-serif",marginBottom:12,padding:"7px 10px",background:authError.includes("created")?t.GREEN+"14":t.RED+"14",borderRadius:6}}>{authError}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              <Btn onClick={authMode==="signin"?handleSignIn:handleSignUp} disabled={authLoading||!authEmail||!authPassword} style={{width:"100%",padding:"12px",fontSize:12}}>
+              <Btn onClick={authMode==="signin"?handleSignIn:handleSignUp} disabled={authLoading} style={{width:"100%",padding:"12px",fontSize:12}}>
                 {authLoading?(authMode==="signin"?"Signing in...":"Creating account..."):(authMode==="signin"?"Sign In":"Create Account")}
               </Btn>
               <button onClick={()=>{setAuthMode(m=>m==="signin"?"signup":"signin");setAuthError("");}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textDecoration:"underline",padding:"4px 0"}}>
