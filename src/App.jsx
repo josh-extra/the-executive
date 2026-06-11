@@ -174,17 +174,88 @@ function useMarket(){
 }
 
 function usePortfolio(holdings){
+  const[prices,setPrices]=useState({});
+  const[loading,setLoading]=useState(false);
+  const[lastUpdated,setLastUpdated]=useState(null);
   const safeH=holdings||[];
-  const totalValue=safeH.reduce((s,h)=>s+(h.currentPrice?h.currentPrice*h.shares:h.avgCost?h.avgCost*h.shares:0),0);
+
+  const fetchPrices=useCallback(async()=>{
+    if(!safeH.length)return;
+    setLoading(true);
+    const results={};
+    await Promise.all(safeH.map(async h=>{
+      try{
+        const r=await fetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
+        const d=await r.json();
+        if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
+      }catch{}
+    }));
+    setPrices(results);
+    setLastUpdated(new Date());
+    setLoading(false);
+  },[safeH.map(h=>h.ticker).join(",")]);
+
+  useEffect(()=>{
+    fetchPrices();
+    const id=setInterval(fetchPrices,60000);
+    return()=>clearInterval(id);
+  },[fetchPrices]);
+
+  const totalValue=safeH.reduce((s,h)=>{
+    const lp=prices[h.ticker]?.price;
+    return s+(lp?lp*h.shares:h.avgCost?h.avgCost*h.shares:0);
+  },0);
   const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.shares:0),0);
-  return{prices:{},lastUpdated:null,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange:0,refresh:()=>{}};
+  const dayChange=safeH.reduce((s,h)=>{
+    const ch=prices[h.ticker]?.change||0;
+    return s+ch*h.shares;
+  },0);
+
+  return{prices,loading,lastUpdated,totalValue,totalCost,
+    totalGain:totalValue-totalCost,
+    totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,
+    dayChange,refresh:fetchPrices};
 }
 
 function useCrypto(holdings){
+  const[prices,setPrices]=useState({});
+  const[loading,setLoading]=useState(false);
+  const[lastUpdated,setLastUpdated]=useState(null);
   const safeH=holdings||[];
-  const totalValue=safeH.reduce((s,h)=>s+(h.currentPrice?h.currentPrice*h.amount:h.avgCost?h.avgCost*h.amount:0),0);
+
+  const fetchPrices=useCallback(async()=>{
+    if(!safeH.length)return;
+    setLoading(true);
+    const results={};
+    await Promise.all(safeH.map(async h=>{
+      try{
+        const sym=h.symbol.includes("-")?h.symbol:h.symbol+"-USD";
+        const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym));
+        const d=await r.json();
+        if(d.price)results[h.symbol]={price:d.price,change:d.change||0,pct:d.pct||0};
+      }catch{}
+    }));
+    setPrices(results);
+    setLastUpdated(new Date());
+    setLoading(false);
+  },[safeH.map(h=>h.symbol).join(",")]);
+
+  useEffect(()=>{
+    fetchPrices();
+    const id=setInterval(fetchPrices,60000);
+    return()=>clearInterval(id);
+  },[fetchPrices]);
+
+  const totalValue=safeH.reduce((s,h)=>{
+    const lp=prices[h.symbol]?.price;
+    return s+(lp?lp*h.amount:h.avgCost?h.avgCost*h.amount:0);
+  },0);
   const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.amount:0),0);
-  return{prices:{},lastUpdated:null,totalValue,totalCost,totalGain:totalValue-totalCost,totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,dayChange:0,refresh:()=>{}};
+
+  return{prices,loading,lastUpdated,totalValue,totalCost,
+    totalGain:totalValue-totalCost,
+    totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,
+    dayChange:0,refresh:fetchPrices};
 }
 
 class ErrorBoundary extends Component{
@@ -2082,9 +2153,13 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             <div style={{fontSize:11}}>Add stocks to track live prices</div>
           </div>
         )}
-        {safeH.length>0&&sP.totalValue>0&&(
+        {safeH.length>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
-            {[{l:"Current Value",v:fmt(sP.totalValue),c:t.GOLD},{l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain),c:sP.totalGain>=0?t.GREEN:t.RED},{l:"Return",v:(sP.totalGainPct>=0?"+":"")+sP.totalGainPct.toFixed(1)+"%",c:sP.totalGainPct>=0?t.GREEN:t.RED}].map(s=>(
+            {[
+              {l:"Portfolio Value",v:fmt(sP.totalValue||0),c:t.GOLD},
+              {l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain||0),c:(sP.totalGain||0)>=0?t.GREEN:t.RED},
+              {l:"Return",v:(sP.totalGainPct>=0?"+":"")+((sP.totalGainPct||0).toFixed(1))+"%",c:(sP.totalGainPct||0)>=0?t.GREEN:t.RED},
+            ].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
                 <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
@@ -2092,12 +2167,21 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             ))}
           </div>
         )}
+        {safeH.length>0&&(
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?"Fetching live prices...":sP.lastUpdated?"Updated "+sP.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"No prices yet"}</div>
+            <button onClick={sP.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Refresh</button>
+          </div>
+        )}
         {safeH.map((h,i)=>{
-          const currentP=h.currentPrice||h.avgCost||0;
+          const liveData=sP.prices?.[h.ticker];
+          const livePrice=liveData?.price;
+          const currentP=livePrice||h.avgCost||0;
           const lv=currentP?currentP*h.shares:null;
           const cb=h.avgCost?h.avgCost*h.shares:null;
           const gain=lv&&cb?lv-cb:null;
           const gainPct=gain&&cb?gain/cb*100:null;
+          const dayChange=liveData?.change?liveData.change*h.shares:null;
           return (
             <div key={h.id}>
               {i>0&&<Divider/>}
@@ -2119,18 +2203,34 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
               ):(
                 <div style={{padding:"8px 0",display:"flex",alignItems:"center"}}>
                   <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
                       <Tag>{h.ticker}</Tag>
                       {h.name!==h.ticker&&<span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>}
                       <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.shares.toLocaleString()+" shares"}</span>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Price:</span>
-                      <input type="number" defaultValue={h.currentPrice||h.avgCost||""} onBlur={e=>{const v=parseFloat(e.target.value);if(v>0)setHoldings(hs=>(hs||[]).map(x=>x.id===h.id?{...x,currentPrice:v}:x));}} placeholder="Enter price" style={{width:80,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.TEXT,fontSize:11,fontFamily:"sans-serif",outline:"none"}}/>
-                      {gain!==null&&h.currentPrice&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      {livePrice?(
+                        <>
+                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
+                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+liveData.pct.toFixed(2)+"%"}</span>}
+                          {dayChange!==null&&<span style={{fontSize:10,color:dayChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{"("+(dayChange>=0?"+":"")+fmt(dayChange)+" today)"}</span>}
+                        </>
+                      ):(
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?"Loading...":"No live price"}</span>
+                      )}
+                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+h.avgCost.toFixed(2)}</span>}
                     </div>
+                    {gain!==null&&(
+                      <div style={{marginTop:2}}>
+                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+gainPct.toFixed(1)+"%)"}</span>
+                      </div>
+                    )}
                   </div>
-                  <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
+                  <div style={{textAlign:"right",marginLeft:10}}>
+                    {lv&&<div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}
+                    {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"cost "+fmt(cb||0)}
+                    </div>}
+                  </div>
                   <button onClick={()=>{setEditShareId(h.id);setEditShareForm({ticker:h.ticker,shares:h.shares,avgCost:h.avgCost||"",name:h.name});}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
                   <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
                 </div>
@@ -2202,12 +2302,12 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             <div style={{fontSize:11}}>Add coins to track live AUD prices</div>
           </div>
         )}
-        {(cryptoHoldings||[]).length>0&&cryptoPortfolio?.totalValue>0&&(
+        {(cryptoHoldings||[]).length>0&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
             {[
-              {l:"Current Value",v:fmt(cryptoPortfolio.totalValue),c:t.PURPLE},
-              {l:"Total Gain",v:(cryptoPortfolio.totalGain>=0?"+":"")+fmt(cryptoPortfolio.totalGain),c:cryptoPortfolio.totalGain>=0?t.GREEN:t.RED},
-              {l:"Total Return",v:(cryptoPortfolio.totalGainPct>=0?"+":"")+cryptoPortfolio.totalGainPct.toFixed(1)+"%",c:cryptoPortfolio.totalGain>=0?t.GREEN:t.RED}
+              {l:"Portfolio Value",v:fmt(cryptoPortfolio?.totalValue||0),c:t.PURPLE},
+              {l:"Total Gain",v:(cryptoPortfolio?.totalGain>=0?"+":"")+fmt(cryptoPortfolio?.totalGain||0),c:(cryptoPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
+              {l:"Return",v:(cryptoPortfolio?.totalGainPct>=0?"+":"")+((cryptoPortfolio?.totalGainPct||0).toFixed(1))+"%",c:(cryptoPortfolio?.totalGainPct||0)>=0?t.GREEN:t.RED}
             ].map(s=>(
               <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
@@ -2217,7 +2317,9 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
           </div>
         )}
         {(cryptoHoldings||[]).map((h,i)=>{
-          const currentP=h.currentPrice||h.avgCost||0;
+          const liveData=cryptoPortfolio?.prices?.[h.symbol||h.ticker];
+          const livePrice=liveData?.price;
+          const currentP=livePrice||h.avgCost||0;
           const lv=currentP?currentP*h.amount:null;
           const cb=h.avgCost?h.avgCost*h.amount:null;
           const gain=lv&&cb?lv-cb:null;
@@ -2228,7 +2330,7 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
               {editCryptoIdx===i?(
                 <div style={{padding:"10px 0"}}>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
-                    {[["Coin ID","id",h.id],["Amount","amount",h.amount],["Avg Cost (AUD)","avgCost",h.avgCost||""],["Label","name",h.name||h.id]].map(([l,k,def])=>(
+                    {[["Coin ID","id",h.id],["Amount","amount",h.amount],["Avg Cost","avgCost",h.avgCost||""],["Label","name",h.name||h.id]].map(([l,k,def])=>(
                       <div key={k}>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
                         <Inp value={editCryptoForm[k]??def} onChange={e=>setEditCryptoForm(f=>({...f,[k]:e.target.value}))} style={{fontSize:12,padding:"7px 9px"}}/>
@@ -2243,17 +2345,31 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
               ):(
                 <div style={{padding:"8px 0",display:"flex",alignItems:"center"}}>
                   <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <Tag color={t.PURPLE}>{h.ticker}</Tag>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.amount+" "+h.ticker}</span>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                      <Tag color={t.PURPLE}>{h.ticker||h.symbol}</Tag>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.amount+" "+( h.ticker||h.symbol)}</span>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Price (AUD):</span>
-                      <input type="number" defaultValue={h.currentPrice||h.avgCost||""} onBlur={e=>{const v=parseFloat(e.target.value);if(v>0)setCryptoHoldings(cs=>(cs||[]).map(x=>x.ticker===h.ticker?{...x,currentPrice:v}:x));}} placeholder="Enter price" style={{width:90,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.TEXT,fontSize:11,fontFamily:"sans-serif",outline:"none"}}/>
-                      {gain!==null&&h.currentPrice&&<span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(gain>=0?"+":"")+fmt(gain)+" ("+gainPct?.toFixed(1)+"%)"}</span>}
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      {livePrice?(
+                        <>
+                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
+                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+liveData.pct.toFixed(2)+"%"}</span>}
+                        </>
+                      ):(
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{cryptoPortfolio?.loading?"Loading...":"No live price"}</span>
+                      )}
+                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+h.avgCost.toFixed(2)}</span>}
                     </div>
+                    {gain!==null&&(
+                      <div style={{marginTop:2}}>
+                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+gainPct.toFixed(1)+"%)"}</span>
+                      </div>
+                    )}
                   </div>
-                  <div style={{textAlign:"right",marginLeft:10}}>{lv&&<div style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}</div>
+                  <div style={{textAlign:"right",marginLeft:10}}>
+                    {lv&&<div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}
+                    {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"cost "+fmt(cb||0)}</div>}
+                  </div>
                   <button onClick={()=>{setEditCryptoIdx(i);setEditCryptoForm({id:h.id,amount:h.amount,avgCost:h.avgCost||"",name:h.name||h.id});}} style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"33",borderRadius:5,padding:"3px 8px",color:t.PURPLE,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
                   <button onClick={()=>setCryptoHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
                 </div>
