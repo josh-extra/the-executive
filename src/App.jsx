@@ -6263,13 +6263,7 @@ function App(){
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
-  const[nwHistory,setNwHistory]=useState({
-    [new Date(Date.now()-5*30*864e5).toISOString().slice(0,7)]:620000,
-    [new Date(Date.now()-4*30*864e5).toISOString().slice(0,7)]:710000,
-    [new Date(Date.now()-3*30*864e5).toISOString().slice(0,7)]:780000,
-    [new Date(Date.now()-2*30*864e5).toISOString().slice(0,7)]:850000,
-    [new Date(Date.now()-1*30*864e5).toISOString().slice(0,7)]:910000
-  });
+  const[nwHistory,setNwHistory]=useState({});
   const[showBriefing,setShowBriefing]=useState(false);
   const[celebration,setCelebration]=useState(null);
   const[seenMilestones,setSeenMilestones]=useState([]);
@@ -6302,7 +6296,7 @@ function App(){
       if(saved.habitLog)setHabitLog(saved.habitLog);
       if(saved.holdings)setHoldings(saved.holdings);
       if(saved.cryptoHoldings)setCryptoHoldings(saved.cryptoHoldings);
-      if(saved.nwHistory)setNwHistory(prev=>({...prev,...saved.nwHistory}));
+      if(saved.nwHistory)setNwHistory(saved.nwHistory);
       if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
       if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
       if(saved.budgets)setBudgets(saved.budgets);
