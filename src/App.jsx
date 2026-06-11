@@ -27,6 +27,7 @@ const sbH=(token)=>({"Content-Type":"application/json","apikey":SUPABASE_KEY,"Au
 const supabase={
   async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
   async signIn(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
+  async refresh(refreshToken){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:refreshToken})});return r.json();},
   async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
   async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();return rows&&rows[0]?rows[0].data:null;},
@@ -6224,6 +6225,7 @@ function ServicesPage({services,setServices}){
 
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
+  const[sessionExpired,setSessionExpired]=useState(false);
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
   const[authToken,setAuthToken]=useState(()=>{try{return localStorage.getItem("exec_token")||null;}catch{return null;}});
@@ -6279,57 +6281,73 @@ function App(){
   useEffect(()=>{
     const today=todayStr();
     (async()=>{
-      // Try auto-login with saved token first
       const savedToken = localStorage.getItem("exec_token");
-      if(savedToken){
+      const savedRefresh = localStorage.getItem("exec_refresh");
+      let token = savedToken;
+      let user = null;
+
+      if(token){
         try{
-          const user = await supabase.getUser(savedToken);
-          if(user?.id){
-            setAuthToken(savedToken);
-            setAuthUser(user);
-            // Load cloud data
-            const cloudData = await supabase.load(user.id, savedToken);
-            const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
-            if(hasCloudData){
-              const d = applyDailyReset(cloudData, today);
-              if(d.theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
-              if(d.profile){setProfile(d.profile);if(d.profile.locale)_locale=d.profile.locale;}
-              if(d.tasks)setTasks(d.tasks);
-              if(d.goals)setGoals(d.goals);
-              if(d.completed)setCompleted(d.completed);
-              if(d.supplements)setSupplements(d.supplements);
-              if(d.workouts)setWorkouts(d.workouts);
-              if(d.transactions)setTransactions(d.transactions);
-              if(d.journal)setJournal(d.journal);
-              if(d.books)setBooks(d.books);
-              if(d.bills)setBills(d.bills);
-              if(d.debts)setDebts(d.debts);
-              if(d.history)setHistory(d.history);
-              if(d.bodyLog)setBodyLog(d.bodyLog);
-              if(d.habits)setHabits(d.habits);
-              if(d.habitLog)setHabitLog(d.habitLog);
-              if(d.holdings)setHoldings(d.holdings);
-              if(d.cryptoHoldings)setCryptoHoldings(d.cryptoHoldings);
-              if(d.nwHistory)setNwHistory(d.nwHistory);
-              if(d.seenMilestones)setSeenMilestones(d.seenMilestones);
-              if(d.sidebarCollapsed!==undefined)setSidebarCollapsed(d.sidebarCollapsed);
-              if(d.budgets)setBudgets(d.budgets);
-              if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
-              if(d.notes)setNotes(d.notes);
-              if(d.services)setServices(d.services);
-              if(d.advisorMessages)setAdvisorMessages(d.advisorMessages);
-              setHydrated(true);
-              setTimeout(()=>setReadyToSave(true),500);
-              return;
+          user = await supabase.getUser(token);
+          // Token expired — try refresh
+          if(!user?.id && savedRefresh){
+            const refreshed = await supabase.refresh(savedRefresh);
+            if(refreshed.access_token){
+              token = refreshed.access_token;
+              localStorage.setItem("exec_token", token);
+              if(refreshed.refresh_token) localStorage.setItem("exec_refresh", refreshed.refresh_token);
+              user = refreshed.user;
             }
-          } else {
-            // Token expired — clear it
-            localStorage.removeItem("exec_token");
           }
-        }catch{
-          localStorage.removeItem("exec_token");
-        }
+        }catch{ token=null; }
       }
+
+      if(token && user?.id){
+        setAuthToken(token);
+        setAuthUser(user);
+        try{
+          const cloudData = await supabase.load(user.id, token);
+          const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
+          if(hasCloudData){
+            const d = applyDailyReset(cloudData, today);
+            if(d.theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
+            if(d.profile){setProfile(d.profile);if(d.profile.locale)_locale=d.profile.locale;}
+            if(d.tasks)setTasks(d.tasks);
+            if(d.goals)setGoals(d.goals);
+            if(d.completed)setCompleted(d.completed);
+            if(d.supplements)setSupplements(d.supplements);
+            if(d.workouts)setWorkouts(d.workouts);
+            if(d.transactions)setTransactions(d.transactions);
+            if(d.journal)setJournal(d.journal);
+            if(d.books)setBooks(d.books);
+            if(d.bills)setBills(d.bills);
+            if(d.debts)setDebts(d.debts);
+            if(d.history)setHistory(d.history);
+            if(d.bodyLog)setBodyLog(d.bodyLog);
+            if(d.habits)setHabits(d.habits);
+            if(d.habitLog)setHabitLog(d.habitLog);
+            if(d.holdings)setHoldings(d.holdings);
+            if(d.cryptoHoldings)setCryptoHoldings(d.cryptoHoldings);
+            if(d.nwHistory)setNwHistory(d.nwHistory);
+            if(d.seenMilestones)setSeenMilestones(d.seenMilestones);
+            if(d.sidebarCollapsed!==undefined)setSidebarCollapsed(d.sidebarCollapsed);
+            if(d.budgets)setBudgets(d.budgets);
+            if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
+            if(d.notes)setNotes(d.notes);
+            if(d.services)setServices(d.services);
+            if(d.advisorMessages)setAdvisorMessages(d.advisorMessages);
+            setHydrated(true);
+            setTimeout(()=>setReadyToSave(true),500);
+            return;
+          }
+        }catch{}
+      } else if(savedToken) {
+        // Token fully expired and refresh failed — clear and warn
+        localStorage.removeItem("exec_token");
+        localStorage.removeItem("exec_refresh");
+        setSessionExpired(true);
+      }
+
       // Fall back to localStorage
       let saved=loadData();
       if(saved){
@@ -6474,6 +6492,7 @@ function App(){
       if(res.access_token){
         setAuthError("");
         localStorage.setItem("exec_token", res.access_token);
+        if(res.refresh_token) localStorage.setItem("exec_refresh", res.refresh_token);
         setAuthToken(res.access_token);
         setAuthUser(res.user);
         // Load cloud data
@@ -6555,7 +6574,8 @@ function App(){
   const handleSignOut=async()=>{
     if(authToken) await supabase.signOut(authToken).catch(()=>{});
     localStorage.removeItem("exec_token");
-    setAuthToken(null);setAuthUser(null);
+    localStorage.removeItem("exec_refresh");
+    setAuthToken(null);setAuthUser(null);setSessionExpired(false);
   };
 
   const handleReset=()=>{
@@ -6584,6 +6604,12 @@ function App(){
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
+      {sessionExpired&&(
+        <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Session expired - changes saved locally but not syncing</div>
+          <button onClick={()=>{setSessionExpired(false);setShowAuth(true);}} style={{background:t.GOLD,border:"none",borderRadius:5,padding:"4px 10px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Reconnect</button>
+        </div>
+      )}
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
