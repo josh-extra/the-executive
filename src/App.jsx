@@ -6495,34 +6495,14 @@ function App(){
         if(res.refresh_token) localStorage.setItem("exec_refresh", res.refresh_token);
         setAuthToken(res.access_token);
         setAuthUser(res.user);
-        // Load cloud data
-        const cloudData = await supabase.load(res.user.id, res.access_token);
-        const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
-        if(hasCloudData){
-          const d = applyDailyReset(cloudData, todayStr());
-          if(d.profile)setProfile(d.profile);
-          if(d.tasks!==undefined)setTasks(d.tasks);
-          if(d.goals!==undefined)setGoals(d.goals);
-          if(d.completed!==undefined)setCompleted(d.completed);
-          if(d.supplements!==undefined)setSupplements(d.supplements);
-          if(d.habits!==undefined)setHabits(d.habits);
-          if(d.habitLog)setHabitLog(d.habitLog);
-          if(d.workouts!==undefined)setWorkouts(d.workouts);
-          if(d.transactions!==undefined)setTransactions(d.transactions);
-          if(d.journal!==undefined)setJournal(d.journal);
-          if(d.books!==undefined)setBooks(d.books);
-          if(d.bills!==undefined)setBills(d.bills);
-          if(d.debts!==undefined)setDebts(d.debts);
-          if(d.notes!==undefined)setNotes(d.notes);
-          if(d.services!==undefined)setServices(d.services);
-          if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
-          if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
-          if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
-        } else {
-          // No cloud data — migrate from localStorage
-          const localData = loadData();
-          if(localData){
-            const d = applyDailyReset(localData, todayStr());
+        setShowAuth(false);
+        setAuthLoading(false);
+        // Load cloud data separately — don't let this affect sign in result
+        try{
+          const cloudData = await supabase.load(res.user.id, res.access_token);
+          const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length || cloudData.holdings?.length);
+          if(hasCloudData){
+            const d = applyDailyReset(cloudData, todayStr());
             if(d.profile)setProfile(d.profile);
             if(d.tasks!==undefined)setTasks(d.tasks);
             if(d.goals!==undefined)setGoals(d.goals);
@@ -6539,20 +6519,51 @@ function App(){
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
             if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
-            if(d.nwHistory)setNwHistoryFull(prev=>({...prev,...d.nwHistory}));
+            if(d.holdings!==undefined)setHoldings(d.holdings);
+            if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
+            if(d.nwHistory)setNwHistory(d.nwHistory);
+            if(d.seenMilestones!==undefined)setSeenMilestones(d.seenMilestones);
+            if(d.sidebarCollapsed!==undefined)setSidebarCollapsed(d.sidebarCollapsed);
+            if(d.budgets)setBudgets(d.budgets);
+            if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
+            if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
-            await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
+          } else {
+            // No cloud data — migrate from localStorage
+            const localData = loadData();
+            if(localData){
+              const d = applyDailyReset(localData, todayStr());
+              if(d.profile)setProfile(d.profile);
+              if(d.tasks!==undefined)setTasks(d.tasks);
+              if(d.goals!==undefined)setGoals(d.goals);
+              if(d.completed!==undefined)setCompleted(d.completed);
+              if(d.supplements!==undefined)setSupplements(d.supplements);
+              if(d.habits!==undefined)setHabits(d.habits);
+              if(d.habitLog)setHabitLog(d.habitLog);
+              if(d.workouts!==undefined)setWorkouts(d.workouts);
+              if(d.transactions!==undefined)setTransactions(d.transactions);
+              if(d.journal!==undefined)setJournal(d.journal);
+              if(d.books!==undefined)setBooks(d.books);
+              if(d.bills!==undefined)setBills(d.bills);
+              if(d.debts!==undefined)setDebts(d.debts);
+              if(d.notes!==undefined)setNotes(d.notes);
+              if(d.services!==undefined)setServices(d.services);
+              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
+              if(d.holdings!==undefined)setHoldings(d.holdings);
+              if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
+              if(d.nwHistory)setNwHistory(d.nwHistory);
+              if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
+              await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
+            }
           }
-        }
-        setShowAuth(false);
+        }catch(e){console.error("Data load error:",e);}
         setTimeout(()=>setReadyToSave(true),300);
+        return;
       }else{
-        // Only show error if there's no token — ignore non-critical warnings
         const errMsg = res.error_description||res.msg||res.error||"";
-        if(errMsg) setAuthError(errMsg);
-        else setAuthError("Sign in failed. Check your email and password.");
+        setAuthError(errMsg||"Sign in failed. Check your email and password.");
       }
-    }catch(e){setAuthError("Connection error. Please try again.");}
+    }catch(e){setAuthError("Connection error. Please check your internet and try again.");}
     setAuthLoading(false);
   };
 
