@@ -6278,38 +6278,92 @@ function App(){
 
   useEffect(()=>{
     const today=todayStr();
-    let saved=loadData();
-    if(saved){
-      saved=applyDailyReset(saved,today);
-      if(saved.theme){const k=THEME_ALIASES[saved.theme]||saved.theme;_themeKey=k;setThemeState(k);}
-      if(saved.profile){setProfile(saved.profile);if(saved.profile.locale)_locale=saved.profile.locale;}
-      if(saved.tasks)setTasks(saved.tasks);
-      if(saved.goals)setGoals(saved.goals);
-      if(saved.completed)setCompleted(saved.completed);
-      if(saved.supplements)setSupplements(saved.supplements);
-      if(saved.workouts)setWorkouts(saved.workouts);
-      if(saved.transactions)setTransactions(saved.transactions);
-      if(saved.journal)setJournal(saved.journal);
-      if(saved.books)setBooks(saved.books);
-      if(saved.bills)setBills(saved.bills);
-      if(saved.debts)setDebts(saved.debts);
-      if(saved.history)setHistory(saved.history);
-      if(saved.bodyLog)setBodyLog(saved.bodyLog);
-      if(saved.habits)setHabits(saved.habits);
-      if(saved.habitLog)setHabitLog(saved.habitLog);
-      if(saved.holdings)setHoldings(saved.holdings);
-      if(saved.cryptoHoldings)setCryptoHoldings(saved.cryptoHoldings);
-      if(saved.nwHistory)setNwHistory(saved.nwHistory);
-      if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
-      if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
-      if(saved.budgets)setBudgets(saved.budgets);
-      if(saved.weeklyReflections)setWeeklyReflections(saved.weeklyReflections);
-      if(saved.notes)setNotes(saved.notes);
-      if(saved.services)setServices(saved.services);
-      if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
-    }
-    setHydrated(true);
-    setTimeout(()=>setReadyToSave(true), 500);
+    (async()=>{
+      // Try auto-login with saved token first
+      const savedToken = localStorage.getItem("exec_token");
+      if(savedToken){
+        try{
+          const user = await supabase.getUser(savedToken);
+          if(user?.id){
+            setAuthToken(savedToken);
+            setAuthUser(user);
+            // Load cloud data
+            const cloudData = await supabase.load(user.id, savedToken);
+            const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
+            if(hasCloudData){
+              const d = applyDailyReset(cloudData, today);
+              if(d.theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
+              if(d.profile){setProfile(d.profile);if(d.profile.locale)_locale=d.profile.locale;}
+              if(d.tasks)setTasks(d.tasks);
+              if(d.goals)setGoals(d.goals);
+              if(d.completed)setCompleted(d.completed);
+              if(d.supplements)setSupplements(d.supplements);
+              if(d.workouts)setWorkouts(d.workouts);
+              if(d.transactions)setTransactions(d.transactions);
+              if(d.journal)setJournal(d.journal);
+              if(d.books)setBooks(d.books);
+              if(d.bills)setBills(d.bills);
+              if(d.debts)setDebts(d.debts);
+              if(d.history)setHistory(d.history);
+              if(d.bodyLog)setBodyLog(d.bodyLog);
+              if(d.habits)setHabits(d.habits);
+              if(d.habitLog)setHabitLog(d.habitLog);
+              if(d.holdings)setHoldings(d.holdings);
+              if(d.cryptoHoldings)setCryptoHoldings(d.cryptoHoldings);
+              if(d.nwHistory)setNwHistory(d.nwHistory);
+              if(d.seenMilestones)setSeenMilestones(d.seenMilestones);
+              if(d.sidebarCollapsed!==undefined)setSidebarCollapsed(d.sidebarCollapsed);
+              if(d.budgets)setBudgets(d.budgets);
+              if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
+              if(d.notes)setNotes(d.notes);
+              if(d.services)setServices(d.services);
+              if(d.advisorMessages)setAdvisorMessages(d.advisorMessages);
+              setHydrated(true);
+              setTimeout(()=>setReadyToSave(true),500);
+              return;
+            }
+          } else {
+            // Token expired — clear it
+            localStorage.removeItem("exec_token");
+          }
+        }catch{
+          localStorage.removeItem("exec_token");
+        }
+      }
+      // Fall back to localStorage
+      let saved=loadData();
+      if(saved){
+        saved=applyDailyReset(saved,today);
+        if(saved.theme){const k=THEME_ALIASES[saved.theme]||saved.theme;_themeKey=k;setThemeState(k);}
+        if(saved.profile){setProfile(saved.profile);if(saved.profile.locale)_locale=saved.profile.locale;}
+        if(saved.tasks)setTasks(saved.tasks);
+        if(saved.goals)setGoals(saved.goals);
+        if(saved.completed)setCompleted(saved.completed);
+        if(saved.supplements)setSupplements(saved.supplements);
+        if(saved.workouts)setWorkouts(saved.workouts);
+        if(saved.transactions)setTransactions(saved.transactions);
+        if(saved.journal)setJournal(saved.journal);
+        if(saved.books)setBooks(saved.books);
+        if(saved.bills)setBills(saved.bills);
+        if(saved.debts)setDebts(saved.debts);
+        if(saved.history)setHistory(saved.history);
+        if(saved.bodyLog)setBodyLog(saved.bodyLog);
+        if(saved.habits)setHabits(saved.habits);
+        if(saved.habitLog)setHabitLog(saved.habitLog);
+        if(saved.holdings)setHoldings(saved.holdings);
+        if(saved.cryptoHoldings)setCryptoHoldings(saved.cryptoHoldings);
+        if(saved.nwHistory)setNwHistory(saved.nwHistory);
+        if(saved.seenMilestones)setSeenMilestones(saved.seenMilestones);
+        if(saved.sidebarCollapsed!==undefined)setSidebarCollapsed(saved.sidebarCollapsed);
+        if(saved.budgets)setBudgets(saved.budgets);
+        if(saved.weeklyReflections)setWeeklyReflections(saved.weeklyReflections);
+        if(saved.notes)setNotes(saved.notes);
+        if(saved.services)setServices(saved.services);
+        if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
+      }
+      setHydrated(true);
+      setTimeout(()=>setReadyToSave(true),500);
+    })();
   },[]);
 
   useEffect(()=>{
