@@ -6223,6 +6223,7 @@ function ServicesPage({services,setServices}){
 }
 
 function App(){
+  const[readyToSave,setReadyToSave]=useState(false);
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
   const[authToken,setAuthToken]=useState(()=>{try{return localStorage.getItem("exec_token")||null;}catch{return null;}});
@@ -6308,17 +6309,18 @@ function App(){
       if(saved.advisorMessages)setAdvisorMessages(saved.advisorMessages);
     }
     setHydrated(true);
+    setTimeout(()=>setReadyToSave(true), 500);
   },[]);
 
   useEffect(()=>{
-    if(!hydrated)return;
+    if(!readyToSave)return;
     const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
     }
     setLastSaved(Date.now());
-  },[hydrated,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const tDone=tasks.filter(tk=>tk.done).length;
@@ -6470,6 +6472,7 @@ function App(){
           }
         }
         setShowAuth(false);
+        setTimeout(()=>setReadyToSave(true),300);
       }else{
         // Only show error if there's no token — ignore non-critical warnings
         const errMsg = res.error_description||res.msg||res.error||"";
