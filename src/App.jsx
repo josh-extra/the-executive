@@ -203,12 +203,13 @@ function usePortfolio(holdings){
 
   const totalValue=safeH.reduce((s,h)=>{
     const lp=prices[h.ticker]?.price;
-    return s+(lp?lp*h.shares:h.avgCost?h.avgCost*h.shares:0);
+    const val=lp?lp*h.shares:h.avgCost?parseFloat(h.avgCost)*h.shares:0;
+    return s+(isNaN(val)?0:val);
   },0);
-  const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.shares:0),0);
+  const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?parseFloat(h.avgCost)*h.shares:0),0);
   const dayChange=safeH.reduce((s,h)=>{
     const ch=prices[h.ticker]?.change||0;
-    return s+ch*h.shares;
+    return s+ch*(h.shares||0);
   },0);
 
   return{prices,loading,lastUpdated,totalValue,totalCost,
@@ -2212,24 +2213,23 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
                       {livePrice?(
                         <>
                           <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
-                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+liveData.pct.toFixed(2)+"%"}</span>}
+                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
                           {dayChange!==null&&<span style={{fontSize:10,color:dayChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{"("+(dayChange>=0?"+":"")+fmt(dayChange)+" today)"}</span>}
                         </>
                       ):(
                         <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?"Loading...":"No live price"}</span>
                       )}
-                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+h.avgCost.toFixed(2)}</span>}
+                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
                     {gain!==null&&(
                       <div style={{marginTop:2}}>
-                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+gainPct.toFixed(1)+"%)"}</span>
+                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+(gainPct||0).toFixed(1)+"%)"}</span>
                       </div>
                     )}
                   </div>
                   <div style={{textAlign:"right",marginLeft:10}}>
                     {lv&&<div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}
-                    {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"cost "+fmt(cb||0)}
-                    </div>}
+                    {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"cost "+fmt(cb||0)}</div>}
                   </div>
                   <button onClick={()=>{setEditShareId(h.id);setEditShareForm({ticker:h.ticker,shares:h.shares,avgCost:h.avgCost||"",name:h.name});}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
                   <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
@@ -2353,16 +2353,16 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
                       {livePrice?(
                         <>
                           <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
-                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+liveData.pct.toFixed(2)+"%"}</span>}
+                          {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
                         </>
                       ):(
                         <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{cryptoPortfolio?.loading?"Loading...":"No live price"}</span>
                       )}
-                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+h.avgCost.toFixed(2)}</span>}
+                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
                     {gain!==null&&(
                       <div style={{marginTop:2}}>
-                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+gainPct.toFixed(1)+"%)"}</span>
+                        <span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+(gainPct||0).toFixed(1)+"%)"}</span>
                       </div>
                     )}
                   </div>
