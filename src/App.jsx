@@ -6226,6 +6226,7 @@ function ServicesPage({services,setServices}){
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
   const[sessionExpired,setSessionExpired]=useState(false);
+  const[showSignInPrompt,setShowSignInPrompt]=useState(false);
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
   const[authToken,setAuthToken]=useState(()=>{try{return localStorage.getItem("exec_token")||null;}catch{return null;}});
@@ -6238,7 +6239,13 @@ function App(){
   const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
   useEffect(()=>{
-    const tid=setTimeout(()=>setSplash(false),2500);
+    const tid=setTimeout(()=>{
+      setSplash(false);
+      // If no saved token, prompt to sign in after splash
+      if(!localStorage.getItem("exec_token")){
+        setShowAuth(true);
+      }
+    },2500);
     return()=>clearTimeout(tid);
   },[]);
   const[profile,setProfile]=useState(null);
