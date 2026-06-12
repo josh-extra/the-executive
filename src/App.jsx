@@ -124,6 +124,14 @@ const applyDailyReset=(saved,today)=>{
   }
   return saved;
 };
+const todayTasks=(tasks)=>{
+  const day=new Date().getDay();
+  return (tasks||[]).filter(t=>{
+    if(!t.recurring)return true; // one-off tasks always show
+    if(!t.recurDays||!t.recurDays.length)return true; // daily recurring always show
+    return t.recurDays.includes(day); // specific days — only show on matching day
+  });
+};
 const DEMO={
   firstName:"William",lastName:"Sterling",dob:"1991-01-15",age:"34",location:"Brisbane, QLD",
   occupation:"Founder & Investor",locale:"en-AU",height:"182",weight:"88",
@@ -720,7 +728,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
     return()=>timers.forEach(clearTimeout);
   },[]);
   const rowStyle=i=>({opacity:visibleRows.includes(i)?1:0,transform:visibleRows.includes(i)?"none":"translateY(16px)",transition:"opacity .45s ease, transform .45s ease"});
-  const tDone=tasks.filter(tk=>tk.done).length;
+  const todayT=todayTasks(tasks);
+  const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
   const hDone=(habits||[]).filter(h=>!!habitLog[h.id+"_"+todayStr()]).length;
   const nw=profile.netWorth||0;
@@ -949,7 +958,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             <span>{(tasks.length?Math.round(tDone/tasks.length*100):0)+"%"}</span>
           </div>
           <div style={{marginBottom:10}}><PB value={tasks.length?Math.round(tDone/tasks.length*100):0} color={t.GREEN} height={3}/></div>
-          {tasks.slice(0,6).map((tk,i)=>(
+          {todayT.slice(0,6).map((tk,i)=>(
             <div key={tk.id}>
               {i>0&&<Divider/>}
               <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",cursor:"pointer"}}>
@@ -1026,7 +1035,8 @@ function TasksPage({tasks,setTasks}){
   const[recurring,setRecurring]=useState(false);
   const[recurDays,setRecurDays]=useState([]);
   const DAY_LABELS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const done=tasks.filter(tk=>tk.done).length;
+  const visibleTasks=todayTasks(tasks);
+  const done=visibleTasks.filter(tk=>tk.done).length;
   const add=()=>{
     if(!newTask.trim())return;
     setTasks(ts=>[...ts,{id:Date.now(),text:newTask,done:false,priority:pri,recurring,recurDays:recurring&&recurDays.length?recurDays:[]}]);
@@ -1035,13 +1045,14 @@ function TasksPage({tasks,setTasks}){
   const toggleDay=d=>setRecurDays(ds=>ds.includes(d)?ds.filter(x=>x!==d):[...ds,d]);
   const priColors={high:t.RED,medium:t.GOLD,low:t.MUTED};
   const priLabels={high:"High Priority",medium:"Standard",low:"Low Priority"};
+  const tasksByPri=pri=>visibleTasks.filter(tk=>tk.priority===pri);
   return (
     <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{marginBottom:20}}>
         <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Daily Execution</div>
         <div style={{fontSize:26,color:t.TEXT,marginBottom:4}}>Today's Actions</div>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{done+" of "+tasks.length+" complete"}</div>
-        <div style={{marginTop:8}}><PB value={tasks.length?Math.round(done/tasks.length*100):0} color={t.GREEN} height={3}/></div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{done+" of "+visibleTasks.length+" complete"}</div>
+        <div style={{marginTop:8}}><PB value={visibleTasks.length?Math.round(done/visibleTasks.length*100):0} color={t.GREEN} height={3}/></div>
       </div>
       <Card style={{marginBottom:16,padding:"12px 14px"}}>
         <div style={{display:"flex",gap:8,marginBottom:recurring?10:0}}>
@@ -1067,7 +1078,7 @@ function TasksPage({tasks,setTasks}){
         )}
       </Card>
       {["high","medium","low"].map(priority=>{
-        const ts=tasks.filter(tk=>tk.priority===priority);
+        const ts=visibleTasks.filter(tk=>tk.priority===priority);
         return (
           <div key={priority} style={{marginBottom:18}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
@@ -7004,7 +7015,7 @@ function App(){
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const tDone=tasks.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
-  const tS=tasks.length?Math.round(tDone/tasks.length*40):0;
+  const tS=todayT.length?Math.round(tDone/todayT.length*40):0;
   const sS=supplements.length?Math.round(sDone/supplements.length*30):0;
   const gS=goals.length?Math.round(goals.filter(g=>g.progress>=50).length/goals.length*30):0;
   const todayScore=tS+sS+gS;
