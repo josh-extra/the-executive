@@ -5871,34 +5871,93 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
-function LearnPage({profile,goals,habits}){
+function LearnPage({profile,goals,habits,learnData,setLearnData}){
   const t=T();
+  const[tab,setTab]=useState("discover");
   const[recs,setRecs]=useState([]);
   const[loading,setLoading]=useState(false);
-  const[saved,setSaved]=useState([]);
-  const[activeTab,setActiveTab]=useState("discover");
   const[filter,setFilter]=useState("all");
+  const[showLog,setShowLog]=useState(false);
+  const[logForm,setLogForm]=useState({title:"",type:"podcast",minutes:30,date:todayStr()});
+  const[showGoalEdit,setShowGoalEdit]=useState(false);
+  const[weeklyGoal,setWeeklyGoal]=useState((learnData||{}).weeklyGoal||5);
+  const[dailyPrompt]=useState(()=>{
+    const prompts=[
+      "What's one financial concept I could learn this week that would compound my returns?",
+      "What habit or system could I study today that the top 1% use?",
+      "What would I learn if I had to double my income in 12 months?",
+      "What's the one book that would most change how I think about wealth?",
+      "What do the best investors know that I don't yet?",
+      "If I could spend 1 hour learning anything today, what would move the needle most?",
+      "What skill, if mastered, would make everything else easier?",
+    ];
+    return prompts[new Date().getDay()%prompts.length];
+  });
 
-  const TYPES=[
-    {id:"all",label:"All"},
-    {id:"podcast",label:"Podcasts"},
-    {id:"book",label:"Books"},
-    {id:"youtube",label:"YouTube"},
-    {id:"course",label:"Courses"},
-  ];
-
-  const TYPE_ICONS={podcast:"M",book:"B",youtube:"Y",course:"C",article:"A"};
   const TYPE_COLORS={podcast:"#C9A84C",book:"#7EB8C9",youtube:"#C97E7E",course:"#7A9E7E",article:"#B07EC9"};
+  const TYPE_ICONS={podcast:"M",book:"B",youtube:"Y",course:"C",article:"A"};
+  const TYPE_LINKS={podcast:"https://open.spotify.com/search/",book:"https://www.audible.com.au/search?keywords=",youtube:"https://www.youtube.com/results?search_query=",course:"https://www.coursera.org/search?query="};
+
+  const library=(learnData||{}).library||[];
+  const sessions=(learnData||{}).sessions||[];
+  const inProgress=library.filter(r=>r.status==="inprogress");
+  const saved=library.filter(r=>r.status==="saved");
+  const completed=library.filter(r=>r.status==="completed");
+
+  const updateLib=(title,changes)=>setLearnData(d=>({...d,library:(d.library||[]).map(r=>r.title===title?{...r,...changes}:r)}));
+  const addToLib=(r,status)=>setLearnData(d=>{
+    const exists=(d.library||[]).some(x=>x.title===r.title);
+    if(exists)return{...d,library:(d.library||[]).map(x=>x.title===r.title?{...x,status}:x)};
+    return{...d,library:[...(d.library||[]),{...r,status,addedAt:todayStr(),progress:0}]};
+  });
+  const removeFromLib=title=>setLearnData(d=>({...d,library:(d.library||[]).filter(r=>r.title!==title)}));
+
+  const logSession=()=>{
+    if(!logForm.title||!logForm.minutes)return;
+    const session={...logForm,id:Date.now(),minutes:parseInt(logForm.minutes)||30};
+    setLearnData(d=>({...d,sessions:[session,...(d.sessions||[])]}));
+    setLogForm({title:"",type:"podcast",minutes:30,date:todayStr()});
+    setShowLog(false);
+  };
+
+  // Weekly hours
+  const weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay());
+  const weekKey=weekStart.toISOString().slice(0,10);
+  const weekMins=sessions.filter(s=>s.date>=weekKey).reduce((s,x)=>s+x.minutes,0);
+  const weekHrs=(weekMins/60).toFixed(1);
+  const weekPct=Math.min(Math.round(weekMins/60/weeklyGoal*100),100);
+
+  // 8-week history
+  const weeklyHistory=Array.from({length:8}).map((_,i)=>{
+    const d=new Date();d.setDate(d.getDate()-d.getDay()-(7-i)*7);
+    const wk=d.toISOString().slice(0,10);
+    const nextWk=new Date(d);nextWk.setDate(nextWk.getDate()+7);
+    const nk=nextWk.toISOString().slice(0,10);
+    const mins=sessions.filter(s=>s.date>=wk&&s.date<nk).reduce((s,x)=>s+x.minutes,0);
+    return{label:d.toLocaleString("default",{month:"short"}),mins,hrs:mins/60};
+  });
+  const maxHrs=Math.max(...weeklyHistory.map(w=>w.hrs),weeklyGoal,1);
+
+  // Streak
+  let streak=0;
+  for(let i=0;i<30;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if(sessions.some(s=>s.date===dk))streak++;
+    else if(i>0)break;
+  }
+
+  const totalHrs=(sessions.reduce((s,x)=>s+x.minutes,0)/60).toFixed(1);
 
   const getRecommendations=async()=>{
     setLoading(true);setRecs([]);
-    const goalStr=(goals||[]).map(g=>g.title).join(", ")||"general self improvement";
+    const goalStr=(goals||[]).map(g=>g.title).join(", ")||"self improvement";
     const habitStr=(habits||[]).map(h=>h.name).join(", ")||"healthy habits";
     try{
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        model:"claude-haiku-4-5",max_tokens:2000,
-        system:"You are a personal development expert. Return ONLY valid JSON array, no markdown.",
-        messages:[{role:"user",content:"Recommend 8 resources for someone with these goals: "+goalStr+" and these habits: "+habitStr+". Mix of podcasts, books, YouTube channels and courses. Return JSON array of 8 objects each with: {title, type (podcast/book/youtube/course), creator, description (1 sentence, why it fits their goals), category, searchUrl (Google search URL)}. Be specific with real titles and creators."}]
+        model:"claude-haiku-4-5",max_tokens:2500,
+        system:"Personal development expert. Return ONLY valid JSON array, no markdown, no backticks.",
+        messages:[{role:"user",content:"Recommend 8 real, specific resources for someone with goals: "+goalStr+". Habits: "+habitStr+". Mix: 2 podcasts, 2 books, 2 YouTube channels, 2 courses. Return JSON array, each: {title, type (podcast/book/youtube/course), creator, description (why it fits their specific goals, 1-2 sentences), category, searchUrl (direct search URL for Spotify/Audible/YouTube/Coursera)}. Use real titles that exist."}]
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
@@ -5908,11 +5967,20 @@ function LearnPage({profile,goals,habits}){
     setLoading(false);
   };
 
-  const toggleSave=r=>{
-    setSaved(ss=>ss.some(s=>s.title===r.title)?ss.filter(s=>s.title!==r.title):[...ss,{...r,savedAt:todayStr()}]);
-  };
-
   const shown=filter==="all"?recs:recs.filter(r=>r.type===filter);
+
+  const RecCard=({r,actions})=>(
+    <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0"}}>
+      <div style={{width:40,height:40,borderRadius:8,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",border:"1px solid "+(TYPE_COLORS[r.type]||t.GOLD)+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{TYPE_ICONS[r.type]||"L"}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"14",display:"inline-block",padding:"1px 6px",borderRadius:4,marginBottom:4}}>{r.type}</div>
+        <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.title}</div>
+        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{r.creator}</div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>{r.description}</div>
+        <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{actions}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
@@ -5920,86 +5988,245 @@ function LearnPage({profile,goals,habits}){
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Personal Development</div>
           <div style={{fontSize:26,color:t.TEXT}}>Learn</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>Recommendations tailored to your goals</div>
         </div>
-        {saved.length>0&&<button onClick={()=>setActiveTab(activeTab==="saved"?"discover":"saved")} style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{"Saved "+saved.length}</button>}
+        <button onClick={()=>setShowLog(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"8px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:600}}>+ Log Session</button>
       </div>
 
-      <div style={{display:"flex",gap:8,marginBottom:16}}>
-        {["discover","saved"].map(tab=>(
-          <button key={tab} onClick={()=>setActiveTab(tab)} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid "+(activeTab===tab?t.GOLD:t.BORDER),background:activeTab===tab?t.GOLD+"18":"transparent",color:activeTab===tab?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textTransform:"capitalize"}}>{tab}</button>
+      {/* Log session form */}
+      {showLog&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+          <SectionLabel>Log Learning Session</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            <Inp value={logForm.title} onChange={e=>setLogForm(f=>({...f,title:e.target.value}))} placeholder="What did you learn? (podcast, book, video...)"/>
+            <div style={{display:"flex",gap:8}}>
+              <Sel value={logForm.type} onChange={e=>setLogForm(f=>({...f,type:e.target.value}))} style={{flex:1}}>
+                {["podcast","book","youtube","course","article"].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+              </Sel>
+              <Inp type="number" value={logForm.minutes} onChange={e=>setLogForm(f=>({...f,minutes:e.target.value}))} placeholder="Minutes" style={{flex:1}}/>
+              <Inp type="date" value={logForm.date} onChange={e=>setLogForm(f=>({...f,date:e.target.value}))} style={{flex:1}}/>
+            </div>
+            <div style={{display:"flex",gap:8}}><Btn onClick={logSession}>Save</Btn><Btn onClick={()=>setShowLog(false)} variant="ghost">Cancel</Btn></div>
+          </div>
+        </Card>
+      )}
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:8,marginBottom:20}}>
+        {[["discover","Discover"],["library","My Library"],["progress","Progress"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"9px",borderRadius:8,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{label}</button>
         ))}
       </div>
 
-      {activeTab==="saved"&&(
+      {/* ── DISCOVER ── */}
+      {tab==="discover"&&(
         <div>
-          {saved.length===0?<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}><div style={{fontSize:28,marginBottom:10}}>B</div><div>No saved resources yet</div></div>:
-          saved.map((r,i)=>(
-            <Card key={i} style={{marginBottom:10,borderLeft:"3px solid "+(TYPE_COLORS[r.type]||t.GOLD)}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-                    <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",padding:"2px 7px",borderRadius:5}}>{r.type}</div>
-                  </div>
-                  <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:3}}>{r.title}</div>
-                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{r.creator}</div>
-                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>{r.description}</div>
+          {/* Daily prompt */}
+          <div style={{background:t.GOLD+"08",border:"1px solid "+t.GOLD+"22",borderRadius:9,padding:"12px 14px",marginBottom:14}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:5}}>Today's Learning Prompt</div>
+            <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.7,fontStyle:"italic"}}>"{dailyPrompt}"</div>
+          </div>
+
+          {/* Filter pills */}
+          {recs.length>0&&(
+            <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,scrollbarWidth:"none"}}>
+              {[{id:"all",l:"All"},{id:"podcast",l:"Podcasts"},{id:"book",l:"Books"},{id:"youtube",l:"YouTube"},{id:"course",l:"Courses"}].map(f=>(
+                <button key={f.id} onClick={()=>setFilter(f.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===f.id?t.GOLD:t.BORDER),background:filter===f.id?t.GOLD+"18":"transparent",color:filter===f.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{f.l}</button>
+              ))}
+            </div>
+          )}
+
+          {/* Recs */}
+          {loading&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{[1,2,3].map(i=><Card key={i}><Skeleton height={14} width="60%" style={{marginBottom:8}}/><Skeleton height={10} width="40%"/></Card>)}</div>}
+
+          {shown.length>0&&(
+            <Card style={{marginBottom:14}}>
+              <SectionLabel>Recommended for You</SectionLabel>
+              {shown.map((r,i)=>(
+                <div key={i}>
+                  {i>0&&<Divider/>}
+                  <RecCard r={r} actions={[
+                    <button key="open" onClick={()=>window.open((TYPE_LINKS[r.type]||"https://www.google.com/search?q=")+encodeURIComponent(r.title+" "+r.creator),"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>
+                      {r.type==="podcast"?"Spotify":r.type==="book"?"Audible":r.type==="youtube"?"YouTube":"Coursera"}
+                    </button>,
+                    <button key="save" onClick={()=>addToLib(r,library.some(x=>x.title===r.title)?"saved":"saved")} style={{background:library.some(x=>x.title===r.title)?t.GREEN+"18":"transparent",border:"1px solid "+(library.some(x=>x.title===r.title)?t.GREEN:t.BORDER),borderRadius:5,padding:"4px 9px",color:library.some(x=>x.title===r.title)?t.GREEN:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>
+                      {library.some(x=>x.title===r.title)?"Saved":"+ Save"}
+                    </button>,
+                    <button key="start" onClick={()=>addToLib(r,"inprogress")} style={{background:t.BLUE+"14",border:"1px solid "+t.BLUE+"33",borderRadius:5,padding:"4px 9px",color:t.BLUE,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Start</button>,
+                  ]}/>
                 </div>
-                <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:10}}>
-                  <button onClick={()=>window.open(r.searchUrl,"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Find</button>
-                  <button onClick={()=>toggleSave(r)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11}}>X</button>
-                </div>
-              </div>
+              ))}
             </Card>
-          ))}
+          )}
+
+          <button onClick={getRecommendations} disabled={loading} style={{width:"100%",background:loading?t.BORDER:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:9,padding:"13px",color:loading?t.MUTED:"#080808",cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,letterSpacing:1}}>
+            {loading?"Finding recommendations...":recs.length?"Refresh Recommendations":"Get Personalised Recommendations"}
+          </button>
         </div>
       )}
 
-      {activeTab==="discover"&&(
-        <>
-          <button onClick={getRecommendations} disabled={loading} style={{width:"100%",background:loading?t.BORDER:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:loading?t.MUTED:"#080808",cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:1,marginBottom:14}}>
-            {loading?"Finding recommendations...":"Get Personalised Recommendations"}
-          </button>
-
-          {loading&&<div style={{display:"flex",flexDirection:"column",gap:10}}>{[1,2,3].map(i=><Card key={i}><Skeleton height={14} width="60%" style={{marginBottom:8}}/><Skeleton height={10} width="40%"/></Card>)}</div>}
-
-          {recs.length>0&&(
-            <>
-              <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:14,scrollbarWidth:"none"}}>
-                {TYPES.map(tp=>(
-                  <button key={tp.id} onClick={()=>setFilter(tp.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===tp.id?t.GOLD:t.BORDER),background:filter===tp.id?t.GOLD+"22":"transparent",color:filter===tp.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{tp.label}</button>
-                ))}
-              </div>
-              {shown.map((r,i)=>(
-                <Card key={i} style={{marginBottom:10,borderLeft:"3px solid "+(TYPE_COLORS[r.type]||t.GOLD)}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
-                        <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",padding:"2px 7px",borderRadius:5}}>{r.type}</div>
-                        {r.category&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{r.category}</div>}
-                      </div>
-                      <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:3}}>{r.title}</div>
-                      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{r.creator}</div>
-                      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.65}}>{r.description}</div>
-                    </div>
-                    <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:10,flexDirection:"column"}}>
-                      <button onClick={()=>window.open(r.searchUrl,"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Find</button>
-                      <button onClick={()=>toggleSave(r)} style={{background:saved.some(s=>s.title===r.title)?t.GREEN+"18":"transparent",border:"1px solid "+(saved.some(s=>s.title===r.title)?t.GREEN:t.BORDER),borderRadius:6,padding:"5px 10px",color:saved.some(s=>s.title===r.title)?t.GREEN:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{saved.some(s=>s.title===r.title)?"Saved":"Save"}</button>
-                    </div>
-                  </div>
+      {/* ── LIBRARY ── */}
+      {tab==="library"&&(
+        <div>
+          {/* In progress */}
+          {inProgress.length>0&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>In Progress</div>
+              {inProgress.map((r,i)=>(
+                <Card key={i} style={{marginBottom:8,borderLeft:"3px solid "+(TYPE_COLORS[r.type]||t.GOLD)}}>
+                  <RecCard r={r} actions={[
+                    <button key="done" onClick={()=>updateLib(r.title,{status:"completed",completedAt:todayStr()})} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"33",borderRadius:5,padding:"4px 9px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Mark Done</button>,
+                    <button key="open" onClick={()=>window.open((TYPE_LINKS[r.type]||"https://www.google.com/search?q=")+encodeURIComponent(r.title),"_blank")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Open</button>,
+                    <button key="rm" onClick={()=>removeFromLib(r.title)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.5}}>Remove</button>,
+                  ]}/>
                 </Card>
               ))}
-            </>
-          )}
-
-          {!loading&&recs.length===0&&(
-            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
-              <div style={{fontSize:32,marginBottom:10}}>G</div>
-              <div style={{fontSize:14,marginBottom:8}}>Ready to learn?</div>
-              <div style={{fontSize:12}}>Tap Generate to get personalised podcasts, books, YouTube channels and courses based on your goals</div>
             </div>
           )}
-        </>
+
+          {/* Saved */}
+          {saved.length>0&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>Saved</div>
+              <Card>
+                {saved.map((r,i)=>(
+                  <div key={i}>
+                    {i>0&&<Divider/>}
+                    <RecCard r={r} actions={[
+                      <button key="start" onClick={()=>updateLib(r.title,{status:"inprogress"})} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Start</button>,
+                      <button key="rm" onClick={()=>removeFromLib(r.title)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.5}}>Remove</button>,
+                    ]}/>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          )}
+
+          {/* Completed */}
+          {completed.length>0&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>Completed</div>
+              <Card>
+                {completed.map((r,i)=>(
+                  <div key={i}>
+                    {i>0&&<Divider/>}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
+                      <div>
+                        <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>{r.title}</div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{r.type+" - Completed "+(r.completedAt||"")}</div>
+                      </div>
+                      <div style={{fontSize:16,color:t.GREEN}}>V</div>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          )}
+
+          {library.length===0&&(
+            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:28,marginBottom:10}}>B</div>
+              <div style={{fontSize:13,marginBottom:8}}>Your library is empty</div>
+              <div style={{fontSize:11,marginBottom:16}}>Go to Discover and save recommendations to build your library</div>
+              <Btn onClick={()=>setTab("discover")}>Go to Discover</Btn>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── PROGRESS ── */}
+      {tab==="progress"&&(
+        <div>
+          {/* Stats */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+            {[
+              {v:weekHrs+"h",l:"This week",c:t.GOLD},
+              {v:streak+"d",l:"Streak",c:t.GREEN},
+              {v:completed.length,l:"Completed",c:"#7EB8C9"},
+              {v:totalHrs+"h",l:"Total",c:"#B07EC9"},
+            ].map(s=>(
+              <Card key={s.l} style={{textAlign:"center",padding:"12px 6px"}}>
+                <div style={{fontSize:22,color:s.c,fontWeight:700,marginBottom:2}}>{s.v}</div>
+                <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{s.l}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Weekly goal ring */}
+          <Card style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <SectionLabel>Weekly Goal</SectionLabel>
+              <button onClick={()=>setShowGoalEdit(s=>!s)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 9px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
+            </div>
+            {showGoalEdit&&(
+              <div style={{display:"flex",gap:8,marginBottom:12,alignItems:"center"}}>
+                <input type="range" min={1} max={20} value={weeklyGoal} onChange={e=>setWeeklyGoal(Number(e.target.value))} style={{flex:1,accentColor:t.GOLD}}/>
+                <div style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,minWidth:60}}>{weeklyGoal+" hrs"}</div>
+                <Btn onClick={()=>{setLearnData(d=>({...d,weeklyGoal}));setShowGoalEdit(false);}} style={{fontSize:11}}>Save</Btn>
+              </div>
+            )}
+            <div style={{display:"flex",alignItems:"center",gap:16}}>
+              <div style={{position:"relative",width:80,height:80,flexShrink:0}}>
+                <svg width="80" height="80" viewBox="0 0 80 80" style={{transform:"rotate(-90deg)"}}>
+                  <circle cx="40" cy="40" r="32" fill="none" stroke={t.BORDER} strokeWidth="7"/>
+                  <circle cx="40" cy="40" r="32" fill="none" stroke={weekPct>=100?t.GREEN:t.GOLD} strokeWidth="7"
+                    strokeDasharray={2*Math.PI*32*weekPct/100+" "+(2*Math.PI*32*(1-weekPct/100))} strokeLinecap="round"/>
+                </svg>
+                <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{fontSize:16,color:weekPct>=100?t.GREEN:t.GOLD,fontWeight:700}}>{weekPct+"%"}</div>
+                </div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:24,color:weekPct>=100?t.GREEN:t.GOLD,fontWeight:700,marginBottom:2}}>{weekHrs+" <span style='font-size:12px;color:"+t.MUTED+"'>/ "+weeklyGoal+" hrs</span>"}</div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{weekPct>=100?"Goal achieved this week!":""+((weeklyGoal-weekHrs).toFixed(1))+" hrs to reach your goal"}</div>
+              </div>
+            </div>
+          </Card>
+
+          {/* 8-week chart */}
+          <Card style={{marginBottom:14}}>
+            <SectionLabel>Last 8 Weeks</SectionLabel>
+            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80}}>
+              {weeklyHistory.map((w,i)=>(
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                  <div style={{width:"100%",background:i===7?t.GOLD:t.GOLD+"44",borderRadius:"3px 3px 0 0",height:Math.max(w.hrs/maxHrs*68,w.hrs>0?3:0)+"px",transition:"height .3s"}}/>
+                  <div style={{fontSize:8,color:i===7?t.GOLD:t.MUTED,fontFamily:"sans-serif"}}>{w.label}</div>
+                </div>
+              ))}
+            </div>
+            {/* Target line annotation */}
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,textAlign:"right"}}>Goal: {weeklyGoal}h/week</div>
+          </Card>
+
+          {/* Recent sessions */}
+          {sessions.length>0&&(
+            <Card>
+              <SectionLabel>Recent Sessions</SectionLabel>
+              {sessions.slice(0,8).map((s,i)=>(
+                <div key={s.id||i}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{s.title}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{s.type+" - "+s.date}</div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{fontSize:12,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{s.minutes>=60?Math.floor(s.minutes/60)+"h "+(s.minutes%60>0?s.minutes%60+"m":""):s.minutes+"m"}</div>
+                      <button onClick={()=>setLearnData(d=>({...d,sessions:(d.sessions||[]).filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}>X</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          )}
+
+          {sessions.length===0&&(
+            <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+              <div style={{fontSize:28,marginBottom:10}}>G</div>
+              <div style={{fontSize:13,marginBottom:8}}>No sessions logged yet</div>
+              <Btn onClick={()=>setShowLog(true)}>+ Log First Session</Btn>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -6291,6 +6518,7 @@ function App(){
   const[weeklyReflections,setWeeklyReflections]=useState({});
   const[notes,setNotes]=useState([]);
   const[services,setServices]=useState([]);
+  const[learnData,setLearnData]=useState({library:[],sessions:[],weeklyGoal:5});
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
@@ -6361,6 +6589,7 @@ function App(){
             if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
+              if(d.learnData)setLearnData(d.learnData);
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             setHydrated(true);
             setTimeout(()=>setReadyToSave(true),500);
@@ -6403,6 +6632,7 @@ function App(){
         if(saved.weeklyReflections)setWeeklyReflections(saved.weeklyReflections);
         if(saved.notes!==undefined)setNotes(saved.notes);
         if(saved.services!==undefined)setServices(saved.services);
+      if(saved.learnData)setLearnData(saved.learnData);
         if(saved.advisorMessages!==undefined)setAdvisorMessages(saved.advisorMessages);
       }
       setHydrated(true);
@@ -6412,7 +6642,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
@@ -6544,6 +6774,7 @@ function App(){
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
+              if(d.learnData)setLearnData(d.learnData);
             if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -6574,6 +6805,7 @@ function App(){
               if(d.debts!==undefined)setDebts(d.debts);
               if(d.notes!==undefined)setNotes(d.notes);
               if(d.services!==undefined)setServices(d.services);
+              if(d.learnData)setLearnData(d.learnData);
               if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -6710,7 +6942,7 @@ function App(){
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog}/>}
-          {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits}/>}
+          {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&<ServicesPage services={services} setServices={setServices}/>}
           {page==="advisor"&&<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>}
