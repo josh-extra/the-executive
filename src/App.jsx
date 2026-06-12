@@ -3531,7 +3531,7 @@ function CashFlowPage({transactions,setTransactions}){
 
 function BillsPage({bills,setBills}){
   const t=T();
-  const emptyForm={name:"",amount:"",frequency:"monthly",category:"Housing",nextDue:todayStr(),autopay:false};
+  const emptyForm={name:"",amount:"",frequency:"monthly",category:"Housing",lastPaid:todayStr(),autopay:false};
   const[showAdd,setShowAdd]=useState(false);
   const[editingId,setEditingId]=useState(null);
   const[form,setForm]=useState(emptyForm);
@@ -3561,16 +3561,17 @@ function BillsPage({bills,setBills}){
   }));
 
   const openEdit=b=>{
-    setForm({name:b.name,amount:b.amount,frequency:b.frequency,category:b.category,nextDue:b.nextDue,autopay:b.autopay||false});
+    setForm({name:b.name,amount:b.amount,frequency:b.frequency,category:b.category,lastPaid:b.lastPaid||todayStr(),autopay:b.autopay||false});
     setEditingId(b.id);setShowAdd(true);
   };
 
   const save=()=>{
     if(!form.name||!form.amount)return;
+    const nextDue=advanceDate(form.lastPaid,form.frequency);
     if(editingId){
-      setBills(bs=>bs.map(b=>b.id===editingId?{...b,...form,amount:parseFloat(form.amount)}:b));
+      setBills(bs=>bs.map(b=>b.id===editingId?{...b,...form,amount:parseFloat(form.amount),nextDue,lastPaid:form.lastPaid}:b));
     } else {
-      setBills(bs=>[...bs,{...form,id:Date.now(),amount:parseFloat(form.amount),paymentHistory:[]}]);
+      setBills(bs=>[...bs,{...form,id:Date.now(),amount:parseFloat(form.amount),nextDue,paymentHistory:[]}]);
     }
     setForm(emptyForm);setShowAdd(false);setEditingId(null);
   };
@@ -3652,12 +3653,23 @@ function BillsPage({bills,setBills}){
                 {billCats.map(c=><option key={c}>{c}</option>)}
               </Sel>
             </div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <Inp type="date" value={form.nextDue} onChange={e=>setForm(f=>({...f,nextDue:e.target.value}))} style={{flex:1}}/>
-              <label style={{display:"flex",alignItems:"center",gap:5,color:t.TEXT,fontFamily:"sans-serif",fontSize:12,cursor:"pointer",flexShrink:0}}>
-                <input type="checkbox" checked={form.autopay} onChange={e=>setForm(f=>({...f,autopay:e.target.checked}))} style={{accentColor:t.GOLD}}/>
-                Auto-pay
-              </label>
+            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Last Paid / Start Date</div>
+                <Inp type="date" value={form.lastPaid} onChange={e=>setForm(f=>({...f,lastPaid:e.target.value}))} style={{flex:1}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Next Due (auto)</div>
+                <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",fontSize:12,color:t.GREEN,fontFamily:"sans-serif"}}>
+                  {form.lastPaid&&form.frequency?new Date(advanceDate(form.lastPaid,form.frequency)+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"Select date"}
+                </div>
+              </div>
+              <div style={{flexShrink:0,alignSelf:"flex-end"}}>
+                <label style={{display:"flex",alignItems:"center",gap:5,color:t.TEXT,fontFamily:"sans-serif",fontSize:12,cursor:"pointer",padding:"9px 0"}}>
+                  <input type="checkbox" checked={form.autopay} onChange={e=>setForm(f=>({...f,autopay:e.target.checked}))} style={{accentColor:t.GOLD}}/>
+                  Auto-pay
+                </label>
+              </div>
             </div>
             <div style={{display:"flex",gap:8}}>
               <Btn onClick={save}>{editingId?"Save Changes":"Add"}</Btn>
