@@ -4560,15 +4560,18 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                         <div style={{display:"flex",gap:4,flex:1,alignItems:"center"}}>
                           <input
                             type="number"
-                            placeholder="Jump to page"
+                            placeholder="Set page"
                             min={0}
                             max={b.tot}
                             onKeyDown={e=>{
                               if(e.key==="Enter"&&e.target.value){
                                 const p=Math.max(0,Math.min(parseInt(e.target.value)||0,b.tot));
-                                // Only mark done if they explicitly enter the last page
+                                const fromPage=b.cur;
                                 if(p>=b.tot){
                                   markFinished(b.id);
+                                } else if(p>fromPage){
+                                  setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));
+                                  setNotePrompt({bookId:b.id,fromPage,toPage:p,text:""});
                                 } else {
                                   setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));
                                 }
@@ -6125,7 +6128,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
-function LearnPage({profile,goals,habits,learnData,commodityHoldings,altAssets,readingGoal,setLearnData}){
+function LearnPage({profile,goals,habits,learnData,setLearnData}){
   const t=T();
   const[tab,setTab]=useState("discover");
   const[recs,setRecs]=useState([]);
@@ -6880,6 +6883,7 @@ function App(){
         if(saved.transactions!==undefined)setTransactions(saved.transactions);
         if(saved.journal!==undefined)setJournal(saved.journal);
         if(saved.books!==undefined)setBooks(saved.books);
+        if(saved.readingGoal)setReadingGoal(saved.readingGoal);
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
@@ -6907,13 +6911,13 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
     }
     setLastSaved(Date.now());
-  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const tDone=tasks.filter(tk=>tk.done).length;
