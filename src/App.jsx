@@ -925,7 +925,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1.2fr 1fr 1fr",gap:12,alignItems:"start"}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,alignItems:"start"}}>
         {/* Tasks */}
         <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
