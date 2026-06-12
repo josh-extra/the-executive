@@ -2222,9 +2222,11 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
               {l:"Property",asset:parseFloat(profile.propertyValue)||0,debt:parseFloat(profile.mortgageDebt)||0,c:"#7A9E7E"},
               {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:parseFloat(profile.investLoanDebt)||0,c:t.GOLD},
               {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
-              {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:parseFloat(profile.creditCardDebt)||0+parseFloat(profile.personalDebt)||0,c:"#7EB8C9"},
+              {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:0,c:"#7EB8C9"},
               {l:"Crypto",asset:parseFloat(profile.cryptoValue)||0,debt:0,c:t.PURPLE},
-              {l:"Car / Other",asset:0,debt:parseFloat(profile.carDebt)||0,c:t.RED},
+              {l:"Credit Cards",asset:0,debt:parseFloat(profile.creditCardDebt)||0,c:t.RED},
+              {l:"Personal Loans",asset:0,debt:parseFloat(profile.personalDebt)||0,c:t.RED},
+              {l:"Car Finance",asset:0,debt:parseFloat(profile.carDebt)||0,c:t.RED},
             ].filter(r=>r.asset>0||r.debt>0).map(r=>{
               const equity=r.asset-r.debt;
               return (
