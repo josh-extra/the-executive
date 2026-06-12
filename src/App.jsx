@@ -102,11 +102,26 @@ const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
 const applyDailyReset=(saved,today)=>{
-  if(!saved.lastSavedDate||saved.lastSavedDate!==today)
+  if(!saved.lastSavedDate||saved.lastSavedDate!==today){
+    const dayOfWeek=new Date(today+"T12:00:00").getDay(); // 0=Sun,1=Mon...6=Sat
     return{...saved,lastSavedDate:today,
-      // Completed tasks reset to undone, incomplete tasks roll over as-is
-      tasks:(saved.tasks||[]).map(t=>t.done?{...t,done:false}:t),
-      supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))};
+      tasks:(saved.tasks||[]).map(t=>{
+        // Always keep non-done tasks as-is (roll over)
+        if(!t.done)return t;
+        // Recurring daily — reset to undone
+        if(t.recurring&&!t.recurDays)return{...t,done:false};
+        // Recurring on specific days — only show/reset on matching day
+        if(t.recurring&&t.recurDays?.length){
+          if(t.recurDays.includes(dayOfWeek))return{...t,done:false};
+          // Not today's recurring day — keep as done/hidden
+          return t;
+        }
+        // One-off completed task — remove it (it's done, don't carry forward)
+        return null;
+      }).filter(Boolean),
+      supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))
+    };
+  }
   return saved;
 };
 const DEMO={
@@ -1009,12 +1024,15 @@ function TasksPage({tasks,setTasks}){
   const[newTask,setNewTask]=useState("");
   const[pri,setPri]=useState("medium");
   const[recurring,setRecurring]=useState(false);
+  const[recurDays,setRecurDays]=useState([]);
+  const DAY_LABELS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const done=tasks.filter(tk=>tk.done).length;
   const add=()=>{
     if(!newTask.trim())return;
-    setTasks(ts=>[...ts,{id:Date.now(),text:newTask,done:false,priority:pri,recurring}]);
-    setNewTask("");
+    setTasks(ts=>[...ts,{id:Date.now(),text:newTask,done:false,priority:pri,recurring,recurDays:recurring&&recurDays.length?recurDays:[]}]);
+    setNewTask("");setRecurDays([]);
   };
+  const toggleDay=d=>setRecurDays(ds=>ds.includes(d)?ds.filter(x=>x!==d):[...ds,d]);
   const priColors={high:t.RED,medium:t.GOLD,low:t.MUTED};
   const priLabels={high:"High Priority",medium:"Standard",low:"Low Priority"};
   return (
@@ -1026,18 +1044,27 @@ function TasksPage({tasks,setTasks}){
         <div style={{marginTop:8}}><PB value={tasks.length?Math.round(done/tasks.length*100):0} color={t.GREEN} height={3}/></div>
       </div>
       <Card style={{marginBottom:16,padding:"12px 14px"}}>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{display:"flex",gap:8,marginBottom:recurring?10:0}}>
           <input value={newTask} onChange={e=>setNewTask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Add a task..." style={{flex:1,background:"transparent",border:"none",outline:"none",color:t.TEXT,fontFamily:"sans-serif",fontSize:13}}/>
           <Sel value={pri} onChange={e=>setPri(e.target.value)} style={{width:90}}>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
           </Sel>
-          <button onClick={()=>setRecurring(r=>!r)} style={{background:recurring?t.GOLD+"22":"transparent",border:"1px solid "+(recurring?t.GOLD:t.BORDER),borderRadius:6,padding:"6px 10px",color:recurring?t.GOLD:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
-            {recurring?"Daily":"Once"}
+          <button onClick={()=>{setRecurring(r=>!r);setRecurDays([]);}} style={{background:recurring?t.GOLD+"22":"transparent",border:"1px solid "+(recurring?t.GOLD:t.BORDER),borderRadius:6,padding:"6px 10px",color:recurring?t.GOLD:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
+            {recurring?"Recurring":"Once"}
           </button>
           <Btn onClick={add}>Add</Btn>
         </div>
+        {recurring&&(
+          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,flexShrink:0}}>Repeat:</span>
+            <button onClick={()=>setRecurDays([])} style={{padding:"3px 9px",borderRadius:12,border:"1px solid "+(recurDays.length===0?t.GOLD:t.BORDER),background:recurDays.length===0?t.GOLD+"22":"transparent",color:recurDays.length===0?t.GOLD:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Daily</button>
+            {DAY_LABELS.map((l,i)=>(
+              <button key={i} onClick={()=>toggleDay(i)} style={{padding:"3px 9px",borderRadius:12,border:"1px solid "+(recurDays.includes(i)?t.GOLD:t.BORDER),background:recurDays.includes(i)?t.GOLD+"22":"transparent",color:recurDays.includes(i)?t.GOLD:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{l}</button>
+            ))}
+          </div>
+        )}
       </Card>
       {["high","medium","low"].map(priority=>{
         const ts=tasks.filter(tk=>tk.priority===priority);
@@ -1056,7 +1083,7 @@ function TasksPage({tasks,setTasks}){
                       {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
                     </div>
                     <span style={{flex:1,fontSize:13,color:tk.done?t.MUTED:t.TEXT,textDecoration:tk.done?"line-through":"none",fontFamily:"sans-serif"}}>{tk.text}</span>
-                    {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>daily</span>}
+                    {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>{tk.recurDays?.length?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].filter((_,i)=>tk.recurDays.includes(i)).join(", "):"daily"}</span>}
                     <button onClick={e=>{e.stopPropagation();setTasks(ts=>ts.filter(x=>x.id!==tk.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
                   </div>
                 </div>
@@ -6980,7 +7007,16 @@ function App(){
     const now=new Date();
     const msUntilMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1)-now;
     const tid=setTimeout(()=>{
-      setTasks(ts=>ts.map(t=>t.done?{...t,done:false}:t));
+      const dayOfWeek=new Date().getDay();
+      setTasks(ts=>ts.map(t=>{
+        if(!t.done)return t;
+        if(t.recurring&&!t.recurDays)return{...t,done:false};
+        if(t.recurring&&t.recurDays?.length){
+          if(t.recurDays.includes(dayOfWeek))return{...t,done:false};
+          return t;
+        }
+        return null;
+      }).filter(Boolean));
       setSupplements(ss=>ss.map(s=>({...s,taken:false})));
     },msUntilMidnight);
     return()=>clearTimeout(tid);
