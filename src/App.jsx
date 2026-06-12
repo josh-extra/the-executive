@@ -6176,8 +6176,10 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
                 </div>
               </div>
               <div style={{flex:1}}>
-                <div style={{fontSize:24,color:weekPct>=100?t.GREEN:t.GOLD,fontWeight:700,marginBottom:2}}>{weekHrs+" <span style='font-size:12px;color:"+t.MUTED+"'>/ "+weeklyGoal+" hrs</span>"}</div>
-                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{weekPct>=100?"Goal achieved this week!":""+((weeklyGoal-weekHrs).toFixed(1))+" hrs to reach your goal"}</div>
+                <div style={{fontSize:24,color:weekPct>=100?t.GREEN:t.GOLD,fontWeight:700,marginBottom:2}}>
+                  {weekHrs}<span style={{fontSize:12,color:t.MUTED}}>{" / "+weeklyGoal+" hrs"}</span>
+                </div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{weekPct>=100?"Goal achieved this week!":((weeklyGoal-weekHrs).toFixed(1))+" hrs to reach your goal"}</div>
               </div>
             </div>
           </Card>
