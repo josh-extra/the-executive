@@ -4298,6 +4298,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300,review:"",rating:0,dateFinished:todayStr()});  // already updated
   const[expandDone,setExpandDone]=useState({});
+  const[editingBook,setEditingBook]=useState(null);
   const[notePrompt,setNotePrompt]=useState(null);
   const[expandNotes,setExpandNotes]=useState({});
   const annualGoal=readingGoal||24;
@@ -4521,9 +4522,51 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                           <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{b.dateFinished||"Done"}</span>
                         </div>
                       )}
+                      {b.status==="done"&&(
+                        <button onClick={()=>setEditingBook(editingBook===b.id?null:b.id)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
+                      )}
                       <button onClick={()=>setBooks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
                     </div>
                   </div>
+
+                  {/* Inline edit form for finished books */}
+                  {editingBook===b.id&&(
+                    <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:10,border:"1px solid "+t.GOLD+"33"}}>
+                      <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Edit Book</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        <div style={{display:"flex",gap:7}}>
+                          <Inp value={b.title} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,title:e.target.value}:x))} placeholder="Title" style={{flex:2,fontSize:12}}/>
+                          <Inp value={b.author||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,author:e.target.value}:x))} placeholder="Author" style={{flex:1,fontSize:12}}/>
+                        </div>
+                        <div style={{display:"flex",gap:7}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Date Finished</div>
+                            <Inp type="date" value={b.dateFinished||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,dateFinished:e.target.value}:x))} style={{fontSize:12}}/>
+                          </div>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Total Pages</div>
+                            <Inp type="number" value={b.tot||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,tot:parseInt(e.target.value)||b.tot}:x))} placeholder="Pages" style={{fontSize:12}}/>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Rating</div>
+                          <div style={{display:"flex",gap:6}}>
+                            {[1,2,3,4,5].map(n=>(
+                              <button key={n} onClick={()=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,rating:n}:x))} style={{width:28,height:28,borderRadius:"50%",background:n<=(b.rating||0)?t.GOLD:t.CARD,border:"1px solid "+(n<=(b.rating||0)?t.GOLD:t.BORDER),cursor:"pointer",fontSize:11,color:n<=(b.rating||0)?"#080808":t.MUTED,fontWeight:700}}>{n}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Review / Notes</div>
+                          <textarea value={b.review||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,review:e.target.value}:x))} placeholder="Your thoughts on the book..." rows={3} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 10px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
+                        </div>
+                        <div style={{display:"flex",gap:7}}>
+                          <button onClick={()=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,status:"reading"}:x))} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Move back to Reading</button>
+                          <Btn onClick={()=>setEditingBook(null)} style={{fontSize:11}}>Done</Btn>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {b.status==="done"&&(b.review||(b.readingNotes||[]).length>0)&&(
                     <div style={{marginTop:8}}>
