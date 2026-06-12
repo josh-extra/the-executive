@@ -71,6 +71,18 @@ const NAV=[
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
 ];
+const POPULAR_COMMODITIES=[
+  {ticker:"GC=F",name:"Gold",unit:"oz",symbol:"Au"},
+  {ticker:"SI=F",name:"Silver",unit:"oz",symbol:"Ag"},
+  {ticker:"PL=F",name:"Platinum",unit:"oz",symbol:"Pt"},
+  {ticker:"PA=F",name:"Palladium",unit:"oz",symbol:"Pd"},
+  {ticker:"CL=F",name:"Crude Oil (WTI)",unit:"bbl",symbol:"Oil"},
+  {ticker:"NG=F",name:"Natural Gas",unit:"MMBtu",symbol:"Gas"},
+  {ticker:"HG=F",name:"Copper",unit:"lb",symbol:"Cu"},
+  {ticker:"ZW=F",name:"Wheat",unit:"bu",symbol:"Wht"},
+  {ticker:"ZC=F",name:"Corn",unit:"bu",symbol:"Crn"},
+  {ticker:"ZS=F",name:"Soybeans",unit:"bu",symbol:"Soy"},
+];
 const POPULAR_COINS=[
   {ticker:"BTC",name:"Bitcoin"},{ticker:"ETH",name:"Ethereum"},
   {ticker:"SOL",name:"Solana"},{ticker:"XRP",name:"XRP"},
@@ -172,6 +184,40 @@ function useMarket(){
   },[]);
   useEffect(()=>{fetchAll();const id=setInterval(fetchAll,300000);return()=>clearInterval(id);},[]);
   return{...data,refresh:fetchAll};
+}
+
+function useCommodities(holdings){
+  const[prices,setPrices]=useState({});
+  const[loading,setLoading]=useState(false);
+  const[lastUpdated,setLastUpdated]=useState(null);
+  const safeH=holdings||[];
+
+  const fetchPrices=useCallback(async()=>{
+    if(!safeH.length)return;
+    setLoading(true);
+    const results={};
+    await Promise.all(safeH.map(async h=>{
+      try{
+        const r=await fetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
+        const d=await r.json();
+        if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
+      }catch{}
+    }));
+    setPrices(results);setLastUpdated(new Date());setLoading(false);
+  },[safeH.map(h=>h.ticker).join(",")]);
+
+  useEffect(()=>{fetchPrices();const id=setInterval(fetchPrices,120000);return()=>clearInterval(id);},[fetchPrices]);
+
+  const totalValue=safeH.reduce((s,h)=>{
+    const lp=prices[h.ticker]?.price;
+    const val=lp?lp*h.qty:h.avgCost?h.avgCost*h.qty:0;
+    return s+(isNaN(val)?0:val);
+  },0);
+  const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?parseFloat(h.avgCost)*h.qty:0),0);
+  return{prices,loading,lastUpdated,totalValue,totalCost,
+    totalGain:totalValue-totalCost,
+    totalGainPct:totalCost>0?(totalValue-totalCost)/totalCost*100:0,
+    refresh:fetchPrices};
 }
 
 function usePortfolio(holdings){
@@ -2042,7 +2088,63 @@ function JournalPage({entries,setEntries}){
   );
 }
 
-function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio}){
+const ALT_CATEGORIES=[
+  {id:"watch",label:"Watches",icon:"W",color:"#C9A84C"},
+  {id:"art",label:"Art",icon:"A",color:"#B07EC9"},
+  {id:"car",label:"Vehicles",icon:"V",color:"#7EB8C9"},
+  {id:"wine",label:"Wine / Spirits",icon:"G",color:"#C97E7E"},
+  {id:"jewellery",label:"Jewellery",icon:"D",color:"#E8C96A"},
+  {id:"cards",label:"Collectables",icon:"C",color:"#7A9E7E"},
+  {id:"business",label:"Business Interest",icon:"B",color:"#D4956A"},
+  {id:"property",label:"Other Property",icon:"H",color:"#7EB8C9"},
+  {id:"other",label:"Other",icon:"O",color:"#6A6050"},
+];
+
+function AddAltAssetForm({onAdd}){
+  const t=T();
+  const[show,setShow]=useState(false);
+  const[form,setForm]=useState({name:"",category:"watch",currentValue:"",costBasis:"",description:""});
+  const cat=ALT_CATEGORIES.find(c=>c.id===form.category)||ALT_CATEGORIES[0];
+  const add=()=>{
+    if(!form.name||!form.currentValue)return;
+    onAdd({...form,icon:cat.icon,color:cat.color});
+    setForm({name:"",category:"watch",currentValue:"",costBasis:"",description:""});
+    setShow(false);
+  };
+  return (
+    <div style={{marginTop:12}}>
+      {!show?(
+        <button onClick={()=>setShow(true)} style={{width:"100%",background:t.CARD2,border:"1px dashed "+t.BORDER,borderRadius:7,padding:"9px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Add Alternative Asset</button>
+      ):(
+        <div style={{background:t.CARD2,borderRadius:8,padding:12,border:"1px solid "+t.GOLD+"33"}}>
+          <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>New Alternative Asset</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",gap:8}}>
+              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Rolex Submariner, Banksy print..." style={{flex:2}}/>
+              <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
+                {ALT_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+              </Sel>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Current Est. Value ($)</div>
+                <Inp type="number" value={form.currentValue} onChange={e=>setForm(f=>({...f,currentValue:e.target.value}))} placeholder="e.g. 12500"/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Cost / Purchase Price ($)</div>
+                <Inp type="number" value={form.costBasis} onChange={e=>setForm(f=>({...f,costBasis:e.target.value}))} placeholder="e.g. 9800"/>
+              </div>
+            </div>
+            <Inp value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Notes (year, condition, provenance...)"/>
+            <div style={{display:"flex",gap:7}}><Btn onClick={add}>Add</Btn><Btn onClick={()=>setShow(false)} variant="ghost">Cancel</Btn></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
   const[hForm,setHForm]=useState({ticker:"",shares:"",avgCost:"",name:""});
@@ -2419,6 +2521,144 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
             );
           })}
         </Card>
+        {/* ── COMMODITIES ── */}
+        <Card style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <SectionLabel>Commodities</SectionLabel>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {(commodityHoldings||[]).length>0&&commodityPortfolio?.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
+              {(commodityHoldings||[]).length>0&&<button onClick={commodityPortfolio?.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>Refresh</button>}
+            </div>
+          </div>
+
+          {/* Summary stats */}
+          {(commodityHoldings||[]).length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+              {[
+                {l:"Total Value",v:fmt(commodityPortfolio?.totalValue||0),c:t.GOLD},
+                {l:"Total Gain",v:(commodityPortfolio?.totalGain>=0?"+":"")+fmt(commodityPortfolio?.totalGain||0),c:(commodityPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
+                {l:"Return",v:(commodityPortfolio?.totalGainPct>=0?"+":"")+((commodityPortfolio?.totalGainPct||0).toFixed(1))+"%",c:(commodityPortfolio?.totalGainPct||0)>=0?t.GREEN:t.RED},
+              ].map(s=>(
+                <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
+                  <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Holdings list */}
+          {(commodityHoldings||[]).map((h,i)=>{
+            const liveData=commodityPortfolio?.prices?.[h.ticker];
+            const livePrice=liveData?.price;
+            const currentP=livePrice||h.avgCost||0;
+            const lv=currentP?currentP*h.qty:null;
+            const cb=h.avgCost?parseFloat(h.avgCost)*h.qty:null;
+            const gain=lv&&cb?lv-cb:null;
+            const gainPct=gain&&cb?gain/cb*100:null;
+            return (
+              <div key={h.ticker||i}>
+                {i>0&&<Divider/>}
+                <div style={{display:"flex",alignItems:"center",padding:"8px 0"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                      <div style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:4,padding:"1px 6px",fontSize:10,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{h.symbol||h.ticker}</div>
+                      <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>
+                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.qty+" "+h.unit}</span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      {livePrice?(
+                        <>
+                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+(parseFloat(livePrice)||0).toFixed(2)+"/"+(h.unit||"unit")}</span>
+                          {liveData?.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
+                        </>
+                      ):(
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio?.loading?"Loading price...":"No live price"}</span>
+                      )}
+                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
+                    </div>
+                    {gain!==null&&<div style={{marginTop:2}}><span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+((gainPct||0).toFixed(1))+"%)"}</span></div>}
+                  </div>
+                  <div style={{textAlign:"right",marginLeft:10}}>
+                    {lv&&<div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}
+                  </div>
+                  <button onClick={()=>setCommodityHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:8,opacity:.5}}>X</button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Add commodity form */}
+          <div style={{marginTop:(commodityHoldings||[]).length>0?10:0}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add Commodity</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+              {POPULAR_COMMODITIES.filter(c=>!(commodityHoldings||[]).some(h=>h.ticker===c.ticker)).map(c=>(
+                <button key={c.ticker} onClick={()=>{
+                  const qty=parseFloat(prompt("How many "+c.unit+" of "+c.name+"?")||"0");
+                  const avg=parseFloat(prompt("Average cost per "+c.unit+" (or leave blank):")||"0");
+                  if(qty>0)setCommodityHoldings(cs=>[...(cs||[]),{...c,qty,avgCost:avg||null}]);
+                }} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+                  {"+ "+c.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!(commodityHoldings||[]).length&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>Tap a commodity above to add your holding</div>}
+        </Card>
+
+        {/* ── ALTERNATIVE ASSETS ── */}
+        <Card style={{marginBottom:12}}>
+          <SectionLabel>Alternative Assets</SectionLabel>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>Watches, art, collectables, wine, cars, business interests — manually valued</div>
+
+          {/* Alt asset list */}
+          {(altAssets||[]).map((a,i)=>{
+            const gain=(parseFloat(a.currentValue)||0)-(parseFloat(a.costBasis)||0);
+            const gainPct=a.costBasis&&parseFloat(a.costBasis)>0?gain/parseFloat(a.costBasis)*100:null;
+            return (
+              <div key={a.id}>
+                {i>0&&<Divider/>}
+                <div style={{display:"flex",alignItems:"center",padding:"8px 0"}}>
+                  <div style={{width:32,height:32,borderRadius:8,background:a.color+"22",border:"1px solid "+a.color+"44",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0,marginRight:10}}>{a.icon}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                      <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>{a.name}</span>
+                      <span style={{fontSize:9,color:a.color,fontFamily:"sans-serif",background:a.color+"14",padding:"1px 5px",borderRadius:3,textTransform:"uppercase",letterSpacing:.5}}>{a.category}</span>
+                    </div>
+                    {a.description&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{a.description}</div>}
+                    {gain!==0&&a.costBasis&&<div style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>
+                      {(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+(gainPct!==null?" ("+gainPct.toFixed(1)+"%)":"")}
+                    </div>}
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{"Updated "+a.updatedAt}</div>
+                  </div>
+                  <div style={{textAlign:"right",marginLeft:10}}>
+                    <div style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt(parseFloat(a.currentValue)||0)}</div>
+                    {a.costBasis&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"cost "+fmt(parseFloat(a.costBasis)||0)}</div>}
+                  </div>
+                  <button onClick={()=>{
+                    const newVal=prompt("Update current value for "+a.name+":",a.currentValue||"");
+                    if(newVal!==null&&!isNaN(parseFloat(newVal)))
+                      setAltAssets(as=>(as||[]).map(x=>x.id===a.id?{...x,currentValue:parseFloat(newVal),updatedAt:todayStr()}:x));
+                  }} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Update</button>
+                  <button onClick={()=>setAltAssets(as=>(as||[]).filter(x=>x.id!==a.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,marginLeft:6,opacity:.5}}>X</button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Total */}
+          {(altAssets||[]).length>0&&(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderTop:"1px solid "+t.BORDER,marginTop:4}}>
+              <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Total Alternative Assets</span>
+              <span style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt((altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0))}</span>
+            </div>
+          )}
+
+          {/* Add form */}
+          <AddAltAssetForm onAdd={a=>setAltAssets(as=>[...(as||[]),{...a,id:Date.now(),updatedAt:todayStr()}])}/>
+        </Card>
+
         <Card>
           <SectionLabel>Liabilities</SectionLabel>
           {debts.map((d,i)=>(
@@ -5871,7 +6111,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
-function LearnPage({profile,goals,habits,learnData,setLearnData}){
+function LearnPage({profile,goals,habits,learnData,commodityHoldings,altAssets,setLearnData}){
   const t=T();
   const[tab,setTab]=useState("discover");
   const[recs,setRecs]=useState([]);
@@ -6522,6 +6762,8 @@ function App(){
   const[services,setServices]=useState([]);
   const[learnData,setLearnData]=useState({library:[],sessions:[],weeklyGoal:5});
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
+  const[commodityHoldings,setCommodityHoldings]=useState([]);
+  const[altAssets,setAltAssets]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({});
@@ -6533,6 +6775,7 @@ function App(){
   const market=useMarket();
   const portfolio=usePortfolio(holdings);
   const cryptoPortfolio=useCrypto(cryptoHoldings);
+  const commodityPortfolio=useCommodities(commodityHoldings);
 
   useEffect(()=>{
     const today=todayStr();
@@ -6592,6 +6835,8 @@ function App(){
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
               if(d.learnData)setLearnData(d.learnData);
+              if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
+              if(d.altAssets!==undefined)setAltAssets(d.altAssets);
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             setHydrated(true);
             setTimeout(()=>setReadyToSave(true),500);
@@ -6635,6 +6880,8 @@ function App(){
         if(saved.notes!==undefined)setNotes(saved.notes);
         if(saved.services!==undefined)setServices(saved.services);
       if(saved.learnData)setLearnData(saved.learnData);
+      if(saved.commodityHoldings!==undefined)setCommodityHoldings(saved.commodityHoldings);
+      if(saved.altAssets!==undefined)setAltAssets(saved.altAssets);
         if(saved.advisorMessages!==undefined)setAdvisorMessages(saved.advisorMessages);
       }
       setHydrated(true);
@@ -6777,6 +7024,8 @@ function App(){
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
               if(d.learnData)setLearnData(d.learnData);
+              if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
+              if(d.altAssets!==undefined)setAltAssets(d.altAssets);
             if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -6808,6 +7057,8 @@ function App(){
               if(d.notes!==undefined)setNotes(d.notes);
               if(d.services!==undefined)setServices(d.services);
               if(d.learnData)setLearnData(d.learnData);
+              if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
+              if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -6855,7 +7106,7 @@ function App(){
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setBills([]);setHistory({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
-    setCryptoHoldings([]);setBudgets({});setAdvisorMessages([]);
+    setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setBudgets({});setAdvisorMessages([]);
     setShowSetup(true);
     setPage("dashboard");
   };
@@ -6865,12 +7116,14 @@ function App(){
   if(activeProfile.locale)_locale=activeProfile.locale;
   const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
   const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
-  const liveAssets=(parseFloat(activeProfile.propertyValue)||0)+(parseFloat(activeProfile.cashSavings)||0)+(parseFloat(activeProfile.superBalance)||0)+liveCryptoValue+liveShareValue;
-  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0);
+  const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
+  const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
+  const liveAssets=(parseFloat(activeProfile.propertyValue)||0)+(parseFloat(activeProfile.cashSavings)||0)+(parseFloat(activeProfile.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
+  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0);
   const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
@@ -6931,7 +7184,7 @@ function App(){
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
-          {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio}/>}
+          {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets}/>}
           {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
