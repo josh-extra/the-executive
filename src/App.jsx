@@ -7013,7 +7013,8 @@ function App(){
   },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
-  const tDone=tasks.filter(tk=>tk.done).length;
+  const todayT=todayTasks(tasks);
+  const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
   const tS=todayT.length?Math.round(tDone/todayT.length*40):0;
   const sS=supplements.length?Math.round(sDone/supplements.length*30):0;
