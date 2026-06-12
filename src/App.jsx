@@ -4293,14 +4293,15 @@ function WorkoutPage({workouts,setWorkouts,profile}){
   );
 }
 
-function ReadingPage({books,setBooks}){
+function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300,review:"",rating:0,dateFinished:todayStr()});  // already updated
   const[expandDone,setExpandDone]=useState({});
   const[notePrompt,setNotePrompt]=useState(null);
   const[expandNotes,setExpandNotes]=useState({});
-  const[annualGoal,setAnnualGoal]=useState(24);
+  const annualGoal=readingGoal||24;
+  const setAnnualGoal=setReadingGoal;
   const[editGoal,setEditGoal]=useState(false);
   const add=()=>{
     if(!form.title)return;
@@ -4559,13 +4560,24 @@ function ReadingPage({books,setBooks}){
                         <div style={{display:"flex",gap:4,flex:1,alignItems:"center"}}>
                           <input
                             type="number"
-                            placeholder="Page #"
+                            placeholder="Jump to page"
                             min={0}
                             max={b.tot}
-                            onKeyDown={e=>{if(e.key==="Enter"&&e.target.value){const p=Math.min(Math.max(0,parseInt(e.target.value)||0),b.tot);setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p,status:p>=x.tot?"done":x.status,dateFinished:p>=x.tot?todayStr():x.dateFinished}:x));e.target.value="";}}}
+                            onKeyDown={e=>{
+                              if(e.key==="Enter"&&e.target.value){
+                                const p=Math.max(0,Math.min(parseInt(e.target.value)||0,b.tot));
+                                // Only mark done if they explicitly enter the last page
+                                if(p>=b.tot){
+                                  markFinished(b.id);
+                                } else {
+                                  setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));
+                                }
+                                e.target.value="";
+                              }
+                            }}
                             style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 8px",color:t.TEXT,fontFamily:"sans-serif",fontSize:11,outline:"none",minWidth:0}}
                           />
-                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>Jump to page</span>
+                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>set page</span>
                         </div>
                         <button onClick={()=>markFinished(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0}}>Done</button>
                       </div>
@@ -6113,7 +6125,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
-function LearnPage({profile,goals,habits,learnData,commodityHoldings,altAssets,setLearnData}){
+function LearnPage({profile,goals,habits,learnData,commodityHoldings,altAssets,readingGoal,setLearnData}){
   const t=T();
   const[tab,setTab]=useState("discover");
   const[recs,setRecs]=useState([]);
@@ -6751,6 +6763,7 @@ function App(){
   const[transactions,setTransactions]=useState([]);
   const[journal,setJournal]=useState([]);
   const[books,setBooks]=useState(D_BOOKS);
+  const[readingGoal,setReadingGoal]=useState(24);
   const[bills,setBills]=useState([]);
   const[debts,setDebts]=useState([]);
   const[history,setHistory]=useState({});
@@ -6821,6 +6834,7 @@ function App(){
             if(d.transactions!==undefined)setTransactions(d.transactions);
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
+              if(d.readingGoal)setReadingGoal(d.readingGoal);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.history)setHistory(d.history);
@@ -7021,6 +7035,7 @@ function App(){
             if(d.transactions!==undefined)setTransactions(d.transactions);
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
+              if(d.readingGoal)setReadingGoal(d.readingGoal);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.notes!==undefined)setNotes(d.notes);
@@ -7054,6 +7069,7 @@ function App(){
               if(d.transactions!==undefined)setTransactions(d.transactions);
               if(d.journal!==undefined)setJournal(d.journal);
               if(d.books!==undefined)setBooks(d.books);
+              if(d.readingGoal)setReadingGoal(d.readingGoal);
               if(d.bills!==undefined)setBills(d.bills);
               if(d.debts!==undefined)setDebts(d.debts);
               if(d.notes!==undefined)setNotes(d.notes);
@@ -7197,7 +7213,7 @@ function App(){
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile}/>}
-          {page==="reading"&&<ReadingPage books={books} setBooks={setBooks}/>}
+          {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog}/>}
           {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
