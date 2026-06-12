@@ -61,7 +61,7 @@ const WTYPES=["Strength","Hypertrophy","Cardio","HIIT","Mobility","Sport"];
 const WCOLORS={Strength:"#C9A84C",Hypertrophy:"#B07EC9",Cardio:"#7A9E7E",HIIT:"#C97E7E",Mobility:"#7EB8C9",Sport:"#D4956A"};
 const JP=["What is my number 1 priority today?","What am I grateful for?","What would make today a win?","What obstacle must I overcome?","What did I learn yesterday?"];
 const NAV=[
-  ["dashboard","🏠","Dashboard"],["search","🔍","Search"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
+  ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
   ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
@@ -551,7 +551,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   ];
 
   const groups=[
-    ["Command",["dashboard","search","weekly","advisor","learn","notes","services"]],
+    ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","cashflow","bills","budget","debt","invest"]],
     ["Health",["health","body","workout","recipes"]],
