@@ -3595,7 +3595,7 @@ function BillsPage({bills,setBills}){
                     <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>
                       {b.name}{b.autopay&&<span style={{fontSize:9,color:t.GREEN,marginLeft:5,fontFamily:"sans-serif"}}>auto</span>}
                     </div>
-                    <div style={{fontSize:10,color:diff===0?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{dueLabel+" - "+b.nextDue}</div>
+                    <div style={{fontSize:10,color:diff===0?t.RED:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{dueLabel+" - "+new Date(b.nextDue+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}</div>
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{fmtAmt(b.amount)}</span>
@@ -6652,7 +6652,7 @@ function ServicesPage({services,setServices}){
 
   const openEdit=s=>{setForm({name:s.name,role:s.role,firm:s.firm||"",phone:s.phone||"",email:s.email||"",lastContact:s.lastContact||"",nextFollow:s.nextFollow||"",notes:s.notes||""});setEditing(s.id);setShowAdd(true);};
 
-  const daysUntil=d=>{if(!d)return null;const diff=Math.round((new Date(d)-new Date())/(1000*60*60*24));return diff;};
+  const daysUntil=d=>{if(!d)return null;const diff=Math.round((new Date(d+"T12:00:00")-new Date())/864e5);return diff;};
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
