@@ -719,7 +719,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio}){
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
   useEffect(()=>{
