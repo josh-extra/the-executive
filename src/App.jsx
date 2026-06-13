@@ -1638,7 +1638,19 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
     return{...c,count:cg.length,avg:cg.length?Math.round(cg.reduce((s,g)=>s+calcProgress(g),0)/cg.length):0};
   }).filter(c=>c.count>0);
 
-  const GoalForm=({value,onChange,onSave,onCancel,saveLabel="Create Goal"})=>(
+  const GoalForm=({value,onChange,onSave,onCancel,saveLabel="Create Goal"})=>{
+    const t=T();
+    const autoEndDate=(period,start)=>{
+      if(!start)return"";
+      const d=new Date(start+"T12:00:00");
+      if(period==="week")d.setDate(d.getDate()+7);
+      else if(period==="month")d.setMonth(d.getMonth()+1);
+      else if(period==="quarter")d.setMonth(d.getMonth()+3);
+      else if(period==="year")d.setFullYear(d.getFullYear()+1);
+      else return""; // longterm — no auto end
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    };
+    return (
     <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
       <SectionLabel>{saveLabel==="Create Goal"?"New Goal":"Edit Goal"}</SectionLabel>
       <div style={{display:"flex",flexDirection:"column",gap:9}}>
@@ -1647,7 +1659,11 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
           <Sel value={value.category||"wealth"} onChange={e=>onChange(f=>({...f,category:e.target.value}))} style={{flex:1}}>
             {CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
           </Sel>
-          <Sel value={value.period||"year"} onChange={e=>onChange(f=>({...f,period:e.target.value}))} style={{flex:1}}>
+          <Sel value={value.period||"year"} onChange={e=>{
+            const newPeriod=e.target.value;
+            const newEnd=autoEndDate(newPeriod,value.startDate||todayStr());
+            onChange(f=>({...f,period:newPeriod,endDate:newEnd}));
+          }} style={{flex:1}}>
             <option value="week">This Week</option>
             <option value="month">This Month</option>
             <option value="quarter">This Quarter</option>
@@ -1658,7 +1674,11 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
         <div style={{display:"flex",gap:8}}>
           <div style={{flex:1}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>Start Date</div>
-            <Inp type="date" value={value.startDate||""} onChange={e=>onChange(f=>({...f,startDate:e.target.value}))}/>
+            <Inp type="date" value={value.startDate||""} onChange={e=>{
+              const newStart=e.target.value;
+              const newEnd=autoEndDate(value.period||"year",newStart);
+              onChange(f=>({...f,startDate:newStart,endDate:newEnd}));
+            }}/>
           </div>
           <div style={{flex:1}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>End Date (optional)</div>
@@ -1669,7 +1689,8 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
         <div style={{display:"flex",gap:8}}><Btn onClick={onSave}>{saveLabel}</Btn><Btn onClick={onCancel} variant="ghost">Cancel</Btn></div>
       </div>
     </Card>
-  );
+    );
+  };
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
@@ -1747,7 +1768,10 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
                           </div>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
                             <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{catLabel(g.category)}</div>
-                            {g.startDate&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{g.startDate}{g.endDate?" → "+g.endDate:""}</div>}
+                            {g.startDate&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>
+                      {new Date(g.startDate+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}
+                      {g.endDate?" → "+new Date(g.endDate+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):""}
+                    </div>}
                           </div>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
