@@ -1603,7 +1603,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-haiku-4-5",max_tokens:600,
         system:"Return ONLY a JSON array, no markdown, no explanation.",
-        messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+"). User age: "+profile?.age+", net worth: $"+Math.round(nw).toLocaleString()+"."+(g.startDate?" Start: "+g.startDate+".":"")+(g.endDate?" End: "+g.endDate+".")+(g.notes?" Notes: "+g.notes+".")+" Suggest 3-5 specific checkpoints with realistic due dates. Return JSON: [{text, dueDate (YYYY-MM-DD)}]. Be specific, not generic."}]
+        messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+"). User age: "+profile?.age+", net worth: $"+Math.round(nw).toLocaleString()+"."+(g.startDate?" Start: "+g.startDate+".":"")+(g.endDate?" End: "+g.endDate+".":"")+(g.notes?" Notes: "+g.notes+".":"")+" Suggest 3-5 specific checkpoints with realistic due dates. Return JSON: [{text, dueDate (YYYY-MM-DD)}]. Be specific, not generic."}]
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
