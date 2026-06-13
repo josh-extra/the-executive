@@ -740,7 +740,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const nwLabels=[...nwEntries.map(e=>e[0]),todayStr()];
   const togTask=id=>setTasks(ts=>ts.map(tk=>tk.id===id?{...tk,done:!tk.done}:tk));
   const togHabit=id=>setHabitLog(l=>({...l,[id+"_"+todayStr()]:!l[id+"_"+todayStr()]}));
-  const quotes=["Wealth is the slave of a wise man.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest.","Do not save what is left after spending.","Discipline is the bridge between goals and accomplishment.","Fortune favours the prepared mind.","Either you run the day or the day runs you.","The goal is living life on your own terms."];
+  const quotes=["Wealth is the slave of a wise man, the master of a fool.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest. — Franklin","Do not save what is left after spending; spend what is left after saving. — Buffett","Discipline is the bridge between goals and accomplishment. — Jim Rohn","Fortune favours the prepared mind. — Pasteur","Either you run the day or the day runs you. — Jim Rohn","The goal is not more money. The goal is living life on your own terms.","It's not about having time. It's about making time.","The man who moves a mountain begins by carrying away small stones. — Confucius","Success is nothing more than a few simple disciplines, practised every day. — Jim Rohn","You don't rise to the level of your goals. You fall to the level of your systems. — James Clear","The best time to plant a tree was 20 years ago. The second best time is now.","Risk comes from not knowing what you're doing. — Buffett","Price is what you pay. Value is what you get. — Buffett","In investing, what is comfortable is rarely profitable. — Robert Arnott","The stock market is a device for transferring money from the impatient to the patient. — Buffett","Compound interest is the eighth wonder of the world. — Einstein","The four most dangerous words in investing: this time it's different. — Templeton","An investor who has all the answers doesn't even understand the questions. — Templeton","The successful warrior is the average man, with laser-like focus. — Bruce Lee","Do not go where the path may lead. Go instead where there is no path. — Emerson","He who is not courageous enough to take risks will accomplish nothing in life. — Ali","The only way to do great work is to love what you do. — Steve Jobs","Your time is limited. Don't waste it living someone else's life. — Steve Jobs","The harder I work, the luckier I get. — Samuel Goldwyn","Opportunities don't happen. You create them. — Chris Grosser","I find that the harder I work, the more luck I seem to have. — Jefferson","Success usually comes to those who are too busy to be looking for it. — Thoreau","Don't watch the clock; do what it does. Keep going. — Sam Levenson","The way to get started is to quit talking and begin doing. — Walt Disney","It is not the strongest species that survive, but the most adaptable. — Darwin","Tough times never last, but tough people do. — Robert H. Schuller","The mind is everything. What you think, you become. — Buddha","Quality is not an act. It is a habit. — Aristotle","We are what we repeatedly do. Excellence, then, is not an act, but a habit. — Aristotle","The secret of change is to focus all energy not on fighting the old, but building the new. — Socrates","Knowing is not enough; we must apply. Willing is not enough; we must do. — Goethe","A person who never made a mistake never tried anything new. — Einstein","Life is what happens when you're busy making other plans. — Lennon","Twenty years from now you'll be more disappointed by the things you didn't do. — Twain","You miss 100% of the shots you don't take. — Gretzky","Whether you think you can or think you can't, you're right. — Henry Ford","The only limit to our realisation of tomorrow is our doubts of today. — FDR","It does not matter how slowly you go as long as you do not stop. — Confucius","Everything you've ever wanted is on the other side of fear. — George Addair","Hardships often prepare ordinary people for an extraordinary destiny. — C.S. Lewis","Believe you can and you're halfway there. — Theodore Roosevelt","What we achieve inwardly will change outer reality. — Plutarch","Simplicity is the ultimate sophistication. — Leonardo da Vinci","Real wealth is not about money. Real wealth is not having to go to meetings. — Naval Ravikant","Play long-term games with long-term people. — Naval Ravikant","Earn with your mind, not your time. — Naval Ravikant","The goal of investing is to find businesses you can predict and own them forever. — Munger","All I want to know is where I'm going to die, so I'll never go there. — Munger","Invert, always invert. — Munger","Spend each day trying to be a little wiser than you were when you woke up. — Munger","It takes 20 years to build a reputation and 5 minutes to ruin it. — Buffett","The most important investment you can make is in yourself. — Buffett","Someone is sitting in the shade today because someone planted a tree long ago. — Buffett"];
   const quote=quotes[(new Date().getFullYear()*10000+new Date().getMonth()*100+new Date().getDate())%quotes.length];
   const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   const highTasks=tasks.filter(tk=>tk.priority==="high");
@@ -1506,20 +1506,16 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   );
 }
 
-function GoalsPage({goals,setGoals,completed,setCompleted}){
+function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   const t=T();
   const[filter,setFilter]=useState("all");
   const[showAdd,setShowAdd]=useState(false);
-  const[expanded,setExpanded]=useState({});
   const[showDone,setShowDone]=useState(false);
-  const[aiSuggs,setAiSuggs]=useState("");
-  const[aiLoading,setAiLoading]=useState(false);
-  const[form,setForm]=useState({title:"",category:"wealth",period:"year",targetDate:"",targetValue:"",currentValue:"",unit:"",notes:""});
-  const[msForm,setMsForm]=useState({title:"",targetDate:"",goalId:null});
-  const[showMsAdd,setShowMsAdd]=useState(null);
-  const[actionForm,setActionForm]=useState({text:"",frequency:"weekly",milestoneId:null,goalId:null});
-  const[showActionAdd,setShowActionAdd]=useState(null);
-  const[confirmDeleteGoal,setConfirmDeleteGoal]=useState(null);
+  const[form,setForm]=useState({title:"",category:"wealth",period:"year",notes:""});
+  const[aiLoading,setAiLoading]=useState(null); // goalId being loaded
+  const[confirmDel,setConfirmDel]=useState(null);
+  const[addCpGoalId,setAddCpGoalId]=useState(null);
+  const[cpForm,setCpForm]=useState({text:"",dueDate:""});
 
   const CATS=[
     {id:"wealth",label:"Wealth",color:"#C9A84C"},
@@ -1535,74 +1531,82 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
   const allGoals=goals||[];
   const filtered=filter==="all"?allGoals:allGoals.filter(g=>g.category===filter);
 
-  // Category ring stats
-  const catStats=CATS.map(c=>{
-    const cGoals=allGoals.filter(g=>g.category===c.id);
-    const avg=cGoals.length?Math.round(cGoals.reduce((s,g)=>s+(g.progress||0),0)/cGoals.length):0;
-    return{...c,count:cGoals.length,avg};
-  }).filter(c=>c.count>0);
-
-  const onTrack=allGoals.filter(g=>(g.progress||0)>=40).length;
-  const behind=allGoals.filter(g=>(g.progress||0)<40).length;
-
-  const toggleExpand=id=>setExpanded(x=>({...x,[id]:!x[id]}));
+  // Progress is checkpoint-based
+  const calcProgress=g=>{
+    const cps=g.checkpoints||[];
+    if(!cps.length)return g.progress||0;
+    return Math.round(cps.filter(cp=>cp.done).length/cps.length*100);
+  };
 
   const addGoal=()=>{
     if(!form.title.trim())return;
-    setGoals(gs=>[...gs,{...form,id:Date.now(),progress:0,milestones:[],actions:[]}]);
-    setForm({title:"",category:"wealth",period:"year",targetDate:"",targetValue:"",currentValue:"",unit:"",notes:""});
+    setGoals(gs=>[...gs,{...form,id:Date.now(),progress:0,checkpoints:[]}]);
+    setForm({title:"",category:"wealth",period:"year",notes:""});
     setShowAdd(false);
   };
 
-  const addMilestone=(goalId)=>{
-    if(!msForm.title.trim())return;
-    setGoals(gs=>gs.map(g=>g.id===goalId?{...g,milestones:[...(g.milestones||[]),{id:Date.now(),title:msForm.title,targetDate:msForm.targetDate,done:false,actions:[]}]}:g));
-    setMsForm({title:"",targetDate:"",goalId:null});setShowMsAdd(null);
+  const addCheckpoint=(goalId)=>{
+    if(!cpForm.text.trim())return;
+    setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,
+      checkpoints:[...(g.checkpoints||[]),{id:Date.now(),text:cpForm.text,dueDate:cpForm.dueDate||"",done:false,doneAt:""}]
+    }));
+    setCpForm({text:"",dueDate:""});
+    setAddCpGoalId(null);
   };
 
-  const addAction=(goalId,msId)=>{
-    if(!actionForm.text.trim())return;
-    const action={id:Date.now(),text:actionForm.text,frequency:actionForm.frequency,done:false};
-    if(msId){
-      setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,milestones:(g.milestones||[]).map(m=>m.id!==msId?m:{...m,actions:[...(m.actions||[]),action]})}));
-    }else{
-      setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,actions:[...(g.actions||[]),action]}));
-    }
-    setActionForm({text:"",frequency:"weekly",milestoneId:null,goalId:null});setShowActionAdd(null);
+  const toggleCheckpoint=(goalId,cpId)=>{
+    setGoals(gs=>gs.map(g=>{
+      if(g.id!==goalId)return g;
+      const cps=(g.checkpoints||[]).map(cp=>cp.id!==cpId?cp:{...cp,done:!cp.done,doneAt:!cp.done?todayStr():""});
+      const pct=Math.round(cps.filter(c=>c.done).length/cps.length*100);
+      // Auto-complete goal if all checkpoints done
+      if(pct>=100){
+        setTimeout(()=>{
+          setGoals(gs2=>gs2.filter(x=>x.id!==goalId));
+          setCompleted(cs=>[{...g,checkpoints:cps,progress:100,completedAt:todayStr()},...(cs||[])]);
+        },600);
+      }
+      return{...g,checkpoints:cps,progress:pct};
+    }));
   };
 
-  const toggleAction=(goalId,msId,actionId)=>{
-    if(msId){
-      setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,milestones:(g.milestones||[]).map(m=>m.id!==msId?m:{...m,actions:(m.actions||[]).map(a=>a.id!==actionId?a:{...a,done:!a.done})})}));
-    }else{
-      setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,actions:(g.actions||[]).map(a=>a.id!==actionId?a:{...a,done:!a.done})}));
-    }
+  const deleteCheckpoint=(goalId,cpId)=>{
+    setGoals(gs=>gs.map(g=>{
+      if(g.id!==goalId)return g;
+      const cps=(g.checkpoints||[]).filter(cp=>cp.id!==cpId);
+      const pct=cps.length?Math.round(cps.filter(c=>c.done).length/cps.length*100):0;
+      return{...g,checkpoints:cps,progress:pct};
+    }));
   };
 
-  const toggleMilestone=(goalId,msId)=>{
-    setGoals(gs=>gs.map(g=>g.id!==goalId?g:{...g,milestones:(g.milestones||[]).map(m=>m.id!==msId?m:{...m,done:!m.done})}));
-  };
-
-  const setProgress=(id,v)=>{
-    const np=Math.max(0,Math.min(100,v));
-    if(np>=100){const g=allGoals.find(x=>x.id===id);if(g){setGoals(gs=>gs.filter(x=>x.id!==id));setCompleted(cs=>[{...g,progress:100,completedAt:todayStr()},...(cs||[])]);}}
-    else setGoals(gs=>gs.map(g=>g.id===id?{...g,progress:np}:g));
-  };
-
-  const getAiSuggestions=async()=>{
-    setAiLoading(true);setAiSuggs("");
+  const getSuggestions=async(g)=>{
+    setAiLoading(g.id);
+    const nw=parseFloat(profile?.netWorth||0);
+    const age=profile?.age||"";
     try{
-      const goalSummary=allGoals.map(g=>g.title+" ("+g.progress+"%"+" - "+g.category+")").join(", ");
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:600,messages:[{role:"user",content:"My goals: "+goalSummary+". Suggest 3 specific, actionable micro-actions I should take this week to make progress. For each: GOAL NAME | ACTION | FREQUENCY. Be direct and specific, not generic."}]})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-haiku-4-5",max_tokens:600,
+        system:"Return ONLY a JSON array of checkpoint objects, no markdown, no explanation.",
+        messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+" category). User age: "+age+", net worth: $"+Math.round(nw).toLocaleString()+". "+(g.notes?"Notes: "+g.notes+". ":"")+"Suggest 3-5 specific checkpoints with due dates. Return JSON array: [{text, dueDate (YYYY-MM-DD, realistic based on "+g.period+" timeframe)}]. Be specific and actionable, not generic."}]
+      })});
       const d=await r.json();
-      setAiSuggs((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
-    }catch{setAiSuggs("Connection error.");}
-    setAiLoading(false);
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const start=text.indexOf("["),end=text.lastIndexOf("]");
+      if(start>-1&&end>-1){
+        const suggestions=JSON.parse(text.slice(start,end+1));
+        setGoals(gs=>gs.map(x=>x.id!==g.id?x:{...x,
+          checkpoints:[...(x.checkpoints||[]),...suggestions.map(s=>({id:Date.now()+Math.random(),text:s.text,dueDate:s.dueDate||"",done:false,doneAt:""}))]
+        }));
+      }
+    }catch(e){console.error(e);}
+    setAiLoading(null);
   };
 
-  // Ring SVG helper
-  const Ring=({pct,color,size=56})=>{
-    const r=size*0.39,circ=2*Math.PI*r,offset=circ-(pct/100)*circ;
+  const onTrack=allGoals.filter(g=>calcProgress(g)>=40).length;
+  const behind=allGoals.filter(g=>calcProgress(g)<40).length;
+
+  const Ring=({pct,color,size=52})=>{
+    const r=size*0.39,circ=2*Math.PI*r,offset=circ-(Math.min(pct,100)/100)*circ;
     return(
       <svg width={size} height={size} viewBox={"0 0 "+size+" "+size} style={{transform:"rotate(-90deg)"}}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.BORDER} strokeWidth={size*0.09}/>
@@ -1611,6 +1615,11 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
     );
   };
 
+  const catStats=CATS.map(c=>{
+    const cg=allGoals.filter(g=>g.category===c.id);
+    return{...c,count:cg.length,avg:cg.length?Math.round(cg.reduce((s,g)=>s+calcProgress(g),0)/cg.length):0};
+  }).filter(c=>c.count>0);
+
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       {/* Header */}
@@ -1618,7 +1627,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Targets & Milestones</div>
           <div style={{fontSize:26,color:t.TEXT}}>Goals</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{allGoals.length+" active - "+onTrack+" on track - "+behind+" behind"}</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{allGoals.length+" active · "+onTrack+" on track · "+behind+" behind"}</div>
         </div>
         <div style={{display:"flex",gap:8}}>
           {(completed||[]).length>0&&<button onClick={()=>setShowDone(s=>!s)} style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{(completed||[]).length+" done"}</button>}
@@ -1626,51 +1635,27 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
         </div>
       </div>
 
-      {/* Category rings overview */}
+      {/* Category rings */}
       {catStats.length>0&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat("+Math.min(catStats.length,4)+",1fr)",gap:10,marginBottom:16}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat("+Math.min(catStats.length,6)+",1fr)",gap:8,marginBottom:16}}>
           {catStats.map(c=>(
-            <div key={c.id} onClick={()=>setFilter(filter===c.id?"all":c.id)} style={{background:filter===c.id?c.color+"18":t.CARD,border:"1px solid "+(filter===c.id?c.color:t.BORDER),borderRadius:10,padding:"12px 8px",textAlign:"center",cursor:"pointer",transition:"all .2s"}}>
-              <div style={{position:"relative",width:56,height:56,margin:"0 auto 8px"}}>
+            <div key={c.id} onClick={()=>setFilter(filter===c.id?"all":c.id)} style={{background:filter===c.id?c.color+"18":t.CARD,border:"1px solid "+(filter===c.id?c.color:t.BORDER),borderRadius:9,padding:"10px 6px",textAlign:"center",cursor:"pointer"}}>
+              <div style={{position:"relative",width:52,height:52,margin:"0 auto 6px"}}>
                 <Ring pct={c.avg} color={c.color}/>
-                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:c.color,fontWeight:700}}>{c.avg+"%"}</div>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:c.color,fontWeight:700}}>{c.avg+"%"}</div>
               </div>
-              <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600,marginBottom:2}}>{c.label}</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{c.count+" goal"+(c.count!==1?"s":"")}</div>
+              <div style={{fontSize:10,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{c.label}</div>
+              <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{c.count+" goal"+(c.count!==1?"s":"")}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Stats row */}
-      {allGoals.length>0&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}>
-          {[{l:"Total",v:allGoals.length,c:t.GOLD},{l:"On Track",v:onTrack,c:t.GREEN},{l:"Behind",v:behind,c:t.RED},{l:"Completed",v:(completed||[]).length,c:t.BLUE}].map(s=>(
-            <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
-          ))}
-        </div>
-      )}
-
-      {/* AI Goal Coach */}
-      <Card style={{marginBottom:16,borderColor:t.GOLD+"33"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiSuggs||aiLoading?12:0}}>
-          <div>
-            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>AI Goal Coach</div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised micro-actions based on your goals</div>
-          </div>
-          <button onClick={getAiSuggestions} disabled={aiLoading||!allGoals.length} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:t.GOLD,cursor:aiLoading||!allGoals.length?"default":"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap",opacity:!allGoals.length?.5:1}}>
-            {aiLoading?"Thinking...":"Generate Actions"}
-          </button>
-        </div>
-        {aiLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85].map((w,i)=><Skeleton key={i} width={w+"%"} height={12}/>)}</div>}
-        {aiSuggs&&!aiLoading&&<div style={{fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiSuggs}</div>}
-      </Card>
-
       {/* Add goal form */}
       {showAdd&&(
-        <Card style={{marginBottom:16,borderColor:t.GOLD+"44"}}>
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
           <SectionLabel>New Goal</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Inp value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="What do you want to achieve?"/>
             <div style={{display:"flex",gap:8}}>
               <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
@@ -1679,293 +1664,149 @@ function GoalsPage({goals,setGoals,completed,setCompleted}){
               <Sel value={form.period} onChange={e=>setForm(f=>({...f,period:e.target.value}))} style={{flex:1}}>
                 <option value="week">This Week</option>
                 <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
                 <option value="year">This Year</option>
                 <option value="longterm">Long Term</option>
               </Sel>
             </div>
-            <div style={{display:"flex",gap:8}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Target Value (optional)</div>
-                <Inp value={form.targetValue} onChange={e=>setForm(f=>({...f,targetValue:e.target.value}))} placeholder="e.g. 3000000"/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Unit (optional)</div>
-                <Inp value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} placeholder="e.g. AUD, kg, books"/>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Target Date</div>
-                <Inp type="date" value={form.targetDate} onChange={e=>setForm(f=>({...f,targetDate:e.target.value}))}/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Current Value</div>
-                <Inp value={form.currentValue} onChange={e=>setForm(f=>({...f,currentValue:e.target.value}))} placeholder="Starting point"/>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8}}><Btn onClick={addGoal}>Add Goal</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn></div>
+            <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Notes — helps AI suggest better checkpoints (optional)"/>
+            <div style={{display:"flex",gap:8}}><Btn onClick={addGoal}>Create Goal</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn></div>
           </div>
-        </Card>
-      )}
-
-      {/* Completed goals */}
-      {showDone&&(completed||[]).length>0&&(
-        <Card style={{marginBottom:16,borderColor:t.GREEN+"44"}}>
-          <SectionLabel>Completed</SectionLabel>
-          {(completed||[]).map((g,i)=>(
-            <div key={g.id||i}>
-              {i>0&&<Divider/>}
-              <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0"}}>
-                <div>
-                  <div style={{fontSize:12,color:t.MUTED,textDecoration:"line-through"}}>{g.title}</div>
-                  <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",marginTop:2}}>Completed {g.completedAt}</div>
-                </div>
-                <div style={{fontSize:16,color:t.GREEN}}>V</div>
-              </div>
-            </div>
-          ))}
         </Card>
       )}
 
       {/* Filter pills */}
-      {catStats.length>1&&(
-        <div style={{display:"flex",gap:7,overflowX:"auto",marginBottom:16,scrollbarWidth:"none"}}>
-          {[{id:"all",label:"All"},...CATS].filter(c=>c.id==="all"||allGoals.some(g=>g.category===c.id)).map(c=>(
-            <button key={c.id} onClick={()=>setFilter(c.id)} style={{flexShrink:0,padding:"5px 13px",borderRadius:16,border:"1px solid "+(filter===c.id?catColor(c.id):t.BORDER),background:filter===c.id?catColor(c.id)+"22":"transparent",color:filter===c.id?catColor(c.id):t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
-              {c.label}
-            </button>
+      {allGoals.length>0&&(
+        <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,scrollbarWidth:"none"}}>
+          {[{id:"all",label:"All"},  ...CATS].map(c=>(
+            <button key={c.id} onClick={()=>setFilter(c.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===c.id?catColor(c.id)||t.GOLD:t.BORDER),background:filter===c.id?(catColor(c.id)||t.GOLD)+"18":"transparent",color:filter===c.id?catColor(c.id)||t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{c.label}</button>
           ))}
         </div>
       )}
 
-      {/* Goals list */}
-      {filtered.map(g=>{
-        const col=catColor(g.category);
-        const isExpanded=!!expanded[g.id];
-        const milestones=g.milestones||[];
-        const actions=g.actions||[];
-        const allActions=[...actions,...milestones.flatMap(m=>m.actions||[])];
-        const doneActions=allActions.filter(a=>a.done).length;
-        const doneMilestones=milestones.filter(m=>m.done).length;
+      {/* Goals by period */}
+      {["week","month","quarter","year","longterm"].map(period=>{
+        const gs=filtered.filter(g=>g.period===period);
+        if(!gs.length)return null;
+        const periodLabel={week:"This Week",month:"This Month",quarter:"This Quarter",year:"This Year",longterm:"Long Term"};
         return (
-          <div key={g.id} style={{marginBottom:12}}>
-            <Card style={{borderLeft:"3px solid "+col,padding:0,overflow:"hidden"}}>
-              {/* Goal header */}
-              <div style={{padding:"14px 16px",cursor:"pointer"}} onClick={()=>toggleExpand(g.id)}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                  <div style={{flex:1,marginRight:12}}>
-                    <div style={{fontSize:14,color:t.TEXT,fontWeight:600,marginBottom:4}}>{g.title}</div>
-                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                      <span style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:col+"18",padding:"2px 7px",borderRadius:9}}>{catLabel(g.category)}</span>
-                      <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 7px",borderRadius:9}}>{g.period==="longterm"?"Long Term":g.period==="year"?"Annual":g.period==="month"?"Monthly":"This Week"}</span>
-                      {g.targetDate&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{g.targetDate}</span>}
-                      {allActions.length>0&&<span style={{fontSize:9,color:doneActions===allActions.length?t.GREEN:t.MUTED,fontFamily:"sans-serif"}}>{doneActions+"/"+allActions.length+" actions"}</span>}
-                      {milestones.length>0&&<span style={{fontSize:9,color:doneMilestones===milestones.length?t.GREEN:t.MUTED,fontFamily:"sans-serif"}}>{doneMilestones+"/"+milestones.length+" milestones"}</span>}
+          <div key={period} style={{marginBottom:20}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>{periodLabel[period]}</div>
+            {gs.map(g=>{
+              const col=catColor(g.category);
+              const cps=g.checkpoints||[];
+              const pct=calcProgress(g);
+              const doneCps=cps.filter(cp=>cp.done).length;
+              return (
+                <Card key={g.id} style={{marginBottom:10,borderLeft:"3px solid "+col}}>
+                  {/* Goal header */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:cps.length?8:0}}>
+                    <div style={{flex:1,marginRight:10}}>
+                      <div style={{fontSize:14,color:t.TEXT,marginBottom:3}}>{g.title}</div>
+                      <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{catLabel(g.category)}</div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:20,color:col,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{pct+"%"}</div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{cps.length?doneCps+" of "+cps.length:"No checkpoints"}</div>
+                      </div>
+                      {confirmDel===g.id?(
+                        <div style={{display:"flex",gap:5}}>
+                          <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                          <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                        </div>
+                      ):(
+                        <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                      )}
                     </div>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                    <div style={{position:"relative",width:44,height:44}}>
-                      {(()=>{const r=18,circ=2*Math.PI*r,offset=circ-((g.progress||0)/100)*circ;return(<svg width={44} height={44} viewBox="0 0 44 44" style={{transform:"rotate(-90deg)"}}><circle cx={22} cy={22} r={r} fill="none" stroke={t.BORDER} strokeWidth={4}/><circle cx={22} cy={22} r={r} fill="none" stroke={col} strokeWidth={4} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"/></svg>);})()}
-                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:col,fontWeight:700}}>{g.progress||0+"%"}</div>
-                    </div>
-                    <div style={{fontSize:12,color:t.MUTED}}>{isExpanded?"^":"v"}</div>
-                  </div>
-                </div>
-                {/* Progress bar */}
-                <PB value={g.progress||0} color={col} height={4}/>
-                {(g.targetValue||g.currentValue)&&(
-                  <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>
-                      {g.currentValue?(g.currentValue+(g.unit?" "+g.unit:"")):"--"}
-                    </span>
-                    {g.targetValue&&(
-                      <span style={{fontSize:9,color:col,fontFamily:"sans-serif"}}>
-                        {g.targetValue+(g.unit?" "+g.unit+"  target":"  target")}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {milestones.length>0&&(
-                  <div style={{marginTop:4,fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>
-                    {doneMilestones+"/"+milestones.length+" milestones complete"}
-                  </div>
-                )}
-              </div>
 
-              {/* Expanded content */}
-              {isExpanded&&(
-                <div style={{borderTop:"1px solid "+t.BORDER}}>
-                  {/* Smart progress controls */}
-                  <div style={{padding:"12px 16px",borderBottom:"1px solid "+t.BORDER}}>
-                    {/* Auto from milestones */}
-                    {milestones.length>0&&(
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Progress auto-calculated from milestones</div>
-                        <div style={{display:"flex",gap:6}}>
-                          <button onClick={()=>{const p=milestones.length?Math.round(doneMilestones/milestones.length*100):0;setProgress(g.id,p);}} style={{background:col+"18",border:"1px solid "+col+"33",borderRadius:5,padding:"3px 9px",color:col,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Sync</button>
-                          {confirmDeleteGoal===g.id?(
-                      <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
-                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
-                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
-                      </div>
-                    ):(
-                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
-                    )}
-                        </div>
-                      </div>
-                    )}
-                    {/* Numeric update if targetValue set */}
-                    {g.targetValue&&!milestones.length&&(
-                      <div style={{marginBottom:8}}>
-                        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Update current value to recalculate progress</div>
-                        <div style={{display:"flex",gap:7,alignItems:"center"}}>
-                          <Inp
-                            type="number"
-                            defaultValue={g.currentValue||""}
-                            onBlur={e=>{
-                              const cur=parseFloat(e.target.value)||0;
-                              const target=parseFloat(g.targetValue)||1;
-                              const pct=Math.min(Math.round(cur/target*100),100);
-                              setGoals(gs=>gs.map(x=>x.id===g.id?{...x,currentValue:String(cur),progress:pct}:x));
-                            }}
-                            placeholder={"Current "+(g.unit||"value")}
-                            style={{flex:1,fontSize:12,padding:"6px 10px"}}
-                          />
-                          {g.unit&&<span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.unit}</span>}
-                          <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{"of "+(g.targetValue)+(g.unit?" "+g.unit:"")}</span>
-                          {confirmDeleteGoal===g.id?(
-                      <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
-                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
-                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
-                      </div>
-                    ):(
-                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
-                    )}
-                        </div>
-                      </div>
-                    )}
-                    {/* Fallback slider for non-numeric, no-milestone goals */}
-                    {!g.targetValue&&!milestones.length&&(
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{g.progress||0+"%"}</span>
-                        <input type="range" min={0} max={100} value={g.progress||0} onChange={e=>setProgress(g.id,parseInt(e.target.value))} style={{flex:1,accentColor:col}}/>
-                        <button onClick={()=>setProgress(g.id,100)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"3px 9px",color:t.GREEN,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",flexShrink:0}}>Done</button>
-                        {confirmDeleteGoal===g.id?(
-                      <div style={{display:"flex",alignItems:"center",gap:5}}>
-                        <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif"}}>Delete?</span>
-                        <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDeleteGoal(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"2px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
-                        <button onClick={()=>setConfirmDeleteGoal(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"2px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
-                      </div>
-                    ):(
-                      <button onClick={()=>setConfirmDeleteGoal(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
-                    )}
-                      </div>
-                    )}
-                  </div>
+                  {/* Progress bar */}
+                  {cps.length>0&&<div style={{marginBottom:10}}><PB value={pct} color={col} height={4}/></div>}
 
-                  {/* Milestones */}
-                  {milestones.length>0&&(
-                    <div style={{padding:"12px 16px",borderBottom:"1px solid "+t.BORDER}}>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Milestones</div>
-                      {milestones.map((ms,mi)=>(
-                        <div key={ms.id} style={{marginBottom:12}}>
-                          <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                            <div onClick={()=>toggleMilestone(g.id,ms.id)} style={{width:22,height:22,borderRadius:"50%",border:"1.5px solid "+(ms.done?col:t.BORDER),background:ms.done?col:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer",marginTop:1}}>
-                              {ms.done&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
-                            </div>
-                            <div style={{flex:1}}>
-                              <div style={{fontSize:12,color:ms.done?t.MUTED:t.TEXT,textDecoration:ms.done?"line-through":"none",marginBottom:2}}>{ms.title}</div>
-                              {ms.targetDate&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{ms.targetDate}</div>}
-                              {/* Milestone actions */}
-                              {(ms.actions||[]).length>0&&(
-                                <div style={{marginTop:8,paddingLeft:4}}>
-                                  {(ms.actions||[]).map(a=>(
-                                    <div key={a.id} onClick={()=>toggleAction(g.id,ms.id,a.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",cursor:"pointer",borderBottom:"1px solid "+t.BORDER+"88"}}>
-                                      <div style={{width:14,height:14,borderRadius:3,border:"1px solid "+(a.done?col:t.BORDER),background:a.done?col:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                                        {a.done&&<span style={{fontSize:8,color:t.BG,fontWeight:700}}>V</span>}
-                                      </div>
-                                      <span style={{fontSize:11,color:a.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:a.done?"line-through":"none",flex:1}}>{a.text}</span>
-                                      <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{a.frequency}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {showActionAdd===ms.id&&(
-                                <div style={{marginTop:8,display:"flex",gap:6}}>
-                                  <Inp value={actionForm.text} onChange={e=>setActionForm(f=>({...f,text:e.target.value}))} placeholder="Action..." style={{flex:2,fontSize:11,padding:"5px 8px"}}/>
-                                  <Sel value={actionForm.frequency} onChange={e=>setActionForm(f=>({...f,frequency:e.target.value}))} style={{flex:1,fontSize:11,padding:"5px 7px"}}>
-                                    <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="once">Once</option>
-                                  </Sel>
-                                  <button onClick={()=>addAction(g.id,ms.id)} style={{background:col+"22",border:"1px solid "+col+"44",borderRadius:5,padding:"5px 9px",color:col,cursor:"pointer",fontSize:11}}>+</button>
-                                </div>
-                              )}
-                              <button onClick={()=>setShowActionAdd(showActionAdd===ms.id?null:ms.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",padding:"4px 0",display:"block",marginTop:4}}>
-                                {showActionAdd===ms.id?"Cancel":"+ Add action"}
-                              </button>
-                            </div>
+                  {/* Checkpoints */}
+                  {cps.map((cp,i)=>{
+                    const overdue=cp.dueDate&&!cp.done&&new Date(cp.dueDate+"T12:00:00")<new Date();
+                    const soon=cp.dueDate&&!cp.done&&!overdue&&Math.round((new Date(cp.dueDate+"T12:00:00")-new Date())/864e5)<=7;
+                    return (
+                      <div key={cp.id}>
+                        {i>0&&<Divider/>}
+                        <div style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0"}}>
+                          <div onClick={()=>toggleCheckpoint(g.id,cp.id)} style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(cp.done?col:t.BORDER2),background:cp.done?col:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .2s"}}>
+                            {cp.done&&<span style={{color:"#080808",fontSize:10,fontWeight:700}}>V</span>}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Goal-level actions (no milestone) */}
-                  {actions.length>0&&(
-                    <div style={{padding:"12px 16px",borderBottom:"1px solid "+t.BORDER}}>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Actions</div>
-                      {actions.map(a=>(
-                        <div key={a.id} onClick={()=>toggleAction(g.id,null,a.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",cursor:"pointer",borderBottom:"1px solid "+t.BORDER+"66"}}>
-                          <div style={{width:16,height:16,borderRadius:3,border:"1px solid "+(a.done?col:t.BORDER),background:a.done?col:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                            {a.done&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:12,color:cp.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:cp.done?"line-through":"none"}}>{cp.text}</div>
+                            {cp.dueDate&&(
+                              <div style={{fontSize:9,color:cp.done?"#7A9E7E":overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"sans-serif",marginTop:1}}>
+                                {cp.done?"Done "+cp.doneAt:overdue?"Overdue · "+cp.dueDate:soon?"Due soon · "+cp.dueDate:"By "+cp.dueDate}
+                              </div>
+                            )}
                           </div>
-                          <span style={{fontSize:12,color:a.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:a.done?"line-through":"none",flex:1}}>{a.text}</span>
-                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>{a.frequency}</span>
+                          <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}>X</button>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })}
 
-                  {/* Add milestone / action buttons */}
-                  <div style={{padding:"10px 16px",display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <button onClick={()=>setShowMsAdd(showMsAdd===g.id?null:g.id)} style={{background:col+"18",border:"1px solid "+col+"33",borderRadius:6,padding:"5px 11px",color:col,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Milestone</button>
-                    <button onClick={()=>setShowActionAdd(showActionAdd===g.id?null:g.id)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 11px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Action</button>
-                  </div>
-
-                  {showMsAdd===g.id&&(
-                    <div style={{padding:"0 16px 14px",display:"flex",gap:7}}>
-                      <Inp value={msForm.title} onChange={e=>setMsForm(f=>({...f,title:e.target.value}))} placeholder="Milestone..." style={{flex:2,fontSize:12}}/>
-                      <Inp type="date" value={msForm.targetDate} onChange={e=>setMsForm(f=>({...f,targetDate:e.target.value}))} style={{flex:1,fontSize:12}}/>
-                      <button onClick={()=>addMilestone(g.id)} style={{background:col+"22",border:"1px solid "+col+"44",borderRadius:6,padding:"8px 12px",color:col,cursor:"pointer",fontSize:12}}>Add</button>
+                  {/* Add checkpoint */}
+                  {addCpGoalId===g.id?(
+                    <div style={{marginTop:8,borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
+                      <div style={{display:"flex",gap:7,marginBottom:7}}>
+                        <Inp value={cpForm.text} onChange={e=>setCpForm(f=>({...f,text:e.target.value}))} placeholder="Checkpoint description..." style={{flex:2,fontSize:12}}
+                          onKeyDown={e=>e.key==="Enter"&&addCheckpoint(g.id)}/>
+                        <Inp type="date" value={cpForm.dueDate} onChange={e=>setCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
+                      </div>
+                      <div style={{display:"flex",gap:7}}>
+                        <Btn onClick={()=>addCheckpoint(g.id)} style={{fontSize:11}}>Add</Btn>
+                        <Btn onClick={()=>{setAddCpGoalId(null);setCpForm({text:"",dueDate:""}); }} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                      </div>
+                    </div>
+                  ):(
+                    <div style={{display:"flex",gap:7,marginTop:cps.length>0?10:4}}>
+                      <button onClick={()=>{setAddCpGoalId(g.id);setCpForm({text:"",dueDate:""}); }} style={{flex:1,background:t.CARD2,border:"1px dashed "+t.BORDER,borderRadius:6,padding:"6px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textAlign:"left"}}>
+                        {"+ Add checkpoint"}
+                      </button>
+                      <button onClick={()=>getSuggestions(g)} disabled={aiLoading===g.id} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"6px 12px",color:aiLoading===g.id?t.MUTED:t.GOLD,cursor:aiLoading===g.id?"default":"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0,whiteSpace:"nowrap"}}>
+                        {aiLoading===g.id?"Thinking...":"AI Suggest"}
+                      </button>
                     </div>
                   )}
-                  {showActionAdd===g.id&&(
-                    <div style={{padding:"0 16px 14px",display:"flex",gap:7}}>
-                      <Inp value={actionForm.text} onChange={e=>setActionForm(f=>({...f,text:e.target.value}))} placeholder="Action..." style={{flex:2,fontSize:12}}/>
-                      <Sel value={actionForm.frequency} onChange={e=>setActionForm(f=>({...f,frequency:e.target.value}))} style={{flex:1,fontSize:12}}>
-                        <option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="once">Once</option>
-                      </Sel>
-                      <button onClick={()=>addAction(g.id,null)} style={{background:col+"22",border:"1px solid "+col+"44",borderRadius:6,padding:"8px 12px",color:col,cursor:"pointer",fontSize:12}}>Add</button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
+                </Card>
+              );
+            })}
           </div>
         );
       })}
 
-      {!filtered.length&&(
+      {/* Completed goals */}
+      {showDone&&(completed||[]).length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>Completed</div>
+          {(completed||[]).map((g,i)=>(
+            <div key={g.id||i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:9,padding:"10px 14px",marginBottom:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:12,color:t.MUTED,textDecoration:"line-through",fontFamily:"sans-serif"}}>{g.title}</div>
+                <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",marginTop:2}}>{"Completed "+g.completedAt}</div>
+              </div>
+              <div style={{fontSize:16,color:t.GREEN}}>V</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {filtered.length===0&&(
         <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
-          <div style={{fontSize:32,marginBottom:12}}>O</div>
+          <div style={{fontSize:28,marginBottom:10}}>O</div>
           <div style={{fontSize:14,marginBottom:8}}>{filter==="all"?"No goals yet":"No "+filter+" goals"}</div>
-          <div style={{fontSize:12}}>Tap + Add to set your first goal</div>
+          <div style={{fontSize:12,marginBottom:16}}>Add a goal and use AI to build out checkpoints</div>
+          <Btn onClick={()=>setShowAdd(true)}>+ Add First Goal</Btn>
         </div>
       )}
     </div>
   );
 }
+
 
 function JournalPage({entries,setEntries}){
   const t=T();
@@ -7517,7 +7358,7 @@ function App(){
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
-          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
+          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
           {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
