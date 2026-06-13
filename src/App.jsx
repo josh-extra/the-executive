@@ -883,7 +883,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       })()}
       </div>
 
-      {/* ── ROW 2: Markets + Cash Flow + Bills ── */}
+      {/* ── ROW 2: Markets + Holdings/Pulse + Bills ── */}
       <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
         {/* Markets */}
         <Card>
@@ -906,32 +906,103 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             </div>
           ))}
         </Card>
-        {/* Cash Flow */}
-        <Card style={{cursor:"pointer"}} onClick={()=>setPage("cashflow")}>
-          <SectionLabel>Cash Flow - This Month</SectionLabel>
-          {monthIncome===0&&monthExpense===0?(
-            <div style={{textAlign:"center",padding:"12px 0"}}>
-              <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>No transactions this month</div>
-              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Add income and expenses in Cash Flow</div>
-            </div>
-          ):(
-            <>
-              <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:10}}>
-                {[{l:"Income",v:monthIncome,c:t.GREEN},{l:"Expenses",v:monthExpense,c:t.RED}].map(x=>(
-                  <div key={x.l} style={{display:"flex",alignItems:"center",gap:7}}>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:52}}>{x.l}</div>
-                    <div style={{flex:1}}><PB value={monthIncome>0?Math.round(x.v/monthIncome*100):0} color={x.c} height={4}/></div>
-                    <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:52,textAlign:"right",fontWeight:600}}>{fmt(x.v)}</div>
+
+        {/* Holdings + Financial Pulse */}
+        <Card style={{padding:0,overflow:"hidden",cursor:"pointer"}} onClick={()=>setPage("wealth")}>
+          {/* Holdings header */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px 8px"}}>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif"}}>Top Holdings</div>
+            {portfolio.lastUpdated?(
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <div style={{width:5,height:5,borderRadius:"50%",background:t.GREEN,animation:"pulse 2s infinite"}}/>
+                <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{portfolio.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>
+              </div>
+            ):<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>No holdings</span>}
+          </div>
+          {/* Holding rows — top 3 by value */}
+          {[...holdings].sort((a,b)=>{
+            const av=(portfolio.prices?.[a.ticker]?.price||a.avgCost||0)*a.shares;
+            const bv=(portfolio.prices?.[b.ticker]?.price||b.avgCost||0)*b.shares;
+            return bv-av;
+          }).slice(0,3).map((h,i)=>{
+            const lp=portfolio.prices?.[h.ticker]?.price;
+            const pct=portfolio.prices?.[h.ticker]?.pct||0;
+            const val=lp?lp*h.shares:(h.avgCost||0)*h.shares;
+            return (
+              <div key={h.id}>
+                <div style={{height:1,background:t.BORDER}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 14px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",fontSize:9,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,minWidth:48,textAlign:"center"}}>{h.ticker.replace(".AX","")}</div>
+                    <div>
+                      <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name!==h.ticker?h.name.slice(0,14):h.ticker}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{h.shares+" shares"}</div>
+                    </div>
                   </div>
-                ))}
+                  <div style={{textAlign:"right"}}>
+                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+lp.toFixed(2)}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>—</div>}
+                    <div style={{fontSize:9,color:pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{pct>=0?"▲":"▼"}{Math.abs(pct).toFixed(2)+"%"}</div>
+                  </div>
+                </div>
               </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid "+t.BORDER,paddingTop:8}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Net this month</div>
-                <div style={{fontSize:18,color:monthNet>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:700}}>{(monthNet>=0?"+":"")+fmt(monthNet)}</div>
+            );
+          })}
+          {/* Also show top crypto if no shares */}
+          {holdings.length===0&&(cryptoHoldings||[]).slice(0,3).map((h,i)=>{
+            const lp=cryptoPortfolio.prices?.[h.symbol||h.ticker]?.price;
+            const pct=cryptoPortfolio.prices?.[h.symbol||h.ticker]?.pct||0;
+            const val=lp?lp*h.amount:(h.avgCost||0)*h.amount;
+            return (
+              <div key={h.ticker||i}>
+                <div style={{height:1,background:t.BORDER}}/>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 14px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"33",borderRadius:4,padding:"2px 6px",fontSize:9,color:t.PURPLE,fontFamily:"sans-serif",fontWeight:700,minWidth:48,textAlign:"center"}}>{(h.ticker||h.symbol||"").replace("-USD","")}</div>
+                    <div>
+                      <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{h.amount+" "+(h.ticker||h.symbol||"")}</div>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+lp.toFixed(2)}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>—</div>}
+                    <div style={{fontSize:9,color:pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{pct>=0?"▲":"▼"}{Math.abs(pct).toFixed(2)+"%"}</div>
+                  </div>
+                </div>
               </div>
-            </>
+            );
+          })}
+          {holdings.length===0&&(cryptoHoldings||[]).length===0&&(
+            <div style={{padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Add holdings in Wealth tab</div>
+            </div>
           )}
+          {/* Portfolio total */}
+          {(holdings.length>0||(cryptoHoldings||[]).length>0)&&(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 14px",background:t.GOLD+"06",borderTop:"1px solid "+t.BORDER,borderBottom:"1px solid "+t.BORDER}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Portfolio Total</div>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                {portfolio.dayChange!==0&&<div style={{fontSize:9,color:portfolio.dayChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(portfolio.dayChange>=0?"▲ +":"▼ ")+fmt(Math.abs(portfolio.dayChange))}</div>}
+                <div style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt((portfolio.totalValue||0)+(cryptoPortfolio.totalValue||0))}</div>
+              </div>
+            </div>
+          )}
+          {/* Financial Pulse strip */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
+            {[
+              {l:"Net Worth",v:fmt(netWorth),c:t.GOLD,sub:Math.round(netWorth/(Number(activeProfile.netWorthTarget)||3e6)*100)+"% to target",pct:Math.round(netWorth/(Number(activeProfile.netWorthTarget)||3e6)*100),pc:t.GOLD},
+              {l:"Bills/mo",v:fmt(bills.reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
+              {l:"Total Debt",v:fmt(totalDebt),c:t.RED,sub:activeProfile.totalAssets>0?Math.round(totalDebt/activeProfile.totalAssets*100)+"% LVR":"",pct:activeProfile.totalAssets>0?Math.round(totalDebt/activeProfile.totalAssets*100):0,pc:t.RED},
+              {l:"Super",v:fmt(parseFloat(activeProfile.superBalance)||0),c:t.PURPLE,sub:"Balance"},
+            ].map((s,i)=>(
+              <div key={s.l} style={{padding:"9px 10px",borderRight:i<3?"1px solid "+t.BORDER:"none"}}>
+                <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>{s.l}</div>
+                <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700,lineHeight:1.2}}>{s.v}</div>
+                {s.pct!==undefined&&<div style={{height:2,background:t.BORDER,borderRadius:99,overflow:"hidden",marginTop:4}}><div style={{width:Math.min(s.pct,100)+"%",height:"100%",background:s.pc,borderRadius:99}}/></div>}
+                <div style={{fontSize:8,color:s.sc||t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{s.sub}</div>
+              </div>
+            ))}
+          </div>
         </Card>
+
         {/* Bills */}
         <Card style={{cursor:"pointer"}} onClick={()=>setPage("bills")}>
           <SectionLabel action={<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Next 7 days</span>}>Bills Due Soon</SectionLabel>
