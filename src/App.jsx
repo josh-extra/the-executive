@@ -34,6 +34,17 @@ const supabase={
   async save(userId,token,data){await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});},
 };
 
+// ── Stripe ────────────────────────────────────────────────────────────────────
+// Replace these with your actual Stripe Price IDs from the Stripe Dashboard
+const STRIPE_PRICES={
+  monthly:"price_1Ti01CRwVRKTnmPjQlIcIfaV",
+  annual:"price_1Ti00YRwVRKTnmPjA6OetwUj",
+};
+const FOUNDING_LIMIT=100;
+const PRO_FEATURES=["advisor","invest","health","wealth","tax","learn","services"];
+const isPro=sub=>sub&&["active","trialing"].includes(sub.status);
+const isFeatureLocked=(page,sub)=>PRO_FEATURES.includes(page)&&!isPro(sub);
+
 const fmt=n=>{
   if(!n&&n!==0)return L().symbol+"0";
   const s=L().symbol,v=Math.abs(n);
@@ -6957,6 +6968,32 @@ function ServicesPage({services,setServices}){
   );
 }
 
+
+function PaywallPage({onUpgrade}){
+  const t=T();
+  const features=["Live stock, crypto & commodity prices","AI Advisor — full dashboard awareness","Morning / Afternoon / Evening Briefing","AI goal checkpoint suggestions","Supplement recommendations","Full wealth tracking & market intelligence"];
+  return(
+    <div style={{maxWidth:480,margin:"0 auto",padding:"40px 20px",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:16}}>L</div>
+      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:8}}>Executive Feature</div>
+      <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>Upgrade to unlock this</div>
+      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24}}>Start your 7-day free trial. No credit card required.</div>
+      <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:"16px",marginBottom:20,textAlign:"left"}}>
+        {features.map((f,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<features.length-1?"1px solid "+t.BORDER:"none"}}>
+            <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span></div>
+            <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
+          </div>
+        ))}
+      </div>
+      <button onClick={onUpgrade} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:.5,marginBottom:10}}>
+        Start Free Trial — 7 Days Free
+      </button>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>From $19/month after trial · Cancel anytime</div>
+    </div>
+  );
+}
+
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
   const[sessionExpired,setSessionExpired]=useState(false);
@@ -6972,6 +7009,9 @@ function App(){
   const[authLoading,setAuthLoading]=useState(false);
   const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
+  const[subscription,setSubscription]=useState(null);
+  const[showUpgrade,setShowUpgrade]=useState(false);
+  const[upgradeLoading,setUpgradeLoading]=useState(false);
   useEffect(()=>{
     const tid=setTimeout(()=>{
       setSplash(false);
@@ -7334,6 +7374,12 @@ function App(){
             }
           }
         }catch(e){console.error("Data load error:",e);}
+        // Load subscription status
+        try{
+          const subRes=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${res.user.id}&select=*`,{headers:sbH(res.access_token)});
+          const subData=await subRes.json();
+          if(subData?.[0])setSubscription(subData[0]);
+        }catch{}
         setTimeout(()=>setReadyToSave(true),300);
         return;
       }else{
@@ -7366,6 +7412,101 @@ function App(){
     setAuthToken(null);setAuthUser(null);setSessionExpired(false);
   };
 
+  const handleCheckout=async(priceId)=>{
+    if(!authUser){setShowAuth(true);return;}
+    setUpgradeLoading(true);
+    try{
+      const r=await fetch("/api/stripe-create-checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({priceId,email:authUser.email,userId:authUser.id,mode:"subscription"})});
+      const d=await r.json();
+      if(d.url)window.location.href=d.url;
+    }catch(e){console.error("Checkout error:",e);}
+    setUpgradeLoading(false);
+  };
+
+  const handlePortal=async()=>{
+    if(!subscription?.stripe_customer_id)return;
+    try{
+      const r=await fetch("/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId:subscription.stripe_customer_id})});
+      const d=await r.json();
+      if(d.url)window.location.href=d.url;
+    }catch(e){console.error("Portal error:",e);}
+  };
+
+  // Handle Stripe redirect back
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("stripe")==="success"){
+      setShowUpgrade(false);
+      window.history.replaceState({},"","/app");
+      // Refresh subscription after short delay
+      setTimeout(async()=>{
+        if(authUser&&authToken){
+          try{
+            const r=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${authUser.id}&select=*`,{headers:sbH(authToken)});
+            const d=await r.json();
+            if(d?.[0])setSubscription(d[0]);
+          }catch{}
+        }
+      },2000);
+    }
+  },[authUser]);
+
+  const UpgradeModal=()=>{
+    const t=T();
+    const trialDays=7;
+    const plans=[
+      {id:"monthly",label:"Monthly",price:"$19",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
+      {id:"annual",label:"Annual",price:"$159",period:"/year",note:"Save $69 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
+    ];
+    const proFeatures=["Live stock, crypto & commodity prices","AI Advisor with full dashboard access","Morning / Afternoon / Evening Briefing","AI-powered goal checkpoint suggestions","AI supplement recommendations","Full wealth tracking — super, alternatives","Invest intelligence & market insights","Priority support"];
+    return(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{padding:"24px 24px 0"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+              <div>
+                <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Upgrade</div>
+                <div style={{fontSize:24,color:t.TEXT}}>The Executive</div>
+              </div>
+              <button onClick={()=>setShowUpgrade(false)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
+            </div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>{"Start your "+trialDays+"-day free trial. Cancel anytime."}</div>
+
+            {/* Plans */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+              {plans.map(p=>(
+                <div key={p.id} style={{background:p.popular?t.GOLD+"14":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:10,padding:"14px 12px",position:"relative"}}>
+                  {p.popular&&<div style={{position:"absolute",top:-1,right:-1,background:t.GOLD,color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 8px",borderRadius:"0 9px 0 6px",letterSpacing:1}}>BEST VALUE</div>}
+                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{p.label}</div>
+                  <div style={{fontSize:28,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{p.price}</div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{p.period}</div>
+                  <div style={{fontSize:9,color:p.popular?t.GREEN:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{p.note}</div>
+                  <button onClick={()=>handleCheckout(p.priceId)} disabled={upgradeLoading} style={{width:"100%",background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:7,padding:"9px",color:p.popular?"#080808":t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:p.popular?700:400}}>
+                    {upgradeLoading?"Loading...":"Start Free Trial"}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Features */}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Everything included</div>
+              {proFeatures.map((f,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER}}>
+                  <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span>
+                  </div>
+                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"0 0 20px"}}>No credit card required for trial · Cancel anytime · Founding member pricing locked in</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleReset=()=>{
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
@@ -7394,6 +7535,7 @@ function App(){
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
+      {showUpgrade&&<UpgradeModal/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Session expired - changes saved locally but not syncing</div>
@@ -7456,17 +7598,17 @@ function App(){
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts}/>}
-          {page==="invest"&&<InvestPage profile={liveProfile}/>}
+          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
           {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections}/>}
-          {page==="learn"&&<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>}
+          {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
-          {page==="services"&&<ServicesPage services={services} setServices={setServices}/>}
-          {page==="advisor"&&<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>}
+          {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
+          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
           {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth}/>}
           </div>
         </div>
