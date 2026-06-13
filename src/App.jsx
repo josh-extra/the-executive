@@ -533,7 +533,7 @@ function MorningBriefing({profile,tasks,onClose}){
     })();
   },[]);
   return (
-    <Modal title="Morning Briefing" onClose={onClose}>
+    <Modal title={(new Date().getHours()<12?"Morning":new Date().getHours()<17?"Afternoon":"Evening")+" Briefing"} onClose={onClose}>
       <div style={{fontSize:13,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>
         {loading?(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -768,27 +768,42 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* ── HEADER ── */}
-      <div style={{...rowStyle(0),display:"flex",justifyContent:"space-between",alignItems:isMobile?"center":"flex-start",flexDirection:isMobile?"column":"row",gap:isMobile?10:0,textAlign:isMobile?"center":"left"}}>
-        <div>
-          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Dashboard</div>
-          <div style={{fontSize:isMobile?22:26,color:t.TEXT}}>
-            {"Good "+(new Date().getHours()<12?"morning":new Date().getHours()<18?"afternoon":"evening")+", "}
-            <span style={{color:t.GOLD}}>{profile.firstName}</span>
-          </div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-          {!isMobile&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",maxWidth:280,textAlign:"right",lineHeight:1.6}}>"{quote}"</div>}
-          {syncing&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Syncing...</div>}
-          {authUser?(
-            <div style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px"}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
-              <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{authUser.email?.split("@")[0]}</span>
+      <div style={{...rowStyle(0),background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12}}>
+        {/* Top row — greeting + sync */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"14px 16px 10px"}}>
+          <div>
+            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>The Executive</div>
+            <div style={{fontSize:isMobile?20:24,color:t.TEXT,lineHeight:1.2}}>
+              {"Good "+(new Date().getHours()<12?"morning":new Date().getHours()<17?"afternoon":"evening")+", "}
+              <span style={{color:t.GOLD}}>{profile.firstName}</span>
             </div>
-          ):(
-            <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10,whiteSpace:"nowrap"}}>Sign In</button>
-          )}
-          <button onClick={()=>setShowBriefing(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"7px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap"}}>Morning Brief</button>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
+            {syncing&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Syncing...</div>}
+            {authUser?(
+              <div style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px"}}>
+                <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
+                <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{authUser.email?.split("@")[0]}</span>
+              </div>
+            ):(
+              <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Sign In</button>
+            )}
+          </div>
+        </div>
+        {/* Quote row */}
+        <div style={{padding:"0 16px 12px",borderBottom:"1px solid "+t.BORDER}}>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.65}}>"{quote}"</div>
+        </div>
+        {/* Briefing bar */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:t.GOLD+"06"}}>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.5}}>
+            <span style={{color:t.GOLD,fontWeight:600}}>{new Date().getHours()<12?"Morning":new Date().getHours()<17?"Afternoon":"Evening"} Briefing</span>
+            {" — markets, your priorities & today's insights"}
+          </div>
+          <button onClick={()=>setShowBriefing(true)} style={{background:`linear-gradient(135deg,${t.GOLD},${t.GL})`,border:"none",borderRadius:8,padding:"8px 16px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,marginLeft:14}}>
+            Open Briefing →
+          </button>
         </div>
       </div>
       {/* ── ROW 1: Score + Rings + Net Worth ── */}
