@@ -5019,7 +5019,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal}){
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -7448,7 +7448,7 @@ function App(){
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&<ServicesPage services={services} setServices={setServices}/>}
           {page==="advisor"&&<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal}/>}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth}/>}
           </div>
         </div>
       </div>
