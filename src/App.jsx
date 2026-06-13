@@ -4837,10 +4837,10 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const[loading,setLoading]=useState(false);
   const[reflection,setReflection]=useState("");
   const[showReflection,setShowReflection]=useState(false);
-  const weekKey="week_"+weekStart;
-  const savedReflection=(weeklyReflections||{})[weekKey]||"";
   const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");});
   const weekStart=last7[0],weekEnd=last7[6];
+  const weekKey="week_"+weekStart;
+  const savedReflection=(weeklyReflections||{})[weekKey]||"";
   const scores=last7.map(d=>history[d]?.score||0);
   const activeScores=scores.filter(s=>s>0);
   const avgScore=activeScores.length?Math.round(activeScores.reduce((a,b)=>a+b,0)/activeScores.length):0;
