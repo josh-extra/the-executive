@@ -988,10 +988,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           {/* Financial Pulse strip */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
             {[
-              {l:"Net Worth",v:fmt(netWorth),c:t.GOLD,sub:Math.round(netWorth/(Number(activeProfile.netWorthTarget)||3e6)*100)+"% to target",pct:Math.round(netWorth/(Number(activeProfile.netWorthTarget)||3e6)*100),pc:t.GOLD},
-              {l:"Bills/mo",v:fmt(bills.reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
-              {l:"Total Debt",v:fmt(totalDebt),c:t.RED,sub:activeProfile.totalAssets>0?Math.round(totalDebt/activeProfile.totalAssets*100)+"% LVR":"",pct:activeProfile.totalAssets>0?Math.round(totalDebt/activeProfile.totalAssets*100):0,pc:t.RED},
-              {l:"Super",v:fmt(parseFloat(activeProfile.superBalance)||0),c:t.PURPLE,sub:"Balance"},
+              {l:"Net Worth",v:fmt(nw),c:t.GOLD,sub:Math.round(nw/nwT*100)+"% to target",pct:Math.round(nw/nwT*100),pc:t.GOLD},
+              {l:"Bills/mo",v:fmt((bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
+              {l:"Total Debt",v:fmt(profile.totalDebt||0),c:t.RED,sub:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100)+"% LVR":"",pct:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100):0,pc:t.RED},
+              {l:"Super",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE,sub:"Balance"},
             ].map((s,i)=>(
               <div key={s.l} style={{padding:"9px 10px",borderRight:i<3?"1px solid "+t.BORDER:"none"}}>
                 <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>{s.l}</div>
