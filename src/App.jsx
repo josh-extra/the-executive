@@ -2182,7 +2182,7 @@ function AddAltAssetForm({onAdd}){
   );
 }
 
-function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets}){
+function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,superLog,setSuperLog}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
   const[hForm,setHForm]=useState({ticker:"",shares:"",avgCost:"",name:""});
@@ -2195,6 +2195,9 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
   const[editShareForm,setEditShareForm]=useState({});
   const[editCryptoIdx,setEditCryptoIdx]=useState(null);
   const[editCryptoForm,setEditCryptoForm]=useState({});
+  const[showSuperAdd,setShowSuperAdd]=useState(false);
+  const[superForm,setSuperForm]=useState({balance:"",type:"balance",date:todayStr(),note:""});
+  const[superNewBal,setSuperNewBal]=useState(null);
   const saveShareEdit=(id)=>{
     setHoldings(hs=>(hs||[]).map(h=>h.id!==id?h:{...h,ticker:editShareForm.ticker||h.ticker,shares:parseFloat(editShareForm.shares)||h.shares,avgCost:parseFloat(editShareForm.avgCost)||null,name:editShareForm.name||h.name}));
     setEditShareId(null);
@@ -2697,6 +2700,120 @@ function WealthPage({profile,nwHistory,setShowRecalibrate,holdings,setHoldings,p
 
           {/* Add form */}
           <AddAltAssetForm onAdd={a=>setAltAssets(as=>[...(as||[]),{...a,id:Date.now(),updatedAt:todayStr()}])}/>
+        </Card>
+
+        {/* ── SUPERANNUATION ── */}
+        <Card style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <SectionLabel>Superannuation</SectionLabel>
+            <button onClick={()=>setShowSuperAdd(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 11px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Update Balance</button>
+          </div>
+
+          {/* Current balance */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+            {[
+              {l:"Current Balance",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE},
+              {l:"Total Contributed",v:fmt(superLog.reduce((s,e)=>s+(e.type==="contribution"?e.amount:0),0)),c:t.GOLD},
+              {l:"Growth",v:(()=>{const contrib=superLog.reduce((s,e)=>s+(e.type==="contribution"?e.amount:0),0);const bal=parseFloat(profile.superBalance)||0;const gain=bal-contrib;return (gain>=0?"+":"")+fmt(gain);})(),c:t.GREEN},
+            ].map(s=>(
+              <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"8px",textAlign:"center"}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.l}</div>
+                <div style={{fontSize:14,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add balance update form */}
+          {showSuperAdd&&(
+            <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Update Super</div>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                <div style={{flex:2}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>New Balance ($)</div>
+                  <Inp type="number" value={superForm.balance} onChange={e=>setSuperForm(f=>({...f,balance:e.target.value}))} placeholder={profile.superBalance||"0"}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Type</div>
+                  <Sel value={superForm.type} onChange={e=>setSuperForm(f=>({...f,type:e.target.value}))}>
+                    <option value="balance">Balance Update</option>
+                    <option value="contribution">Contribution</option>
+                    <option value="employer">Employer Contribution</option>
+                    <option value="growth">Investment Growth</option>
+                  </Sel>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Date</div>
+                  <Inp type="date" value={superForm.date} onChange={e=>setSuperForm(f=>({...f,date:e.target.value}))}/>
+                </div>
+              </div>
+              <Inp value={superForm.note} onChange={e=>setSuperForm(f=>({...f,note:e.target.value}))} placeholder="Note (e.g. Q1 statement, employer SG...)" style={{marginBottom:8}}/>
+              <div style={{display:"flex",gap:7}}>
+                <Btn onClick={()=>{
+                  if(!superForm.balance)return;
+                  const amount=parseFloat(superForm.balance);
+                  const prev=parseFloat(profile.superBalance)||0;
+                  const diff=amount-prev;
+                  setSuperLog(sl=>[{id:Date.now(),date:superForm.date,balance:amount,amount:Math.abs(diff),change:diff,type:superForm.type,note:superForm.note},...sl]);
+                  // Update profile balance
+                  profile.superBalance=String(amount);
+                  const tA=(parseFloat(profile.shareValue)||0)+(parseFloat(profile.propertyValue)||0)+(parseFloat(profile.cashSavings)||0)+amount+(parseFloat(profile.cryptoValue)||0);
+                  const tD=(parseFloat(profile.mortgageDebt)||0)+(parseFloat(profile.investLoanDebt)||0)+(parseFloat(profile.carDebt)||0)+(parseFloat(profile.creditCardDebt)||0)+(parseFloat(profile.personalDebt)||0);
+                  if(onUpdateProfile)onUpdateProfile({...profile,superBalance:String(amount),totalAssets:tA,netWorth:tA-tD});
+                  setSuperForm({balance:"",type:"balance",date:todayStr(),note:""});
+                  setShowSuperAdd(false);
+                }} style={{fontSize:11}}>Save</Btn>
+                <Btn onClick={()=>setShowSuperAdd(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+              </div>
+            </div>
+          )}
+
+          {/* Balance history chart */}
+          {superLog.length>=2&&(()=>{
+            const entries=[...superLog].sort((a,b)=>a.date.localeCompare(b.date)).slice(-12);
+            const vals=entries.map(e=>e.balance);
+            const mn=Math.min(...vals)*0.98, mx=Math.max(...vals)*1.01;
+            const W=280,H=70,pad=6;
+            const px=i=>pad+(i/(entries.length-1||1))*(W-pad*2);
+            const py=v=>H-pad-(((v-mn)/(mx-mn||1))*(H-pad*2));
+            const pts=entries.map((e,i)=>`${px(i)},${py(e.balance)}`).join(" ");
+            return (
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Balance History</div>
+                <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:H}}>
+                  <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={t.PURPLE} stopOpacity=".25"/><stop offset="100%" stopColor={t.PURPLE} stopOpacity="0"/></linearGradient></defs>
+                  <polygon points={`${pts} ${px(entries.length-1)},${H} ${px(0)},${H}`} fill="url(#sg)"/>
+                  <polyline points={pts} fill="none" stroke={t.PURPLE} strokeWidth="1.5" strokeLinejoin="round"/>
+                  <circle cx={px(entries.length-1)} cy={py(entries[entries.length-1].balance)} r="3" fill={t.PURPLE}/>
+                </svg>
+              </div>
+            );
+          })()}
+
+          {/* Log entries */}
+          {superLog.length>0&&(
+            <div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>History</div>
+              {superLog.slice(0,5).map((e,i)=>(
+                <div key={e.id||i}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{e.type==="balance"?"Balance Update":e.type==="contribution"?"Personal Contribution":e.type==="employer"?"Employer Contribution":"Investment Growth"}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}{e.note?" · "+e.note:""}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:13,color:t.PURPLE,fontFamily:"sans-serif",fontWeight:700}}>{fmt(e.balance)}</div>
+                      {e.change!==0&&<div style={{fontSize:10,color:e.change>0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(e.change>0?"+":"")+fmt(e.change)}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {superLog.length===0&&(
+            <div style={{textAlign:"center",padding:"12px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:11}}>Tap + Update Balance to track your super growth over time</div>
+          )}
         </Card>
 
         <Card>
@@ -6875,6 +6992,7 @@ function App(){
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[commodityHoldings,setCommodityHoldings]=useState([]);
   const[altAssets,setAltAssets]=useState([]);
+  const[superLog,setSuperLog]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({});
@@ -6931,6 +7049,7 @@ function App(){
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.history)setHistory(d.history);
@@ -6977,6 +7096,7 @@ function App(){
         if(saved.journal!==undefined)setJournal(saved.journal);
         if(saved.books!==undefined)setBooks(saved.books);
         if(saved.readingGoal)setReadingGoal(saved.readingGoal);
+        if(saved.superLog)setSuperLog(saved.superLog);
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
@@ -7004,7 +7124,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
@@ -7143,6 +7263,7 @@ function App(){
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.notes!==undefined)setNotes(d.notes);
@@ -7177,6 +7298,7 @@ function App(){
               if(d.journal!==undefined)setJournal(d.journal);
               if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.superLog)setSuperLog(d.superLog);
               if(d.bills!==undefined)setBills(d.bills);
               if(d.debts!==undefined)setDebts(d.debts);
               if(d.notes!==undefined)setNotes(d.notes);
@@ -7231,7 +7353,7 @@ function App(){
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setBills([]);setHistory({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
-    setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setBudgets({});setAdvisorMessages([]);
+    setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);setBudgets({});setAdvisorMessages([]);
     setShowSetup(true);
     setPage("dashboard");
   };
@@ -7309,7 +7431,7 @@ function App(){
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
-          {page==="wealth"&&<WealthPage profile={liveProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets}/>}
+          {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
           {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
