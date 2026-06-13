@@ -1511,11 +1511,16 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   const[filter,setFilter]=useState("all");
   const[showAdd,setShowAdd]=useState(false);
   const[showDone,setShowDone]=useState(false);
-  const[form,setForm]=useState({title:"",category:"wealth",period:"year",notes:""});
-  const[aiLoading,setAiLoading]=useState(null); // goalId being loaded
+  const[form,setForm]=useState({title:"",category:"wealth",period:"year",startDate:todayStr(),endDate:"",notes:""});
+  const[editingGoalId,setEditingGoalId]=useState(null);
+  const[editForm,setEditForm]=useState({});
+  const[aiLoading,setAiLoading]=useState(null);
   const[confirmDel,setConfirmDel]=useState(null);
   const[addCpGoalId,setAddCpGoalId]=useState(null);
   const[cpForm,setCpForm]=useState({text:"",dueDate:""});
+  const[editingCp,setEditingCp]=useState(null); // {goalId, cpId}
+  const[editCpForm,setEditCpForm]=useState({text:"",dueDate:""});
+  const[collapsed,setCollapsed]=useState({}); // goalId -> bool
 
   const CATS=[
     {id:"wealth",label:"Wealth",color:"#C9A84C"},
@@ -1527,11 +1532,9 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   ];
   const catColor=id=>CATS.find(c=>c.id===id)?.color||t.GOLD;
   const catLabel=id=>CATS.find(c=>c.id===id)?.label||id;
-
   const allGoals=goals||[];
   const filtered=filter==="all"?allGoals:allGoals.filter(g=>g.category===filter);
 
-  // Progress is checkpoint-based
   const calcProgress=g=>{
     const cps=g.checkpoints||[];
     if(!cps.length)return g.progress||0;
@@ -1540,9 +1543,17 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
 
   const addGoal=()=>{
     if(!form.title.trim())return;
-    setGoals(gs=>[...gs,{...form,id:Date.now(),progress:0,checkpoints:[]}]);
-    setForm({title:"",category:"wealth",period:"year",notes:""});
+    const id=Date.now();
+    setGoals(gs=>[...gs,{...form,id,progress:0,checkpoints:[]}]);
+    setCollapsed(c=>({...c,[id]:false}));
+    setForm({title:"",category:"wealth",period:"year",startDate:todayStr(),endDate:"",notes:""});
     setShowAdd(false);
+  };
+
+  const saveEditGoal=()=>{
+    if(!editForm.title?.trim())return;
+    setGoals(gs=>gs.map(g=>g.id===editingGoalId?{...g,...editForm}:g));
+    setEditingGoalId(null);
   };
 
   const addCheckpoint=(goalId)=>{
@@ -1554,12 +1565,19 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
     setAddCpGoalId(null);
   };
 
+  const saveEditCp=()=>{
+    if(!editCpForm.text?.trim()||!editingCp)return;
+    setGoals(gs=>gs.map(g=>g.id!==editingCp.goalId?g:{...g,
+      checkpoints:(g.checkpoints||[]).map(cp=>cp.id!==editingCp.cpId?cp:{...cp,text:editCpForm.text,dueDate:editCpForm.dueDate||""})
+    }));
+    setEditingCp(null);
+  };
+
   const toggleCheckpoint=(goalId,cpId)=>{
     setGoals(gs=>gs.map(g=>{
       if(g.id!==goalId)return g;
       const cps=(g.checkpoints||[]).map(cp=>cp.id!==cpId?cp:{...cp,done:!cp.done,doneAt:!cp.done?todayStr():""});
       const pct=Math.round(cps.filter(c=>c.done).length/cps.length*100);
-      // Auto-complete goal if all checkpoints done
       if(pct>=100){
         setTimeout(()=>{
           setGoals(gs2=>gs2.filter(x=>x.id!==goalId));
@@ -1574,29 +1592,29 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
     setGoals(gs=>gs.map(g=>{
       if(g.id!==goalId)return g;
       const cps=(g.checkpoints||[]).filter(cp=>cp.id!==cpId);
-      const pct=cps.length?Math.round(cps.filter(c=>c.done).length/cps.length*100):0;
-      return{...g,checkpoints:cps,progress:pct};
+      return{...g,checkpoints:cps,progress:cps.length?Math.round(cps.filter(c=>c.done).length/cps.length*100):0};
     }));
   };
 
   const getSuggestions=async(g)=>{
     setAiLoading(g.id);
     const nw=parseFloat(profile?.netWorth||0);
-    const age=profile?.age||"";
     try{
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
         model:"claude-haiku-4-5",max_tokens:600,
-        system:"Return ONLY a JSON array of checkpoint objects, no markdown, no explanation.",
-        messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+" category). User age: "+age+", net worth: $"+Math.round(nw).toLocaleString()+". "+(g.notes?"Notes: "+g.notes+". ":"")+"Suggest 3-5 specific checkpoints with due dates. Return JSON array: [{text, dueDate (YYYY-MM-DD, realistic based on "+g.period+" timeframe)}]. Be specific and actionable, not generic."}]
+        system:"Return ONLY a JSON array, no markdown, no explanation.",
+        messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+"). User age: "+profile?.age+", net worth: $"+Math.round(nw).toLocaleString()+"."+(g.startDate?" Start: "+g.startDate+".":"")+(g.endDate?" End: "+g.endDate+".")+(g.notes?" Notes: "+g.notes+".")+" Suggest 3-5 specific checkpoints with realistic due dates. Return JSON: [{text, dueDate (YYYY-MM-DD)}]. Be specific, not generic."}]
       })});
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
-      const start=text.indexOf("["),end=text.lastIndexOf("]");
-      if(start>-1&&end>-1){
-        const suggestions=JSON.parse(text.slice(start,end+1));
+      const s=text.indexOf("["),e=text.lastIndexOf("]");
+      if(s>-1&&e>-1){
+        const suggs=JSON.parse(text.slice(s,e+1));
         setGoals(gs=>gs.map(x=>x.id!==g.id?x:{...x,
-          checkpoints:[...(x.checkpoints||[]),...suggestions.map(s=>({id:Date.now()+Math.random(),text:s.text,dueDate:s.dueDate||"",done:false,doneAt:""}))]
+          checkpoints:[...(x.checkpoints||[]),...suggs.map(s=>({id:Date.now()+Math.random(),text:s.text,dueDate:s.dueDate||"",done:false,doneAt:""}))]
         }));
+        // Auto-expand to show suggestions
+        setCollapsed(c=>({...c,[g.id]:false}));
       }
     }catch(e){console.error(e);}
     setAiLoading(null);
@@ -1619,6 +1637,39 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
     const cg=allGoals.filter(g=>g.category===c.id);
     return{...c,count:cg.length,avg:cg.length?Math.round(cg.reduce((s,g)=>s+calcProgress(g),0)/cg.length):0};
   }).filter(c=>c.count>0);
+
+  const GoalForm=({value,onChange,onSave,onCancel,saveLabel="Create Goal"})=>(
+    <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+      <SectionLabel>{saveLabel==="Create Goal"?"New Goal":"Edit Goal"}</SectionLabel>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        <Inp value={value.title||""} onChange={e=>onChange(f=>({...f,title:e.target.value}))} placeholder="What do you want to achieve?"/>
+        <div style={{display:"flex",gap:8}}>
+          <Sel value={value.category||"wealth"} onChange={e=>onChange(f=>({...f,category:e.target.value}))} style={{flex:1}}>
+            {CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+          </Sel>
+          <Sel value={value.period||"year"} onChange={e=>onChange(f=>({...f,period:e.target.value}))} style={{flex:1}}>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+            <option value="longterm">Long Term</option>
+          </Sel>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>Start Date</div>
+            <Inp type="date" value={value.startDate||""} onChange={e=>onChange(f=>({...f,startDate:e.target.value}))}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>End Date (optional)</div>
+            <Inp type="date" value={value.endDate||""} onChange={e=>onChange(f=>({...f,endDate:e.target.value}))}/>
+          </div>
+        </div>
+        <Inp value={value.notes||""} onChange={e=>onChange(f=>({...f,notes:e.target.value}))} placeholder="Notes — helps AI suggest better checkpoints (optional)"/>
+        <div style={{display:"flex",gap:8}}><Btn onClick={onSave}>{saveLabel}</Btn><Btn onClick={onCancel} variant="ghost">Cancel</Btn></div>
+      </div>
+    </Card>
+  );
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
@@ -1652,33 +1703,12 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
       )}
 
       {/* Add goal form */}
-      {showAdd&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <SectionLabel>New Goal</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:9}}>
-            <Inp value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="What do you want to achieve?"/>
-            <div style={{display:"flex",gap:8}}>
-              <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
-                {CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-              </Sel>
-              <Sel value={form.period} onChange={e=>setForm(f=>({...f,period:e.target.value}))} style={{flex:1}}>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-                <option value="year">This Year</option>
-                <option value="longterm">Long Term</option>
-              </Sel>
-            </div>
-            <Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Notes — helps AI suggest better checkpoints (optional)"/>
-            <div style={{display:"flex",gap:8}}><Btn onClick={addGoal}>Create Goal</Btn><Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn></div>
-          </div>
-        </Card>
-      )}
+      {showAdd&&<GoalForm value={form} onChange={setForm} onSave={addGoal} onCancel={()=>setShowAdd(false)}/>}
 
       {/* Filter pills */}
       {allGoals.length>0&&(
         <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,scrollbarWidth:"none"}}>
-          {[{id:"all",label:"All"},  ...CATS].map(c=>(
+          {[{id:"all",label:"All"},...CATS].map(c=>(
             <button key={c.id} onClick={()=>setFilter(c.id)} style={{flexShrink:0,padding:"4px 12px",borderRadius:14,border:"1px solid "+(filter===c.id?catColor(c.id)||t.GOLD:t.BORDER),background:filter===c.id?(catColor(c.id)||t.GOLD)+"18":"transparent",color:filter===c.id?catColor(c.id)||t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{c.label}</button>
           ))}
         </div>
@@ -1697,80 +1727,116 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
               const cps=g.checkpoints||[];
               const pct=calcProgress(g);
               const doneCps=cps.filter(cp=>cp.done).length;
+              const isCollapsed=collapsed[g.id]!==false; // default collapsed
+              const isEditing=editingGoalId===g.id;
+
               return (
                 <Card key={g.id} style={{marginBottom:10,borderLeft:"3px solid "+col}}>
-                  {/* Goal header */}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:cps.length?8:0}}>
-                    <div style={{flex:1,marginRight:10}}>
-                      <div style={{fontSize:14,color:t.TEXT,marginBottom:3}}>{g.title}</div>
-                      <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{catLabel(g.category)}</div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:20,color:col,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{pct+"%"}</div>
-                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{cps.length?doneCps+" of "+cps.length:"No checkpoints"}</div>
-                      </div>
-                      {confirmDel===g.id?(
-                        <div style={{display:"flex",gap:5}}>
-                          <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
-                          <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
-                        </div>
-                      ):(
-                        <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Progress bar */}
-                  {cps.length>0&&<div style={{marginBottom:10}}><PB value={pct} color={col} height={4}/></div>}
-
-                  {/* Checkpoints */}
-                  {cps.map((cp,i)=>{
-                    const overdue=cp.dueDate&&!cp.done&&new Date(cp.dueDate+"T12:00:00")<new Date();
-                    const soon=cp.dueDate&&!cp.done&&!overdue&&Math.round((new Date(cp.dueDate+"T12:00:00")-new Date())/864e5)<=7;
-                    return (
-                      <div key={cp.id}>
-                        {i>0&&<Divider/>}
-                        <div style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0"}}>
-                          <div onClick={()=>toggleCheckpoint(g.id,cp.id)} style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(cp.done?col:t.BORDER2),background:cp.done?col:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .2s"}}>
-                            {cp.done&&<span style={{color:"#080808",fontSize:10,fontWeight:700}}>V</span>}
+                  {/* Edit goal form */}
+                  {isEditing?(
+                    <GoalForm value={editForm} onChange={setEditForm} onSave={saveEditGoal} onCancel={()=>setEditingGoalId(null)} saveLabel="Save Changes"/>
+                  ):(
+                    <>
+                      {/* Goal header — tappable to collapse */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}
+                        onClick={()=>setCollapsed(c=>({...c,[g.id]:!isCollapsed}))}>
+                        <div style={{flex:1,marginRight:8}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+                            <div style={{fontSize:14,color:t.TEXT}}>{g.title}</div>
                           </div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:12,color:cp.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:cp.done?"line-through":"none"}}>{cp.text}</div>
-                            {cp.dueDate&&(
-                              <div style={{fontSize:9,color:cp.done?"#7A9E7E":overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"sans-serif",marginTop:1}}>
-                                {cp.done?"Done "+cp.doneAt:overdue?"Overdue · "+cp.dueDate:soon?"Due soon · "+cp.dueDate:"By "+cp.dueDate}
-                              </div>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{fontSize:9,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{catLabel(g.category)}</div>
+                            {g.startDate&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{g.startDate}{g.endDate?" → "+g.endDate:""}</div>}
+                          </div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontSize:20,color:col,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{pct+"%"}</div>
+                            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{cps.length?doneCps+"/"+cps.length:""}</div>
+                          </div>
+                          {/* Collapse chevron */}
+                          <div style={{color:t.MUTED,fontSize:12,transition:"transform .2s",transform:isCollapsed?"rotate(0deg)":"rotate(180deg)"}}>v</div>
+                          {/* Edit + delete — stop propagation */}
+                          <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:5}}>
+                            <button onClick={()=>{setEditForm({title:g.title,category:g.category,period:g.period,startDate:g.startDate||todayStr(),endDate:g.endDate||"",notes:g.notes||""});setEditingGoalId(g.id);setCollapsed(c=>({...c,[g.id]:false}));}} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
+                            {confirmDel===g.id?(
+                              <>
+                                <button onClick={()=>{setGoals(gs=>gs.filter(x=>x.id!==g.id));setConfirmDel(null);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 7px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Yes</button>
+                                <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>No</button>
+                              </>
+                            ):(
+                              <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
                             )}
                           </div>
-                          <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}>X</button>
                         </div>
                       </div>
-                    );
-                  })}
 
-                  {/* Add checkpoint */}
-                  {addCpGoalId===g.id?(
-                    <div style={{marginTop:8,borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
-                      <div style={{display:"flex",gap:7,marginBottom:7}}>
-                        <Inp value={cpForm.text} onChange={e=>setCpForm(f=>({...f,text:e.target.value}))} placeholder="Checkpoint description..." style={{flex:2,fontSize:12}}
-                          onKeyDown={e=>e.key==="Enter"&&addCheckpoint(g.id)}/>
-                        <Inp type="date" value={cpForm.dueDate} onChange={e=>setCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
-                      </div>
-                      <div style={{display:"flex",gap:7}}>
-                        <Btn onClick={()=>addCheckpoint(g.id)} style={{fontSize:11}}>Add</Btn>
-                        <Btn onClick={()=>{setAddCpGoalId(null);setCpForm({text:"",dueDate:""}); }} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
-                      </div>
-                    </div>
-                  ):(
-                    <div style={{display:"flex",gap:7,marginTop:cps.length>0?10:4}}>
-                      <button onClick={()=>{setAddCpGoalId(g.id);setCpForm({text:"",dueDate:""}); }} style={{flex:1,background:t.CARD2,border:"1px dashed "+t.BORDER,borderRadius:6,padding:"6px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textAlign:"left"}}>
-                        {"+ Add checkpoint"}
-                      </button>
-                      <button onClick={()=>getSuggestions(g)} disabled={aiLoading===g.id} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"6px 12px",color:aiLoading===g.id?t.MUTED:t.GOLD,cursor:aiLoading===g.id?"default":"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0,whiteSpace:"nowrap"}}>
-                        {aiLoading===g.id?"Thinking...":"AI Suggest"}
-                      </button>
-                    </div>
+                      {/* Progress bar — always visible */}
+                      {cps.length>0&&<div style={{marginTop:8}}><PB value={pct} color={col} height={3}/></div>}
+
+                      {/* Expanded content */}
+                      {!isCollapsed&&(
+                        <div style={{marginTop:10}}>
+                          {/* Checkpoints */}
+                          {cps.map((cp,i)=>{
+                            const overdue=cp.dueDate&&!cp.done&&new Date(cp.dueDate+"T12:00:00")<new Date();
+                            const soon=cp.dueDate&&!cp.done&&!overdue&&Math.round((new Date(cp.dueDate+"T12:00:00")-new Date())/864e5)<=7;
+                            const isCpEditing=editingCp?.goalId===g.id&&editingCp?.cpId===cp.id;
+                            return (
+                              <div key={cp.id}>
+                                {i>0&&<Divider/>}
+                                {isCpEditing?(
+                                  <div style={{padding:"8px 0"}}>
+                                    <div style={{display:"flex",gap:7,marginBottom:7}}>
+                                      <Inp value={editCpForm.text} onChange={e=>setEditCpForm(f=>({...f,text:e.target.value}))} style={{flex:2,fontSize:12}} onKeyDown={e=>e.key==="Enter"&&saveEditCp()}/>
+                                      <Inp type="date" value={editCpForm.dueDate} onChange={e=>setEditCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
+                                    </div>
+                                    <div style={{display:"flex",gap:6}}>
+                                      <Btn onClick={saveEditCp} style={{fontSize:11}}>Save</Btn>
+                                      <Btn onClick={()=>setEditingCp(null)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                                    </div>
+                                  </div>
+                                ):(
+                                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0"}}>
+                                    <div onClick={()=>toggleCheckpoint(g.id,cp.id)} style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(cp.done?col:t.BORDER2),background:cp.done?col:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .2s"}}>
+                                      {cp.done&&<span style={{color:"#080808",fontSize:10,fontWeight:700}}>V</span>}
+                                    </div>
+                                    <div style={{flex:1,minWidth:0}}>
+                                      <div style={{fontSize:12,color:cp.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:cp.done?"line-through":"none"}}>{cp.text}</div>
+                                      {cp.dueDate&&<div style={{fontSize:9,color:cp.done?t.GREEN:overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{cp.done?"Done "+cp.doneAt:overdue?"Overdue · "+cp.dueDate:soon?"Due soon · "+cp.dueDate:"By "+cp.dueDate}</div>}
+                                    </div>
+                                    <button onClick={()=>{setEditingCp({goalId:g.id,cpId:cp.id});setEditCpForm({text:cp.text,dueDate:cp.dueDate||""});}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.5,flexShrink:0}}>E</button>
+                                    <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}>X</button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Add checkpoint row */}
+                          {addCpGoalId===g.id?(
+                            <div style={{marginTop:8,borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
+                              <div style={{display:"flex",gap:7,marginBottom:7}}>
+                                <Inp value={cpForm.text} onChange={e=>setCpForm(f=>({...f,text:e.target.value}))} placeholder="Checkpoint..." style={{flex:2,fontSize:12}} onKeyDown={e=>e.key==="Enter"&&addCheckpoint(g.id)}/>
+                                <Inp type="date" value={cpForm.dueDate} onChange={e=>setCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
+                              </div>
+                              <div style={{display:"flex",gap:7}}>
+                                <Btn onClick={()=>addCheckpoint(g.id)} style={{fontSize:11}}>Add</Btn>
+                                <Btn onClick={()=>{setAddCpGoalId(null);setCpForm({text:"",dueDate:""});}} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                              </div>
+                            </div>
+                          ):(
+                            <div style={{display:"flex",gap:7,marginTop:cps.length>0?10:4}}>
+                              <button onClick={()=>{setAddCpGoalId(g.id);setCpForm({text:"",dueDate:""});}} style={{flex:1,background:t.CARD2,border:"1px dashed "+t.BORDER,borderRadius:6,padding:"6px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textAlign:"left"}}>+ Add checkpoint</button>
+                              <button onClick={()=>getSuggestions(g)} disabled={!!aiLoading} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"6px 12px",color:aiLoading===g.id?t.MUTED:t.GOLD,cursor:aiLoading?"default":"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0,whiteSpace:"nowrap"}}>
+                                {aiLoading===g.id?"Thinking...":"AI Suggest"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </Card>
               );
