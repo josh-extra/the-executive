@@ -5816,6 +5816,32 @@ function SetupPage({onComplete}){
   );
 }
 
+
+function MacroBadge({label,value,color}){
+  const t=T();
+  return(
+    <div style={{textAlign:"center",background:color+"18",border:"1px solid "+color+"44",borderRadius:7,padding:"5px 10px",minWidth:52}}>
+      <div style={{fontSize:13,color:color,fontFamily:"sans-serif",fontWeight:700}}>{value}</div>
+      <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{label}</div>
+    </div>
+  );
+}
+
+function RecCard({r,actions}){
+  const t=T();
+  return(
+    <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0"}}>
+      <div style={{width:40,height:40,borderRadius:8,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",border:"1px solid "+(TYPE_COLORS[r.type]||t.GOLD)+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{TYPE_ICONS[r.type]||"L"}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"14",display:"inline-block",padding:"1px 6px",borderRadius:4,marginBottom:4}}>{r.type}</div>
+        <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.title}</div>
+        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{r.creator}</div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>{r.description}</div>
+        <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{actions}</div>
+      </div>
+    </div>
+  );
+}
 function RecipesPage({profile}){
   const t=T();
   const[mealFilter,setMealFilter]=useState("all");
@@ -5902,12 +5928,7 @@ function RecipesPage({profile}){
   const isFav=r=>favourites.some(f=>f.title===r.title);
   const toggleFav=r=>setFavourites(fs=>isFav(r)?fs.filter(f=>f.title!==r.title):[...fs,r]);
 
-  const MacroBadge=({label,value,color})=>(
-    <div style={{textAlign:"center",background:color+"18",border:"1px solid "+color+"44",borderRadius:7,padding:"5px 10px",minWidth:52}}>
-      <div style={{fontSize:13,color:color,fontFamily:"sans-serif",fontWeight:700}}>{value}</div>
-      <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{label}</div>
-    </div>
-  );
+
 
   // Full recipe view
   if(selected){
@@ -6471,18 +6492,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
 
   const shown=filter==="all"?recs:recs.filter(r=>r.type===filter);
 
-  const RecCard=({r,actions})=>(
-    <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:"10px 0"}}>
-      <div style={{width:40,height:40,borderRadius:8,background:(TYPE_COLORS[r.type]||t.GOLD)+"18",border:"1px solid "+(TYPE_COLORS[r.type]||t.GOLD)+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{TYPE_ICONS[r.type]||"L"}</div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:9,color:TYPE_COLORS[r.type]||t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,background:(TYPE_COLORS[r.type]||t.GOLD)+"14",display:"inline-block",padding:"1px 6px",borderRadius:4,marginBottom:4}}>{r.type}</div>
-        <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.title}</div>
-        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{r.creator}</div>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>{r.description}</div>
-        <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{actions}</div>
-      </div>
-    </div>
-  );
+
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
@@ -7322,7 +7332,7 @@ function App(){
 
   if(splash){
     return (
-      <div style={{position:"fixed",inset:0,background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",zIndex:9999,minHeight:"100vh",minHeight:"-webkit-fill-available"}}>
+      <div style={{position:"fixed",inset:0,background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",zIndex:9999,minHeight:"100vh",WebkitMinHeight:"-webkit-fill-available"}}>
         <style>{`
           @keyframes splashIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
           @keyframes splashPulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
