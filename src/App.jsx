@@ -5827,6 +5827,10 @@ function MacroBadge({label,value,color}){
   );
 }
 
+const TYPE_COLORS={podcast:"#C9A84C",book:"#7EB8C9",youtube:"#C97E7E",course:"#7A9E7E",article:"#B07EC9"};
+const TYPE_ICONS={podcast:"M",book:"B",youtube:"Y",course:"C",article:"A"};
+const TYPE_LINKS={podcast:"https://open.spotify.com/search/",book:"https://www.audible.com.au/search?keywords=",youtube:"https://www.youtube.com/results?search_query=",course:"https://www.coursera.org/search?query="};
+
 function RecCard({r,actions}){
   const t=T();
   return(
@@ -6417,9 +6421,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
     return prompts[new Date().getDay()%prompts.length];
   });
 
-  const TYPE_COLORS={podcast:"#C9A84C",book:"#7EB8C9",youtube:"#C97E7E",course:"#7A9E7E",article:"#B07EC9"};
-  const TYPE_ICONS={podcast:"M",book:"B",youtube:"Y",course:"C",article:"A"};
-  const TYPE_LINKS={podcast:"https://open.spotify.com/search/",book:"https://www.audible.com.au/search?keywords=",youtube:"https://www.youtube.com/results?search_query=",course:"https://www.coursera.org/search?query="};
+
 
   const library=(learnData||{}).library||[];
   const sessions=(learnData||{}).sessions||[];
