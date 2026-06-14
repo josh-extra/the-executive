@@ -5056,7 +5056,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth}){
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -5163,6 +5163,66 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
         <SectionLabel>Finances</SectionLabel>
         <button onClick={onRecalibrate} style={{width:"100%",background:t.GOLD+"10",border:"1px solid "+t.GOLD+"33",borderRadius:7,padding:"11px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textAlign:"left"}}>Recalibrate Financial Figures</button>
       </Card>
+
+      {/* ── Subscription / Billing ── */}
+      <Card style={{marginBottom:12}}>
+        <SectionLabel>Subscription</SectionLabel>
+        {!authUser?(
+          <div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>Sign in to manage your subscription</div>
+            <Btn onClick={()=>setShowAuth(true)}>Sign In</Btn>
+          </div>
+        ):!subscription||subscription.status==="free"||!subscription.status?(
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <div style={{background:t.BORDER,borderRadius:10,padding:"2px 10px"}}>
+                <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>Free Plan</span>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12,lineHeight:1.6}}>Upgrade to Executive to unlock AI features, live prices and the full dashboard.</div>
+            <Btn onClick={onUpgrade}>Upgrade to Executive →</Btn>
+          </div>
+        ):(
+          <div>
+            {/* Status badge */}
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <div style={{background:subscription.status==="trialing"?t.GOLD+"22":subscription.status==="active"?t.GREEN+"22":t.RED+"22",border:"1px solid "+(subscription.status==="trialing"?t.GOLD:subscription.status==="active"?t.GREEN:t.RED)+"44",borderRadius:10,padding:"3px 10px"}}>
+                <span style={{fontSize:10,color:subscription.status==="trialing"?t.GOLD:subscription.status==="active"?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600,textTransform:"capitalize"}}>
+                  {subscription.status==="trialing"?"Free Trial":subscription.status==="active"?"Executive — Active":subscription.status==="past_due"?"Past Due — Update Payment":"Cancelled"}
+                </span>
+              </div>
+              {subscription.status==="trialing"&&subscription.trial_end&&(
+                <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>
+                  {"Ends "+new Date(subscription.trial_end).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}
+                </span>
+              )}
+            </div>
+
+            {/* Billing details */}
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+              {subscription.current_period_end&&subscription.status==="active"&&(
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontFamily:"sans-serif"}}>
+                  <span style={{color:t.MUTED}}>Next billing date</span>
+                  <span style={{color:t.TEXT}}>{new Date(subscription.current_period_end).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}</span>
+                </div>
+              )}
+              {subscription.cancel_at_period_end&&(
+                <div style={{fontSize:11,color:"#D4956A",fontFamily:"sans-serif",background:"#D4956A14",border:"1px solid #D4956A33",borderRadius:6,padding:"7px 10px"}}>
+                  {"Cancels on "+new Date(subscription.current_period_end).toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})+". You keep access until then."}
+                </div>
+              )}
+            </div>
+
+            {/* Manage billing button */}
+            {subscription.stripe_customer_id&&(
+              <button onClick={handlePortal} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"11px 12px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textAlign:"center"}}>
+                Manage Billing & Cancel →
+              </button>
+            )}
+          </div>
+        )}
+      </Card>
+
       <Card style={{marginBottom:12}}>
         <SectionLabel>Privacy</SectionLabel>
         <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75,marginBottom:8}}>Data saved to this device only. AI questions sent to Anthropic API only. No accounts, no cloud, no tracking.</div>
@@ -7622,7 +7682,7 @@ function App(){
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
           {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth}/>}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
       </div>
