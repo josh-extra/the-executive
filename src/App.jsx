@@ -1517,6 +1517,80 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   );
 }
 
+
+
+const GOAL_CATS=[
+  {id:"wealth",label:"Wealth",color:"#C9A84C"},
+  {id:"health",label:"Health",color:"#7A9E7E"},
+  {id:"career",label:"Career",color:"#7EB8C9"},
+  {id:"personal",label:"Personal",color:"#B07EC9"},
+  {id:"education",label:"Education",color:"#D4956A"},
+  {id:"relationships",label:"Relationships",color:"#C97E7E"},
+];
+
+function GoalRing({pct,color,size=52}){
+  const t=T();
+  const r=size*0.39,circ=2*Math.PI*r,offset=circ-(Math.min(pct,100)/100)*circ;
+  return(
+    <svg width={size} height={size} viewBox={"0 0 "+size+" "+size} style={{transform:"rotate(-90deg)"}}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.BORDER} strokeWidth={size*0.09}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={size*0.09} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+function GoalForm({value,onChange,onSave,onCancel,saveLabel="Create Goal"}){
+  const t=T();
+  const autoEndDate=(period,start)=>{
+    if(!start)return"";
+    const d=new Date(start+"T12:00:00");
+    if(period==="week")d.setDate(d.getDate()+7);
+    else if(period==="month")d.setMonth(d.getMonth()+1);
+    else if(period==="quarter")d.setMonth(d.getMonth()+3);
+    else if(period==="year")d.setFullYear(d.getFullYear()+1);
+    else return"";
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+  return(
+    <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+      <SectionLabel>{saveLabel==="Create Goal"?"New Goal":"Edit Goal"}</SectionLabel>
+      <div style={{display:"flex",flexDirection:"column",gap:9}}>
+        <Inp value={value.title||""} onChange={e=>onChange(f=>({...f,title:e.target.value}))} placeholder="What do you want to achieve?"/>
+        <div style={{display:"flex",gap:8}}>
+          <Sel value={value.category||"wealth"} onChange={e=>onChange(f=>({...f,category:e.target.value}))} style={{flex:1}}>
+            {GOAL_CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+          </Sel>
+          <Sel value={value.period||"year"} onChange={e=>{
+            const np=e.target.value;
+            onChange(f=>({...f,period:np,endDate:autoEndDate(np,f.startDate||todayStr())}));
+          }} style={{flex:1}}>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+            <option value="longterm">Long Term</option>
+          </Sel>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>Start Date</div>
+            <Inp type="date" value={value.startDate||""} onChange={e=>{
+              const ns=e.target.value;
+              onChange(f=>({...f,startDate:ns,endDate:autoEndDate(f.period||"year",ns)}));
+            }}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>End Date (optional)</div>
+            <Inp type="date" value={value.endDate||""} onChange={e=>onChange(f=>({...f,endDate:e.target.value}))}/>
+          </div>
+        </div>
+        <Inp value={value.notes||""} onChange={e=>onChange(f=>({...f,notes:e.target.value}))} placeholder="Notes — helps AI suggest better checkpoints (optional)"/>
+        <div style={{display:"flex",gap:8}}><Btn onClick={onSave}>{saveLabel}</Btn><Btn onClick={onCancel} variant="ghost">Cancel</Btn></div>
+      </div>
+    </Card>
+  );
+}
+
 function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   const t=T();
   const[filter,setFilter]=useState("all");
@@ -1533,14 +1607,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   const[editCpForm,setEditCpForm]=useState({text:"",dueDate:""});
   const[collapsed,setCollapsed]=useState({}); // goalId -> bool
 
-  const CATS=[
-    {id:"wealth",label:"Wealth",color:"#C9A84C"},
-    {id:"health",label:"Health",color:"#7A9E7E"},
-    {id:"career",label:"Career",color:"#7EB8C9"},
-    {id:"personal",label:"Personal",color:"#B07EC9"},
-    {id:"education",label:"Education",color:"#D4956A"},
-    {id:"relationships",label:"Relationships",color:"#C97E7E"},
-  ];
+  const CATS=GOAL_CATS;
   const catColor=id=>CATS.find(c=>c.id===id)?.color||t.GOLD;
   const catLabel=id=>CATS.find(c=>c.id===id)?.label||id;
   const allGoals=goals||[];
@@ -1634,74 +1701,12 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   const onTrack=allGoals.filter(g=>calcProgress(g)>=40).length;
   const behind=allGoals.filter(g=>calcProgress(g)<40).length;
 
-  const Ring=({pct,color,size=52})=>{
-    const r=size*0.39,circ=2*Math.PI*r,offset=circ-(Math.min(pct,100)/100)*circ;
-    return(
-      <svg width={size} height={size} viewBox={"0 0 "+size+" "+size} style={{transform:"rotate(-90deg)"}}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={t.BORDER} strokeWidth={size*0.09}/>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={size*0.09} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"/>
-      </svg>
-    );
-  };
+;
 
   const catStats=CATS.map(c=>{
     const cg=allGoals.filter(g=>g.category===c.id);
     return{...c,count:cg.length,avg:cg.length?Math.round(cg.reduce((s,g)=>s+calcProgress(g),0)/cg.length):0};
   }).filter(c=>c.count>0);
-
-  const GoalForm=({value,onChange,onSave,onCancel,saveLabel="Create Goal"})=>{
-    const t=T();
-    const autoEndDate=(period,start)=>{
-      if(!start)return"";
-      const d=new Date(start+"T12:00:00");
-      if(period==="week")d.setDate(d.getDate()+7);
-      else if(period==="month")d.setMonth(d.getMonth()+1);
-      else if(period==="quarter")d.setMonth(d.getMonth()+3);
-      else if(period==="year")d.setFullYear(d.getFullYear()+1);
-      else return""; // longterm — no auto end
-      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    };
-    return (
-    <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-      <SectionLabel>{saveLabel==="Create Goal"?"New Goal":"Edit Goal"}</SectionLabel>
-      <div style={{display:"flex",flexDirection:"column",gap:9}}>
-        <Inp value={value.title||""} onChange={e=>onChange(f=>({...f,title:e.target.value}))} placeholder="What do you want to achieve?"/>
-        <div style={{display:"flex",gap:8}}>
-          <Sel value={value.category||"wealth"} onChange={e=>onChange(f=>({...f,category:e.target.value}))} style={{flex:1}}>
-            {CATS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-          </Sel>
-          <Sel value={value.period||"year"} onChange={e=>{
-            const newPeriod=e.target.value;
-            const newEnd=autoEndDate(newPeriod,value.startDate||todayStr());
-            onChange(f=>({...f,period:newPeriod,endDate:newEnd}));
-          }} style={{flex:1}}>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-            <option value="year">This Year</option>
-            <option value="longterm">Long Term</option>
-          </Sel>
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>Start Date</div>
-            <Inp type="date" value={value.startDate||""} onChange={e=>{
-              const newStart=e.target.value;
-              const newEnd=autoEndDate(value.period||"year",newStart);
-              onChange(f=>({...f,startDate:newStart,endDate:newEnd}));
-            }}/>
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>End Date (optional)</div>
-            <Inp type="date" value={value.endDate||""} onChange={e=>onChange(f=>({...f,endDate:e.target.value}))}/>
-          </div>
-        </div>
-        <Inp value={value.notes||""} onChange={e=>onChange(f=>({...f,notes:e.target.value}))} placeholder="Notes — helps AI suggest better checkpoints (optional)"/>
-        <div style={{display:"flex",gap:8}}><Btn onClick={onSave}>{saveLabel}</Btn><Btn onClick={onCancel} variant="ghost">Cancel</Btn></div>
-      </div>
-    </Card>
-    );
-  };
 
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
@@ -1724,7 +1729,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
           {catStats.map(c=>(
             <div key={c.id} onClick={()=>setFilter(filter===c.id?"all":c.id)} style={{background:filter===c.id?c.color+"18":t.CARD,border:"1px solid "+(filter===c.id?c.color:t.BORDER),borderRadius:9,padding:"10px 6px",textAlign:"center",cursor:"pointer"}}>
               <div style={{position:"relative",width:52,height:52,margin:"0 auto 6px"}}>
-                <Ring pct={c.avg} color={c.color}/>
+                <GoalRing pct={c.avg} color={c.color}/>
                 <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:c.color,fontWeight:700}}>{c.avg+"%"}</div>
               </div>
               <div style={{fontSize:10,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{c.label}</div>
@@ -6994,6 +6999,57 @@ function PaywallPage({onUpgrade}){
   );
 }
 
+function UpgradeModal({onClose,onCheckout,loading}){
+  const t=T();
+  const plans=[
+    {id:"monthly",label:"Monthly",price:"$19",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
+    {id:"annual",label:"Annual",price:"$159",period:"/year",note:"Save $69 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
+  ];
+  const proFeatures=["Live stock, crypto & commodity prices","AI Advisor with full dashboard access","Morning / Afternoon / Evening Briefing","AI-powered goal checkpoint suggestions","AI supplement recommendations","Full wealth tracking — super, alternatives","Invest intelligence & market insights"];
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{padding:"24px 24px 0"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+            <div>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Upgrade</div>
+              <div style={{fontSize:24,color:t.TEXT}}>The Executive</div>
+            </div>
+            <button onClick={onClose} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
+          </div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Start your 7-day free trial. Cancel anytime.</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+            {plans.map(p=>(
+              <div key={p.id} style={{background:p.popular?t.GOLD+"14":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:10,padding:"14px 12px",position:"relative"}}>
+                {p.popular&&<div style={{position:"absolute",top:-1,right:-1,background:t.GOLD,color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 8px",borderRadius:"0 9px 0 6px",letterSpacing:1}}>BEST VALUE</div>}
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{p.label}</div>
+                <div style={{fontSize:28,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{p.price}</div>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{p.period}</div>
+                <div style={{fontSize:9,color:p.popular?t.GREEN:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{p.note}</div>
+                <button onClick={()=>onCheckout(p.priceId)} disabled={loading} style={{width:"100%",background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:7,padding:"9px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:p.popular?700:400}}>
+                  {loading?"Loading...":"Start Free Trial"}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{marginBottom:20}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Everything included</div>
+            {proFeatures.map((f,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER}}>
+                <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span>
+                </div>
+                <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"0 0 20px"}}>No credit card required for trial · Cancel anytime · Founding member pricing locked in</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
   const[sessionExpired,setSessionExpired]=useState(false);
@@ -7451,62 +7507,6 @@ function App(){
     }
   },[authUser]);
 
-  const UpgradeModal=()=>{
-    const t=T();
-    const trialDays=7;
-    const plans=[
-      {id:"monthly",label:"Monthly",price:"$19",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
-      {id:"annual",label:"Annual",price:"$159",period:"/year",note:"Save $69 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
-    ];
-    const proFeatures=["Live stock, crypto & commodity prices","AI Advisor with full dashboard access","Morning / Afternoon / Evening Briefing","AI-powered goal checkpoint suggestions","AI supplement recommendations","Full wealth tracking — super, alternatives","Invest intelligence & market insights","Priority support"];
-    return(
-      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
-          <div style={{padding:"24px 24px 0"}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-              <div>
-                <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Upgrade</div>
-                <div style={{fontSize:24,color:t.TEXT}}>The Executive</div>
-              </div>
-              <button onClick={()=>setShowUpgrade(false)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
-            </div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>{"Start your "+trialDays+"-day free trial. Cancel anytime."}</div>
-
-            {/* Plans */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-              {plans.map(p=>(
-                <div key={p.id} style={{background:p.popular?t.GOLD+"14":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:10,padding:"14px 12px",position:"relative"}}>
-                  {p.popular&&<div style={{position:"absolute",top:-1,right:-1,background:t.GOLD,color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 8px",borderRadius:"0 9px 0 6px",letterSpacing:1}}>BEST VALUE</div>}
-                  <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{p.label}</div>
-                  <div style={{fontSize:28,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{p.price}</div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{p.period}</div>
-                  <div style={{fontSize:9,color:p.popular?t.GREEN:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{p.note}</div>
-                  <button onClick={()=>handleCheckout(p.priceId)} disabled={upgradeLoading} style={{width:"100%",background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:7,padding:"9px",color:p.popular?"#080808":t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:p.popular?700:400}}>
-                    {upgradeLoading?"Loading...":"Start Free Trial"}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Features */}
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Everything included</div>
-              {proFeatures.map((f,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER}}>
-                  <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span>
-                  </div>
-                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"0 0 20px"}}>No credit card required for trial · Cancel anytime · Founding member pricing locked in</div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const handleReset=()=>{
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
@@ -7535,7 +7535,7 @@ function App(){
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
-      {showUpgrade&&<UpgradeModal/>}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif"}}>Session expired - changes saved locally but not syncing</div>
