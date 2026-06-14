@@ -7334,6 +7334,24 @@ function App(){
     setPage("dashboard");
   };
 
+  // Handle Stripe redirect back — must be before any early returns
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("stripe")==="success"){
+      setShowUpgrade(false);
+      window.history.replaceState({},"","/app");
+      setTimeout(async()=>{
+        if(authUser&&authToken){
+          try{
+            const r=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${authUser.id}&select=*`,{headers:sbH(authToken)});
+            const d=await r.json();
+            if(d?.[0])setSubscription(d[0]);
+          }catch{}
+        }
+      },2000);
+    }
+  },[authUser]);
+
   if(splash){
     return (
       <div style={{position:"fixed",inset:0,background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",zIndex:9999,minHeight:"100vh",WebkitMinHeight:"-webkit-fill-available"}}>
@@ -7501,25 +7519,6 @@ function App(){
       if(d.url)window.location.href=d.url;
     }catch(e){console.error("Portal error:",e);}
   };
-
-  // Handle Stripe redirect back
-  useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    if(params.get("stripe")==="success"){
-      setShowUpgrade(false);
-      window.history.replaceState({},"","/app");
-      // Refresh subscription after short delay
-      setTimeout(async()=>{
-        if(authUser&&authToken){
-          try{
-            const r=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${authUser.id}&select=*`,{headers:sbH(authToken)});
-            const d=await r.json();
-            if(d?.[0])setSubscription(d[0]);
-          }catch{}
-        }
-      },2000);
-    }
-  },[authUser]);
 
   const handleReset=()=>{
     localStorage.removeItem(SK);
