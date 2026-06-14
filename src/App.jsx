@@ -341,8 +341,9 @@ function useCrypto(holdings){
 }
 
 class ErrorBoundary extends Component{
-  constructor(p){super(p);this.state={error:null};}
+  constructor(p){super(p);this.state={error:null,info:null};}
   static getDerivedStateFromError(e){return{error:e};}
+  componentDidCatch(e,info){this.setState({info});}
   render(){
     if(this.state.error){
       const t=THEMES.obsidian;
@@ -351,6 +352,7 @@ class ErrorBoundary extends Component{
           <div style={{fontSize:32,color:t.RED}}>!</div>
           <div style={{fontSize:18,color:t.TEXT,fontFamily:"sans-serif"}}>Something went wrong</div>
           <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",maxWidth:360,lineHeight:1.7}}>{this.state.error?.message}</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",maxWidth:480,lineHeight:1.6,whiteSpace:"pre-wrap",textAlign:"left",background:t.CARD,padding:12,borderRadius:8,overflowX:"auto"}}>{this.state.info?.componentStack?.slice(0,500)}</div>
           <button onClick={()=>{localStorage.removeItem(SK);window.location.reload();}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"10px 24px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700}}>Reset and Reload</button>
         </div>
       );
