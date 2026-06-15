@@ -736,6 +736,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 }
 
 function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers}){
+  const[showMktEdit,setShowMktEdit]=useState(false);
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
   useEffect(()=>{
@@ -7159,8 +7160,6 @@ function App(){
   const[authEmail,setAuthEmail]=useState("");
   const[authPassword,setAuthPassword]=useState("");
   const[authLoading,setAuthLoading]=useState(false);
-  const[authError,setAuthError]=useState("");
-  const[syncing,setSyncing]=useState(false);
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
   const[upgradeLoading,setUpgradeLoading]=useState(false);
@@ -7208,7 +7207,6 @@ function App(){
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({});
   const[showBriefing,setShowBriefing]=useState(false);
-  const[showMktEdit,setShowMktEdit]=useState(false);
   const[celebration,setCelebration]=useState(null);
   const[seenMilestones,setSeenMilestones]=useState([]);
   const[showRecalibrate,setShowRecalibrate]=useState(false);
