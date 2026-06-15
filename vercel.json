@@ -1,8 +1,17 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/landing/index.html" },
-    { "source": "/app/(.*)", "destination": "/app/index.html" },
-    { "source": "/app", "destination": "/app/index.html" }
+  "functions": {
+    "api/*.js": { "memory": 256, "maxDuration": 30 }
+  },
+  "routes": [
+    { "src": "/api/claude", "dest": "/api/claude.js" },
+    { "src": "/api/quote", "dest": "/api/quote.js" },
+    { "src": "/api/stripe-create-checkout", "dest": "/api/stripe-create-checkout.js" },
+    { "src": "/api/stripe-webhook", "dest": "/api/stripe-webhook.js" },
+    { "src": "/api/stripe-portal", "dest": "/api/stripe-portal.js" },
+    { "src": "/app/(.*)", "dest": "/index.html" },
+    { "src": "/app", "dest": "/index.html" },
+    { "src": "/", "dest": "/landing/index.html" },
+    { "src": "/(.*)", "dest": "/$1" }
   ],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
