@@ -41,7 +41,7 @@ const STRIPE_PRICES={
   annual:"price_1Ti00YRwVRKTnmPjA6OetwUj",
 };
 const FOUNDING_LIMIT=100;
-const PRO_FEATURES=["advisor","invest","health","wealth","tax","learn","services"];
+const PRO_FEATURES=["advisor","invest","tax","learn","services"];
 const isPro=sub=>sub&&["active","trialing"].includes(sub.status);
 const isFeatureLocked=(page,sub)=>PRO_FEATURES.includes(page)&&!isPro(sub);
 
