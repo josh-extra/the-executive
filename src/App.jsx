@@ -189,35 +189,38 @@ const D_HABITS=[
   {id:5,name:"Meditation",icon:"Zen",color:"#D4956A",target:7}
 ];
 
-function useMarket(){
-  const[data,setData]=useState({sp500:{price:null,pct:null,loading:true},asx:{price:null,pct:null,loading:true},audusd:{price:null,pct:null,loading:true},lastUpdated:null});
+const DEFAULT_TICKERS=[
+  {symbol:"^GSPC",label:"S&P 500",fx:false},
+  {symbol:"^AXJO",label:"ASX 200",fx:false},
+  {symbol:"AUDUSD=X",label:"AUD/USD",fx:true},
+];
+
+function useMarket(tickers){
+  const safeT=tickers&&tickers.length?tickers:DEFAULT_TICKERS;
+  const[prices,setPrices]=useState({});
+  const[loading,setLoading]=useState(true);
+  const[lastUpdated,setLastUpdated]=useState(null);
+
   const fetchAll=useCallback(async()=>{
-    try{
-      const r=await fetch("/api/quote?symbol=^GSPC");
-      const j=await r.json();
-      if(!j.error){
-        const[a,u]=await Promise.all([
-          fetch("/api/quote?symbol=^AXJO").then(r=>r.json()),
-          fetch("/api/quote?symbol=OANDA:AUD_USD").then(r=>r.json())
-        ]);
-        setData({
-          sp500:{price:j.price,pct:j.pct,loading:false,error:false},
-          asx:{price:a.error?null:a.price,pct:a.error?null:a.pct,loading:false,error:!!a.error},
-          audusd:{price:u.error?null:u.price,pct:u.error?null:u.pct,loading:false,error:!!u.error},
-          lastUpdated:new Date()
-        });
-        return;
+    setLoading(true);
+    const results={};
+    await Promise.all(safeT.map(async tk=>{
+      try{
+        const r=await fetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
+        const d=await r.json();
+        results[tk.symbol]={price:d.price,pct:d.pct||0,change:d.change||0,loading:false,error:false};
+      }catch{
+        results[tk.symbol]={price:null,pct:0,loading:false,error:true};
       }
-    }catch(e){}
-    setData({
-      sp500:{price:5801,pct:.77,loading:false,error:true},
-      asx:{price:8320,pct:.51,loading:false,error:true},
-      audusd:{price:.6412,pct:.19,loading:false,error:true},
-      lastUpdated:new Date()
-    });
-  },[]);
-  useEffect(()=>{fetchAll();const id=setInterval(fetchAll,300000);return()=>clearInterval(id);},[]);
-  return{...data,refresh:fetchAll};
+    }));
+    setPrices(results);
+    setLastUpdated(new Date());
+    setLoading(false);
+  },[safeT.map(t=>t.symbol).join(",")]);
+
+  useEffect(()=>{fetchAll();const id=setInterval(fetchAll,60000);return()=>clearInterval(id);},[fetchAll]);
+
+  return{prices,loading,lastUpdated,refresh:fetchAll};
 }
 
 function useCommodities(holdings){
@@ -732,7 +735,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers}){
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
   useEffect(()=>{
@@ -775,7 +778,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const monthNet=monthIncome-monthExpense;
   const nextBill=(bills||[]).filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())>0).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue))[0];
   const monthlyBills=(bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+b.amount*(m[b.frequency]||1);},0);
-  const mktRows=[{l:"S&P 500",d:market.sp500,fx:false},{l:"ASX 200",d:market.asx,fx:false},{l:"AUD/USD",d:market.audusd,fx:true}];
+  const mktRows=(marketTickers||DEFAULT_TICKERS).map(tk=>({l:tk.label,d:market.prices[tk.symbol]||{loading:!market.lastUpdated,price:null,pct:0},fx:tk.fx,symbol:tk.symbol}));
   const goalPeriods=["year","month","week"];
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
@@ -904,8 +907,27 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               {market.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{market.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
               <button onClick={market.refresh} style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>R</button>
+              <button onClick={()=>setShowMktEdit(s=>!s)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.MUTED,cursor:"pointer",fontSize:10}}>Edit</button>
             </div>
           }>Markets</SectionLabel>
+          {showMktEdit&&(
+            <div style={{marginBottom:12,background:t.CARD2,borderRadius:8,padding:10,border:"1px solid "+t.BORDER}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Choose 3 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
+                <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
+                  <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Symbol" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
+                  <Inp value={tk.label} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,label:e.target.value}:t))} placeholder="Label" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
+                  <label style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,cursor:"pointer"}}>
+                    <input type="checkbox" checked={tk.fx||false} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,fx:e.target.checked}:t))} style={{accentColor:t.GOLD}}/>FX
+                  </label>
+                </div>
+              ))}
+              <div style={{display:"flex",gap:6,marginTop:6}}>
+                <Btn onClick={()=>{setShowMktEdit(false);market.refresh();}} style={{fontSize:10,padding:"5px 10px"}}>Save & Refresh</Btn>
+                <Btn onClick={()=>{setMarketTickers(DEFAULT_TICKERS);setShowMktEdit(false);}} variant="ghost" style={{fontSize:10,padding:"5px 10px"}}>Reset</Btn>
+              </div>
+            </div>
+          )}
           {mktRows.map((m,i)=>(
             <div key={m.l}>
               {i>0&&<Divider/>}
@@ -7186,11 +7208,13 @@ function App(){
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({});
   const[showBriefing,setShowBriefing]=useState(false);
+  const[showMktEdit,setShowMktEdit]=useState(false);
   const[celebration,setCelebration]=useState(null);
   const[seenMilestones,setSeenMilestones]=useState([]);
   const[showRecalibrate,setShowRecalibrate]=useState(false);
   const isMobile=useIsMobile();
-  const market=useMarket();
+  const[marketTickers,setMarketTickers]=useState(DEFAULT_TICKERS);
+  const market=useMarket(marketTickers);
   const portfolio=usePortfolio(holdings);
   const cryptoPortfolio=useCrypto(cryptoHoldings);
   const commodityPortfolio=useCommodities(commodityHoldings);
@@ -7238,6 +7262,7 @@ function App(){
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.marketTickers)setMarketTickers(d.marketTickers);
               if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
@@ -7285,6 +7310,7 @@ function App(){
         if(saved.journal!==undefined)setJournal(saved.journal);
         if(saved.books!==undefined)setBooks(saved.books);
         if(saved.readingGoal)setReadingGoal(saved.readingGoal);
+        if(saved.marketTickers)setMarketTickers(saved.marketTickers);
         if(saved.superLog)setSuperLog(saved.superLog);
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
@@ -7313,7 +7339,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
@@ -7470,6 +7496,7 @@ function App(){
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.marketTickers)setMarketTickers(d.marketTickers);
               if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
@@ -7505,6 +7532,7 @@ function App(){
               if(d.journal!==undefined)setJournal(d.journal);
               if(d.books!==undefined)setBooks(d.books);
               if(d.readingGoal)setReadingGoal(d.readingGoal);
+              if(d.marketTickers)setMarketTickers(d.marketTickers);
               if(d.superLog)setSuperLog(d.superLog);
               if(d.bills!==undefined)setBills(d.bills);
               if(d.debts!==undefined)setDebts(d.debts);
@@ -7603,7 +7631,7 @@ function App(){
   const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
