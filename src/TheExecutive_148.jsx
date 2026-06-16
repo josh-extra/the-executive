@@ -1,4 +1,4 @@
-import{useState,useEffect,useRef,useCallback,Component,createContext,useContext}from"react";
+import{useState,useEffect,useRef,useCallback,Component}from"react";
 
 const THEMES={
   obsidian:{BG:"#080808",CARD:"#111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
@@ -382,22 +382,9 @@ function PB({value,color,height=4}){
     </div>
   );
 }
-const BgThemeContext=createContext("none");
-
 function Card({children,style,onClick}){
   const t=T();
-  const bgTheme=useContext(BgThemeContext);
-  const hasBg=bgTheme&&bgTheme!=="none";
-  const base=hasBg?{
-    background:"rgba(10,10,14,0.65)",
-    border:"1px solid rgba(255,255,255,0.07)",
-    backdropFilter:"blur(18px)",
-    WebkitBackdropFilter:"blur(18px)",
-  }:{
-    background:t.CARD,
-    border:"1px solid "+t.BORDER,
-  };
-  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,...style,cursor:onClick?"pointer":"default"}}>{children}</div>;
+  return <div onClick={onClick} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16,...style,cursor:onClick?"pointer":"default"}}>{children}</div>;
 }
 function Divider(){
   const t=T();
@@ -760,8 +747,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 
 function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers}){
   const[showMktEdit,setShowMktEdit]=useState(false);
-  const bgTheme=useContext(BgThemeContext);
-  const hasBg=bgTheme&&bgTheme!=="none";
+
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
   useEffect(()=>{
@@ -810,7 +796,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* ── HEADER ── */}
-      <div style={{...rowStyle(0),background:hasBg?"rgba(10,10,14,0.65)":t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12,backdropFilter:hasBg?"blur(18px)":"none",WebkitBackdropFilter:hasBg?"blur(18px)":"none"}}>
+      <div style={{...rowStyle(0),background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12}}>
         {/* Top row — greeting + sync */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"14px 16px 10px"}}>
           <div>
@@ -7695,8 +7681,7 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers};
 
   return (
-    <BgThemeContext.Provider value={bgTheme}>
-    <div style={{display:"flex",minHeight:"100vh",background:bgTheme&&bgTheme!=="none"?"transparent":t.BG,color:t.TEXT}}>
+    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
       <BgLayer bgTheme={bgTheme}/>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
@@ -7778,7 +7763,6 @@ function App(){
         </div>
       </div>
     </div>
-    </BgThemeContext.Provider>
   );
 }
 
