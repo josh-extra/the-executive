@@ -1,4 +1,4 @@
-import{useState,useEffect,useRef,useCallback,Component}from"react";
+import{useState,useEffect,useRef,useCallback,Component,createContext,useContext}from"react";
 
 const THEMES={
   obsidian:{BG:"#080808",CARD:"#111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
@@ -382,11 +382,11 @@ function PB({value,color,height=4}){
     </div>
   );
 }
-const BgThemeContext=React.createContext("none");
+const BgThemeContext=createContext("none");
 
 function Card({children,style,onClick}){
   const t=T();
-  const bgTheme=React.useContext(BgThemeContext);
+  const bgTheme=useContext(BgThemeContext);
   const hasBg=bgTheme&&bgTheme!=="none";
   const base=hasBg?{
     background:"rgba(10,10,14,0.65)",
@@ -760,7 +760,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 
 function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers}){
   const[showMktEdit,setShowMktEdit]=useState(false);
-  const bgTheme=React.useContext(BgThemeContext);
+  const bgTheme=useContext(BgThemeContext);
   const hasBg=bgTheme&&bgTheme!=="none";
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
