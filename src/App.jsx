@@ -389,8 +389,8 @@ function Card({children,style,onClick}){
   const bgTheme=React.useContext(BgThemeContext);
   const hasBg=bgTheme&&bgTheme!=="none";
   const base=hasBg?{
-    background:t.CARD+"99",
-    border:"1px solid "+t.BORDER,
+    background:"rgba(10,10,14,0.65)",
+    border:"1px solid rgba(255,255,255,0.07)",
     backdropFilter:"blur(18px)",
     WebkitBackdropFilter:"blur(18px)",
   }:{
@@ -810,7 +810,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* ── HEADER ── */}
-      <div style={{...rowStyle(0),background:hasBg?t.CARD+"99":t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12,backdropFilter:hasBg?"blur(18px)":"none",WebkitBackdropFilter:hasBg?"blur(18px)":"none"}}>
+      <div style={{...rowStyle(0),background:hasBg?"rgba(10,10,14,0.65)":t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12,backdropFilter:hasBg?"blur(18px)":"none",WebkitBackdropFilter:hasBg?"blur(18px)":"none"}}>
         {/* Top row — greeting + sync */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"14px 16px 10px"}}>
           <div>
