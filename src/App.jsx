@@ -382,9 +382,12 @@ function PB({value,color,height=4}){
     </div>
   );
 }
+const BgThemeContext=React.createContext("none");
+
 function Card({children,style,onClick}){
   const t=T();
-  const hasBg=_bgTheme&&_bgTheme!=="none";
+  const bgTheme=React.useContext(BgThemeContext);
+  const hasBg=bgTheme&&bgTheme!=="none";
   const base=hasBg?{
     background:"rgba(6,6,10,0.62)",
     border:"1px solid rgba(255,255,255,0.07)",
@@ -7133,8 +7136,8 @@ function PaywallPage({onUpgrade}){
 }
 
 
-function BgLayer(){
-  const cfg=BG_THEMES[_bgTheme]||BG_THEMES.none;
+function BgLayer({bgTheme}){
+  const cfg=BG_THEMES[bgTheme]||BG_THEMES.none;
   if(!cfg.url) return null;
   return(
     <div style={{
@@ -7143,8 +7146,9 @@ function BgLayer(){
       backgroundSize:"cover",
       backgroundPosition:"center",
       filter:cfg.filter||"none",
-      transition:"filter 2s ease",
+      transition:"filter 2s ease, opacity 1s ease",
       pointerEvents:"none",
+      opacity:1,
     }}/>
   );
 }
@@ -7689,9 +7693,10 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers};
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:(_bgTheme&&_bgTheme!=="none")?"transparent":t.BG,color:t.TEXT}}>
+    <BgThemeContext.Provider value={bgTheme}>
+    <div style={{display:"flex",minHeight:"100vh",background:bgTheme&&bgTheme!=="none"?"transparent":t.BG,color:t.TEXT}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
-      <BgLayer/>
+      <BgLayer bgTheme={bgTheme}/>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -7771,6 +7776,7 @@ function App(){
         </div>
       </div>
     </div>
+    </BgThemeContext.Provider>
   );
 }
 
