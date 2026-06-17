@@ -7210,6 +7210,7 @@ function App(){
   const[authEmail,setAuthEmail]=useState("");
   const[authPassword,setAuthPassword]=useState("");
   const[authLoading,setAuthLoading]=useState(false);
+  const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
