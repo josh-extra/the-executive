@@ -741,7 +741,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
   const t=T();
@@ -825,7 +825,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             <span style={{color:t.GOLD,fontWeight:600}}>{new Date().getHours()<12?"Morning":new Date().getHours()<17?"Afternoon":"Evening"} Briefing</span>
             {" — markets, your priorities & today's insights"}
           </div>
-          <button onClick={()=>setShowBriefing(true)} style={{background:`linear-gradient(135deg,${t.GOLD},${t.GL})`,border:"none",borderRadius:8,padding:"8px 16px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,marginLeft:14}}>
+          <button onClick={()=>isPro(subscription)?setShowBriefing(true):setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${t.GOLD},${t.GL})`,border:"none",borderRadius:8,padding:"8px 16px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,marginLeft:14}}>
             Open Briefing →
           </button>
         </div>
@@ -1623,7 +1623,7 @@ function GoalForm({value,onChange,onSave,onCancel,saveLabel="Create Goal"}){
   );
 }
 
-function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
+function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,setShowUpgrade}){
   const t=T();
   const[filter,setFilter]=useState("all");
   const[showAdd,setShowAdd]=useState(false);
@@ -1707,6 +1707,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile}){
   };
 
   const getSuggestions=async(g)=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     setAiLoading(g.id);
     const nw=parseFloat(profile?.netWorth||0);
     try{
@@ -2980,7 +2981,7 @@ function ProjectorPage({profile}){
   );
 }
 
-function DebtPage({profile,setProfile,debts,setDebts}){
+function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
   const[editing,setEditing]=useState(null);
@@ -3098,6 +3099,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
   };
 
   const getAiAdvice=async()=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     setAiLoading(true);setAiAdvice("");
     const debtSummary=allDebts.map(d=>{
       const payment=parseFloat(d.minPayment)||0;
@@ -3377,7 +3379,7 @@ function DebtPage({profile,setProfile,debts,setDebts}){
   );
 }
 
-function CashFlowPage({transactions,setTransactions}){
+function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade}){
   const t=T();
   const[form,setForm]=useState({date:todayStr(),type:"income",category:"Salary",amount:"",note:""});
   const[showAdd,setShowAdd]=useState(false);
@@ -3424,6 +3426,7 @@ function CashFlowPage({transactions,setTransactions}){
   const expChange=prevMonth.exp>0?((expense-prevMonth.exp)/prevMonth.exp*100):0;
 
   const handlePdf=async file=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     if(!file||!file.type.includes("pdf"))return;
     setPdfState("loading");setPdfError("");
     try{
@@ -4253,7 +4256,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
   );
 }
 
-function WorkoutPage({workouts,setWorkouts,profile}){
+function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[tab,setTab]=useState("log");
   const[wf,setWf]=useState({date:todayStr(),type:"Strength",duration:60,notes:"",sets:[]});
   const[sf,setSf]=useState({exercise:"Bench Press",sets:3,reps:8,weight:""});
@@ -4277,6 +4280,7 @@ function WorkoutPage({workouts,setWorkouts,profile}){
   };
 
   const getWorkoutPlan=async()=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     setPlanLoading(true);setPlan(null);
     const goals=(profile?.healthGoals||["Build Muscle"]).join(", ");
     try{
@@ -4896,7 +4900,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   );
 }
 
-function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections}){
+function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade}){
   const t=T();
   const[aiReview,setAiReview]=useState("");
   const[loading,setLoading]=useState(false);
@@ -4919,6 +4923,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const weightChange=latestBody?.weight&&earliestBody?.weight?(parseFloat(latestBody.weight)-parseFloat(earliestBody.weight)).toFixed(1):null;
   const dayLetters=["S","M","T","W","T","F","S"];
   const genReview=async()=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     setLoading(true);
     try{
       const wSummary=weekWorkouts.length?weekWorkouts.map(w=>w.type+" "+w.duration+"min").join(", "):"none";
@@ -5938,7 +5943,7 @@ function RecCard({r,actions}){
     </div>
   );
 }
-function RecipesPage({profile}){
+function RecipesPage({profile,subscription,setShowUpgrade}){
   const t=T();
   const[mealFilter,setMealFilter]=useState("all");
   const[goalFilter,setGoalFilter]=useState("all");
@@ -5958,6 +5963,7 @@ function RecipesPage({profile}){
   const healthGoals=(profile.healthGoals||[]);
 
   const generateRecipes=async()=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
     setLoading(true);setRecipes([]);setSelected(null);setError("");
     const goalStr=healthGoals.join(", ")||"general health";
     const mealStr=mealFilter==="all"?"any meal type":mealFilter;
@@ -7639,7 +7645,7 @@ function App(){
   const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
@@ -7699,21 +7705,21 @@ function App(){
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
-          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile}/>}
+          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
           {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
-          {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions}/>}
+          {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
-          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts}/>}
+          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
-          {page==="recipes"&&<RecipesPage profile={liveProfile}/> }
+          {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
-          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile}/>}
+          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
-          {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections}/>}
+          {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
