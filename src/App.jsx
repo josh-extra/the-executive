@@ -1,7 +1,7 @@
 import{useState,useEffect,useRef,useCallback,Component}from"react";
 
 const THEMES={
-  obsidian:{BG:"#080808",CARD:"#111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
+  obsidian:{BG:"#080808",CARD:"#111111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
   charcoal:{BG:"#141414",CARD:"#1E1E1E",CARD2:"#252525",BORDER:"#2E2E2E",BORDER2:"#383838",TEXT:"#E0E0E0",MUTED:"#666666",MUTED2:"#404040",GOLD:"#BFBFBF",GL:"#D8D8D8",RED:"#C07070",GREEN:"#70A870",BLUE:"#70A8C0",PURPLE:"#A070C0"},
   parchment:{BG:"#F5F0E8",CARD:"#FFFDF8",CARD2:"#F0EBE0",BORDER:"#E5DDD0",BORDER2:"#D5C8B8",TEXT:"#1A1208",MUTED:"#8A7A60",MUTED2:"#C5B8A0",GOLD:"#A07830",GL:"#C9A84C",RED:"#A05050",GREEN:"#507850",BLUE:"#507890",PURPLE:"#805090"},
   minimal:{BG:"#FFFFFF",CARD:"#F7F7F7",CARD2:"#EFEFEF",BORDER:"#E8E8E8",BORDER2:"#D8D8D8",TEXT:"#111111",MUTED:"#888888",MUTED2:"#C8C8C8",GOLD:"#222222",GL:"#555555",RED:"#C0392B",GREEN:"#2A7A2A",BLUE:"#1A5A9A",PURPLE:"#6A3A9A"}
@@ -55,6 +55,11 @@ const PRO_FEATURES=["advisor","invest","tax","learn","services"];
 const isPro=sub=>sub&&["active","trialing"].includes(sub.status);
 const isFeatureLocked=(page,sub)=>PRO_FEATURES.includes(page)&&!isPro(sub);
 
+const hexA=(hex,alpha)=>{
+  let h=hex.replace("#","");
+  if(h.length===3)h=h.split("").map(c=>c+c).join("");
+  return "#"+h+alpha;
+};
 const fmt=n=>{
   if(!n&&n!==0)return L().symbol+"0";
   const s=L().symbol,v=Math.abs(n);
@@ -902,7 +907,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         const highIncomplete=tasks.filter(tk=>tk.priority==="high"&&!tk.done);
         if(highIncomplete.length>2) alerts.push({type:"task",msg:highIncomplete.length+" high priority tasks incomplete",page:"tasks",color:t.PURPLE});
         return alerts.slice(0,3).map((a,i)=>(
-          <div key={i} onClick={()=>setPage(a.page)} style={{padding:"9px 13px",background:a.color+"14",border:"1px solid "+a.color+"33",borderRadius:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+          <div key={i} onClick={()=>setPage(a.page)} style={{padding:"9px 13px",background:hexA(t.CARD,"E6"),border:"1px solid "+a.color+"44",borderRadius:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",position:"relative",zIndex:1}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:a.color,flexShrink:0}}/>
             <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",flex:1}}>{a.msg}</div>
             <div style={{fontSize:10,color:a.color,fontFamily:"sans-serif",flexShrink:0}}>View</div>
@@ -7681,7 +7686,7 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers};
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT}}>
+    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
       <BgLayer bgTheme={bgTheme}/>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
