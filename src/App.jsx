@@ -756,7 +756,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
   useEffect(()=>{
-    const delays=[0,120,240,360,480];
+    const delays=[0,120,240,360,480,600];
     const timers=delays.map((d,i)=>setTimeout(()=>setVisibleRows(r=>[...r,i]),d));
     return()=>timers.forEach(clearTimeout);
   },[]);
