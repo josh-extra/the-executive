@@ -7,15 +7,6 @@ const THEMES={
   minimal:{BG:"#FFFFFF",CARD:"#F7F7F7",CARD2:"#EFEFEF",BORDER:"#E8E8E8",BORDER2:"#D8D8D8",TEXT:"#111111",MUTED:"#888888",MUTED2:"#C8C8C8",GOLD:"#222222",GL:"#555555",RED:"#C0392B",GREEN:"#2A7A2A",BLUE:"#1A5A9A",PURPLE:"#6A3A9A"}
 };
 
-// ── Background Image Themes ───────────────────────────────────────────────────
-const BG_THEMES={
-  none:{label:"Obsidian",icon:"●",url:null,filter:null},
-  nyc: {label:"NYC",icon:"🌃",url:"https://images.unsplash.com/photo-1544111795-fe8b9def73f6?w=1400&q=85&auto=format",filter:null},
-  steel:{label:"Steel",icon:"🔵",url:"https://images.unsplash.com/photo-1544111795-fe8b9def73f6?w=1400&q=85&auto=format",filter:"brightness(0.85) saturate(0.5) hue-rotate(180deg) contrast(1.1)"},
-  ember:{label:"Ember",icon:"🔴",url:"https://images.unsplash.com/photo-1544111795-fe8b9def73f6?w=1400&q=85&auto=format",filter:"brightness(0.8) saturate(1.3) sepia(0.3) contrast(1.1)"},
-  noir: {label:"Noir",icon:"⬛",url:"https://images.unsplash.com/photo-1544111795-fe8b9def73f6?w=1400&q=85&auto=format",filter:"brightness(0.55) saturate(0.4) contrast(1.2)"},
-};
-let _bgTheme="none";
 const THEME_ALIASES={dark:"obsidian",light:"parchment"};
 let _themeKey="obsidian";
 const T=()=>THEMES[_themeKey]||THEMES[THEME_ALIASES[_themeKey]]||THEMES.obsidian;
@@ -5095,7 +5086,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal,bgTheme,setBgTheme}){
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -5140,22 +5131,6 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
             <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"10px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":t.CARD2,color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
               {th.l}
             </button>
-          ))}
-        </div>
-        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Background</div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          {Object.entries(BG_THEMES).map(([key,bg])=>(
-            <div key={key} onClick={()=>setBgTheme(key)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,cursor:"pointer"}}>
-              <div style={{
-                width:52,height:52,borderRadius:10,
-                border:"2px solid "+(bgTheme===key?t.GOLD:"rgba(255,255,255,0.06)"),
-                boxShadow:bgTheme===key?"0 0 12px "+t.GOLD+"44":"none",
-                background:bg.url?"url('"+bg.url.replace("w=1400","w=120")+"') center/cover":"#0E0E0E",
-                filter:bg.filter||"none",
-                transition:"all .3s",
-              }}/>
-              <div style={{fontSize:8,color:bgTheme===key?t.GOLD:"#3A3020",fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>{bg.label}</div>
-            </div>
           ))}
         </div>
       </Card>
@@ -7129,23 +7104,6 @@ function PaywallPage({onUpgrade}){
 }
 
 
-function BgLayer({bgTheme}){
-  const cfg=BG_THEMES[bgTheme]||BG_THEMES.none;
-  if(!cfg.url) return null;
-  return(
-    <div style={{
-      position:"fixed",inset:0,zIndex:0,
-      backgroundImage:"url('"+cfg.url+"')",
-      backgroundSize:"cover",
-      backgroundPosition:"center",
-      filter:cfg.filter||"none",
-      transition:"filter 2s ease, opacity 1s ease",
-      pointerEvents:"none",
-      opacity:1,
-    }}/>
-  );
-}
-
 function UpgradeModal({onClose,onCheckout,loading}){
   const t=T();
   const plans=[
@@ -7228,7 +7186,6 @@ function App(){
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
-  const[bgTheme,setBgThemeState]=useState("none");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
   const[tasks,setTasks]=useState(D_TASKS);
@@ -7351,7 +7308,6 @@ function App(){
       if(saved){
         saved=applyDailyReset(saved,today);
         if(saved.theme){const k=THEME_ALIASES[saved.theme]||saved.theme;_themeKey=k;setThemeState(k);}
-        if(saved.bgTheme){_bgTheme=saved.bgTheme;setBgThemeState(saved.bgTheme);}
         if(saved.profile){setProfile(saved.profile);if(saved.profile.locale)_locale=saved.profile.locale;}
         if(saved.tasks!==undefined)setTasks(saved.tasks);
         if(saved.goals!==undefined)setGoals(saved.goals);
@@ -7391,7 +7347,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,bgTheme,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     saveData(dataToSave);
     if(authToken && authUser?.id){
       supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
@@ -7400,7 +7356,6 @@ function App(){
   },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
-  const setBgTheme=bg=>{_bgTheme=bg;setBgThemeState(bg);};
   const todayT=todayTasks(tasks);
   const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
@@ -7763,7 +7718,7 @@ function App(){
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
           {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal} bgTheme={bgTheme} setBgTheme={setBgTheme}/>}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
       </div>
