@@ -7320,6 +7320,11 @@ function App(){
         setAuthToken(token);
         setAuthUser(user);
         try{
+          const subRes=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${user.id}&select=*`,{headers:sbH(token)});
+          const subData=await subRes.json();
+          if(subData?.[0])setSubscription(subData[0]);
+        }catch{}
+        try{
           const cloudData = await supabase.load(user.id, token);
           const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
           if(hasCloudData){
