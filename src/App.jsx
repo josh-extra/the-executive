@@ -7176,6 +7176,64 @@ function App(){
   const[authLoading,setAuthLoading]=useState(false);
   const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
+  const[lastResetDate,setLastResetDate]=useState(()=>todayStr());
+
+  // Auto-reset tasks/supplements at midnight without requiring a manual reload
+  useEffect(()=>{
+    const scheduleMidnightCheck=()=>{
+      const now=new Date();
+      const nextMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,5);
+      const msUntil=nextMidnight-now;
+      return setTimeout(()=>{
+        const today=todayStr();
+        if(today!==lastResetDate){
+          const dayOfWeek=new Date(today+"T12:00:00").getDay();
+          setTasks(ts=>(ts||[]).map(tk=>{
+            if(!tk.done)return tk;
+            if(tk.recurring&&!tk.recurDays)return{...tk,done:false};
+            if(tk.recurring&&tk.recurDays?.length){
+              if(tk.recurDays.includes(dayOfWeek))return{...tk,done:false};
+              return tk;
+            }
+            return null;
+          }).filter(Boolean));
+          setSupplements(ss=>(ss||[]).map(s=>({...s,taken:false})));
+          setLastResetDate(today);
+        }
+        scheduleMidnightCheck();
+      },Math.max(msUntil,1000));
+    };
+    const timer=scheduleMidnightCheck();
+    return()=>clearTimeout(timer);
+  },[lastResetDate]);
+
+  // Also catch the case where the tab was asleep/backgrounded past midnight
+  useEffect(()=>{
+    const checkOnFocus=()=>{
+      const today=todayStr();
+      if(today!==lastResetDate){
+        const dayOfWeek=new Date(today+"T12:00:00").getDay();
+        setTasks(ts=>(ts||[]).map(tk=>{
+          if(!tk.done)return tk;
+          if(tk.recurring&&!tk.recurDays)return{...tk,done:false};
+          if(tk.recurring&&tk.recurDays?.length){
+            if(tk.recurDays.includes(dayOfWeek))return{...tk,done:false};
+            return tk;
+          }
+          return null;
+        }).filter(Boolean));
+        setSupplements(ss=>(ss||[]).map(s=>({...s,taken:false})));
+        setLastResetDate(today);
+      }
+    };
+    document.addEventListener("visibilitychange",checkOnFocus);
+    window.addEventListener("focus",checkOnFocus);
+    return()=>{
+      document.removeEventListener("visibilitychange",checkOnFocus);
+      window.removeEventListener("focus",checkOnFocus);
+    };
+  },[lastResetDate]);
+
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
   const[upgradeLoading,setUpgradeLoading]=useState(false);
