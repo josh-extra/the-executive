@@ -547,7 +547,7 @@ function MorningBriefing({profile,tasks,onClose}){
       try{
         const highTasks=(tasks||[]).filter(tk=>tk.priority==="high").map(tk=>tk.text).join(", ");
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"});
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:700,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp morning briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Sections: MARKETS (search today), PRIORITIES (top 3 tasks), PULSE (one financial insight), MINDSET (one sentence). Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
+        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1100,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Sharp briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Search for current S&P 500, ASX 200, and major index moves, plus any significant financial/economic news from the last 24 hours (central bank moves, major earnings, geopolitical events affecting markets, notable stock moves). Sections: MARKETS (index levels and % moves today, search current data), NEWS (2-3 most important financial/economic stories from the last 24h with brief why-it-matters), PRIORITIES (top 3 tasks), PULSE (one financial insight relevant to their holdings/profile), MINDSET (one sharp sentence). Plain text, caps headers, be specific with numbers and sources where relevant.",messages:[{role:"user",content:"Briefing for "+dateLabel+". Tasks: "+highTasks}]})});
         const d=await r.json();
         setBrief((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
       }catch{setBrief("Connection error.");}
@@ -562,7 +562,8 @@ function MorningBriefing({profile,tasks,onClose}){
             <Skeleton width="80%" height={13}/>
             <Skeleton width="65%" height={13}/>
             <Skeleton width="90%" height={13}/>
-            <div style={{textAlign:"center",marginTop:8,fontSize:11,color:t.MUTED}}>Scanning markets...</div>
+            <Skeleton width="70%" height={13}/>
+            <div style={{textAlign:"center",marginTop:8,fontSize:11,color:t.MUTED}}>Scanning markets & news...</div>
           </div>
         ):brief}
       </div>
