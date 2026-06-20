@@ -7469,11 +7469,37 @@ function App(){
   useEffect(()=>{
     if(!readyToSave)return;
     const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
-    saveData(dataToSave);
-    if(authToken && authUser?.id){
-      supabase.save(authUser.id, authToken, dataToSave).catch(()=>{});
-    }
-    setLastSaved(Date.now());
+    const timer=setTimeout(()=>{
+      (async()=>{
+        saveData(dataToSave);
+        if(authToken && authUser?.id){
+          try{await supabase.save(authUser.id, authToken, dataToSave);}catch{}
+        }
+        setLastSaved(Date.now());
+      })();
+    },400);
+    return()=>clearTimeout(timer);
+  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+
+  // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
+  useEffect(()=>{
+    const flush=()=>{
+      if(!readyToSave)return;
+      const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      saveData(dataToSave);
+      if(authToken && authUser?.id){
+        try{
+          fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:dataToSave,updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
+        }catch{}
+      }
+    };
+    const onVisibility=()=>{if(document.visibilityState==="hidden")flush();};
+    document.addEventListener("visibilitychange",onVisibility);
+    window.addEventListener("beforeunload",flush);
+    return()=>{
+      document.removeEventListener("visibilitychange",onVisibility);
+      window.removeEventListener("beforeunload",flush);
+    };
   },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
