@@ -547,10 +547,17 @@ function MorningBriefing({profile,tasks,onClose}){
       try{
         const highTasks=todayTasks(tasks).filter(tk=>tk.priority==="high"&&!tk.done).map(tk=>tk.text).join(", ")||"none set";
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-        const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1100,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Today's date is "+dateLabel+". Sharp briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". NW: "+fmt(profile.netWorth||0)+". Search the web for the S&P 500, ASX 200, and major index levels and % moves AS OF TODAY ("+dateLabel+"), plus any significant financial/economic news from the last 24 hours (central bank moves, major earnings, geopolitical events affecting markets, notable stock moves). Use only current search results — do not rely on memorised data, markets change daily. Sections: MARKETS (today's index levels and % moves, cite what you found), NEWS (2-3 most important financial/economic stories from the last 24h with brief why-it-matters), PRIORITIES (top 3 tasks — only list undone tasks given below, do not invent any), PULSE (one financial insight relevant to their holdings/profile), MINDSET (one sharp sentence). Plain text, caps headers, be specific with numbers and sources where relevant.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]})});
+        const controller=new AbortController();
+        const timeoutId=setTimeout(()=>controller.abort(),9000);
+        const r=await fetch("/api/claude",{method:"POST",signal:controller.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:550,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Today's date is "+dateLabel+". Fast briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". One search only: S&P 500 and ASX 200 current levels and % move today, plus the single most important financial news story from the last 24h. Sections: MARKETS (brief, just the numbers), NEWS (1 story, 2 sentences max), PRIORITIES (top 3 from tasks below, do not invent any), MINDSET (one sentence). Be extremely concise — this must be fast. Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]})});
+        clearTimeout(timeoutId);
         const d=await r.json();
+        if(!r.ok){setBrief("Briefing failed: "+(d.error?.message||d.error||"Server error "+r.status));setLoading(false);return;}
         setBrief((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
-      }catch{setBrief("Connection error.");}
+      }catch(e){
+        if(e?.name==="AbortError")setBrief("The briefing took too long to generate (search can be slow). Try again — it sometimes needs a second attempt.");
+        else setBrief("Connection error: "+(e?.message||"unknown"));
+      }
       setLoading(false);
     })();
   },[]);
