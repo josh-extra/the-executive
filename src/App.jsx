@@ -7300,13 +7300,18 @@ function App(){
   },[lastResetDate]);
 
   // Auto-advance autopay bills past their due date — these are paid automatically by the bank,
-  // so the app should roll nextDue forward on its own rather than waiting for a manual "Paid" click
+  // so the app should roll nextDue forward on its own rather than waiting for a manual "Paid" click.
+  // Runs only on load and when a new day starts (lastResetDate) — never depends on bills itself,
+  // since that would re-trigger this effect every time it updates the bills it's watching.
   useEffect(()=>{
-    if(!readyToSave||!bills.length)return;
-    const needsRoll=bills.some(b=>b.autopay&&b.nextDue&&new Date(b.nextDue+"T12:00:00")<new Date());
-    if(!needsRoll)return;
-    setBills(bs=>bs.map(b=>rollAutopayForward(b)));
-  },[bills,lastResetDate,readyToSave]);
+    if(!readyToSave)return;
+    setBills(bs=>{
+      if(!bs.length)return bs;
+      const needsRoll=bs.some(b=>b.autopay&&b.nextDue&&new Date(b.nextDue+"T12:00:00")<new Date());
+      if(!needsRoll)return bs;
+      return bs.map(b=>rollAutopayForward(b));
+    });
+  },[lastResetDate,readyToSave]);
 
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
