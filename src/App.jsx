@@ -696,10 +696,10 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
           })}
           {/* Sign in or user indicator */}
           {authUser?(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px"}}>
+            <button onClick={()=>setPage("profile")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",cursor:"pointer"}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:t.GREEN}}/>
               <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",letterSpacing:.3}}>{authUser.email?.split("@")[0]?.slice(0,8)}</span>
-            </div>
+            </button>
           ):(
             <button onClick={()=>setShowAuth(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid "+t.GOLD+"66",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif"}}>
               <span style={{fontSize:16,lineHeight:1}}>👤</span>
@@ -838,10 +838,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
             {syncing&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Syncing...</div>}
             {authUser?(
-              <div style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px"}}>
+              <button onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px",cursor:"pointer"}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
                 <span style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>{authUser.email?.split("@")[0]}</span>
-              </div>
+              </button>
             ):(
               <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Sign In</button>
             )}
