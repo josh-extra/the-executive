@@ -928,7 +928,24 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           }>Markets</SectionLabel>
           {showMktEdit&&(
             <div style={{marginBottom:12,background:t.CARD2,borderRadius:8,padding:10,border:"1px solid "+t.BORDER}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Choose up to 5 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Tap to add, or type your own below</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:10}}>
+                {[
+                  {symbol:"^GSPC",label:"S&P 500"},{symbol:"^AXJO",label:"ASX 200"},{symbol:"^IXIC",label:"Nasdaq"},{symbol:"^DJI",label:"Dow Jones"},
+                  {symbol:"BTC-USD",label:"Bitcoin"},{symbol:"ETH-USD",label:"Ethereum"},
+                  {symbol:"AAPL",label:"Apple"},{symbol:"NVDA",label:"Nvidia"},{symbol:"TSLA",label:"Tesla"},
+                  {symbol:"CBA.AX",label:"CBA"},{symbol:"BHP.AX",label:"BHP"},
+                  {symbol:"AUDUSD=X",label:"AUD/USD",fx:true},
+                ].map(preset=>{
+                  const current=marketTickers||DEFAULT_TICKERS;
+                  const alreadyAdded=current.some(t=>t.symbol===preset.symbol);
+                  const isFull=current.length>=5;
+                  return (
+                    <button key={preset.symbol} disabled={alreadyAdded||isFull} onClick={()=>setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),preset])} style={{background:alreadyAdded?t.GOLD+"22":t.CARD,border:"1px solid "+(alreadyAdded?t.GOLD+"55":t.BORDER),borderRadius:14,padding:"5px 11px",color:alreadyAdded?t.GOLD:isFull?t.MUTED:t.TEXT,cursor:alreadyAdded||isFull?"default":"pointer",fontSize:10,fontFamily:"sans-serif",opacity:isFull&&!alreadyAdded?0.4:1}}>{alreadyAdded?"✓ ":""}{preset.label}</button>
+                  );
+                })}
+              </div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Or enter manually (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8,opacity:0.7}}>Crypto prices always shown in USD, even if AUD is entered</div>
               {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
                 <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
