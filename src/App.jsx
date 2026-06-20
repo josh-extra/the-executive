@@ -928,7 +928,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           }>Markets</SectionLabel>
           {showMktEdit&&(
             <div style={{marginBottom:12,background:t.CARD2,borderRadius:8,padding:10,border:"1px solid "+t.BORDER}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Choose up to 5 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Choose up to 5 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8,opacity:0.7}}>Crypto prices always shown in USD, even if AUD is entered</div>
               {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
                 <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
                   <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Symbol" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
