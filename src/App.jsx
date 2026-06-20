@@ -58,6 +58,29 @@ const fmt=n=>{
   return n<0?"-"+f:f;
 };
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+const advanceDate=(ds,freq)=>{
+  const d=new Date(ds+"T12:00:00");
+  if(freq==="weekly")d.setDate(d.getDate()+7);
+  else if(freq==="fortnightly")d.setDate(d.getDate()+14);
+  else if(freq==="monthly")d.setMonth(d.getMonth()+1);
+  else if(freq==="quarterly")d.setMonth(d.getMonth()+3);
+  else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+};
+// Roll an autopay bill's nextDue forward past today, advancing through multiple missed cycles if needed
+const rollAutopayForward=(b)=>{
+  if(!b.autopay||!b.nextDue)return b;
+  let nextDue=b.nextDue;
+  let paymentHistory=b.paymentHistory||[];
+  let safety=0;
+  while(new Date(nextDue+"T12:00:00")<new Date()&&safety<60){
+    paymentHistory=[{date:nextDue,amount:parseFloat(b.amount),name:b.name},...paymentHistory].slice(0,24);
+    nextDue=advanceDate(nextDue,b.frequency);
+    safety++;
+  }
+  if(nextDue===b.nextDue)return b;
+  return{...b,nextDue,lastPaid:todayStr(),paymentHistory};
+};
 const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
 const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
@@ -3792,16 +3815,6 @@ function BillsPage({bills,setBills}){
   const fmtAmt=n=>n!=null?"$"+Number(n).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2}):"$0.00";
   const monthlyEq=b=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return parseFloat(b.amount)*(m[b.frequency]||1);};
 
-  const advanceDate=(ds,freq)=>{
-    const d=new Date(ds+"T12:00:00");
-    if(freq==="weekly")d.setDate(d.getDate()+7);
-    else if(freq==="fortnightly")d.setDate(d.getDate()+14);
-    else if(freq==="monthly")d.setMonth(d.getMonth()+1);
-    else if(freq==="quarterly")d.setMonth(d.getMonth()+3);
-    else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
-    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-  };
-
   const markPaid=id=>setBills(bs=>bs.map(b=>{
     if(b.id!==id)return b;
     const payment={date:todayStr(),amount:parseFloat(b.amount),name:b.name};
@@ -7285,6 +7298,15 @@ function App(){
       window.removeEventListener("focus",checkOnFocus);
     };
   },[lastResetDate]);
+
+  // Auto-advance autopay bills past their due date — these are paid automatically by the bank,
+  // so the app should roll nextDue forward on its own rather than waiting for a manual "Paid" click
+  useEffect(()=>{
+    if(!readyToSave||!bills.length)return;
+    const needsRoll=bills.some(b=>b.autopay&&b.nextDue&&new Date(b.nextDue+"T12:00:00")<new Date());
+    if(!needsRoll)return;
+    setBills(bs=>bs.map(rollAutopayForward));
+  },[bills,lastResetDate,readyToSave]);
 
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
