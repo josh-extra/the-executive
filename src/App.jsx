@@ -210,7 +210,7 @@ function useMarket(tickers){
   const fetchAll=useCallback(async()=>{
     setLoading(true);
     const results={};
-    await Promise.all(safeT.map(async tk=>{
+    await Promise.all(safeT.filter(tk=>tk.symbol&&tk.symbol.trim()).map(async tk=>{
       try{
         const r=await fetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
         const d=await r.json();
@@ -928,7 +928,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           }>Markets</SectionLabel>
           {showMktEdit&&(
             <div style={{marginBottom:12,background:t.CARD2,borderRadius:8,padding:10,border:"1px solid "+t.BORDER}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Choose 3 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Choose up to 5 tickers (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
               {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
                 <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
                   <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Symbol" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
@@ -936,9 +936,11 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
                   <label style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,cursor:"pointer"}}>
                     <input type="checkbox" checked={tk.fx||false} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,fx:e.target.checked}:t))} style={{accentColor:t.GOLD}}/>FX
                   </label>
+                  {(marketTickers||DEFAULT_TICKERS).length>1&&<button onClick={()=>setMarketTickers(ts=>ts.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,flexShrink:0,padding:"0 4px"}}>✕</button>}
                 </div>
               ))}
               <div style={{display:"flex",gap:6,marginTop:6}}>
+                {(marketTickers||DEFAULT_TICKERS).length<5&&<Btn onClick={()=>setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:"",label:"",fx:false}])} variant="ghost" style={{fontSize:10,padding:"5px 10px"}}>+ Add Ticker</Btn>}
                 <Btn onClick={()=>{setShowMktEdit(false);market.refresh();}} style={{fontSize:10,padding:"5px 10px"}}>Save & Refresh</Btn>
                 <Btn onClick={()=>{setMarketTickers(DEFAULT_TICKERS);setShowMktEdit(false);}} variant="ghost" style={{fontSize:10,padding:"5px 10px"}}>Reset</Btn>
               </div>
