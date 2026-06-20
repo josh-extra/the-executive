@@ -58,7 +58,7 @@ const fmt=n=>{
   return n<0?"-"+f:f;
 };
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
-const advanceDate=(ds,freq)=>{
+function advanceDate(ds,freq){
   const d=new Date(ds+"T12:00:00");
   if(freq==="weekly")d.setDate(d.getDate()+7);
   else if(freq==="fortnightly")d.setDate(d.getDate()+14);
@@ -66,9 +66,9 @@ const advanceDate=(ds,freq)=>{
   else if(freq==="quarterly")d.setMonth(d.getMonth()+3);
   else if(freq==="annually")d.setFullYear(d.getFullYear()+1);
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-};
+}
 // Roll an autopay bill's nextDue forward past today, advancing through multiple missed cycles if needed
-const rollAutopayForward=(b)=>{
+function rollAutopayForward(b){
   if(!b.autopay||!b.nextDue)return b;
   let nextDue=b.nextDue;
   let paymentHistory=b.paymentHistory||[];
@@ -80,7 +80,7 @@ const rollAutopayForward=(b)=>{
   }
   if(nextDue===b.nextDue)return b;
   return{...b,nextDue,lastPaid:todayStr(),paymentHistory};
-};
+}
 const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
 const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
@@ -7305,7 +7305,7 @@ function App(){
     if(!readyToSave||!bills.length)return;
     const needsRoll=bills.some(b=>b.autopay&&b.nextDue&&new Date(b.nextDue+"T12:00:00")<new Date());
     if(!needsRoll)return;
-    setBills(bs=>bs.map(rollAutopayForward));
+    setBills(bs=>bs.map(b=>rollAutopayForward(b)));
   },[bills,lastResetDate,readyToSave]);
 
   const[subscription,setSubscription]=useState(null);
