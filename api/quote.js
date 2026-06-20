@@ -6,60 +6,23 @@ export default async function handler(req, res) {
   const { symbol } = req.query;
   if (!symbol) { res.status(400).json({ error: "symbol required" }); return; }
 
-  const FH_KEY = "d8cmivhr01qidic8koq0d8cmivhr01qidic8koqg";
-
-  // Finnhub - works great for US stocks, crypto, forex, indices
   try {
-    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FH_KEY}`, {
-      headers: { "X-Finnhub-Token": FH_KEY }
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
+    const r = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://finance.yahoo.com"
+      }
     });
     const j = await r.json();
-    if (j.c && j.c !== 0) {
-      return res.status(200).json({ price: j.c, change: j.d, pct: j.dp, prev: j.pc, source: "finnhub" });
-    }
-  } catch(e) {}
-
-  // ASX stocks - try the ASX official API
-  if (symbol.endsWith(".AX")) {
-    try {
-      const code = symbol.replace(".AX", "");
-      const r = await fetch(`https://asx.api.markitdigital.com/asx-research/1.0/companies/${code}/header`, {
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-        }
-      });
-      const j = await r.json();
-      const price = j?.data?.last_price;
-      const prev = j?.data?.previous_close_price;
-      if (price) {
-        const change = price - prev;
-        const pct = prev ? (change / prev) * 100 : 0;
-        return res.status(200).json({ price, change, pct, prev, source: "asx" });
-      }
-    } catch(e) {}
-
-    // ASX fallback - use Yahoo AU with proper headers
-    try {
-      const r = await fetch(
-        `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`,
-        { headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "*/*",
-          "Accept-Language": "en-AU,en;q=0.9",
-          "Referer": "https://au.finance.yahoo.com/",
-          "Origin": "https://au.finance.yahoo.com"
-        }}
-      );
-      const j = await r.json();
-      const meta = j?.chart?.result?.[0]?.meta;
-      if (meta?.regularMarketPrice) {
-        const price = meta.regularMarketPrice;
-        const prev = meta.chartPreviousClose || price;
-        return res.status(200).json({ price, change: price - prev, pct: ((price - prev) / prev) * 100, prev, source: "yahoo-au" });
-      }
-    } catch(e) {}
+    const meta = j.chart.result[0].meta;
+    const closes = j.chart.result[0].indicators.quote[0].close.filter(v => v != null);
+    const price = meta.regularMarketPrice || closes[closes.length - 1];
+    const prev = meta.chartPreviousClose || closes[closes.length - 2] || price;
+    res.status(200).json({ price, prev, change: price - prev, pct: ((price - prev) / prev) * 100 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
-
-  res.status(500).json({ error: "no data for " + symbol });
 }
