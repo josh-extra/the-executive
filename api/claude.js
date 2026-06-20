@@ -7,21 +7,15 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    // Remove tools from body if they use old web_search syntax - just do text only
-    const cleanBody = { ...body };
-    if (cleanBody.tools) {
-      cleanBody.tools = cleanBody.tools.filter(t => t.type !== "web_search_20250305");
-      if (!cleanBody.tools.length) delete cleanBody.tools;
-    }
-
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "tools-2024-04-04"
       },
-      body: JSON.stringify(cleanBody)
+      body: JSON.stringify(body)
     });
     const data = await r.json();
     res.status(r.status).json(data);
