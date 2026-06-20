@@ -201,24 +201,44 @@ const DEFAULT_TICKERS=[
   {symbol:"AUDUSD=X",label:"AUD/USD",fx:true},
 ];
 
+const CRYPTO_SYMBOLS=new Set(["BTC","ETH","SOL","DOGE","XRP","BTC-USD","ETH-USD","SOL-USD","DOGE-USD","XRP-USD","BTC-AUD","ETH-AUD","SOL-AUD","DOGE-AUD","XRP-AUD"]);
+const isCryptoSymbol=sym=>CRYPTO_SYMBOLS.has((sym||"").toUpperCase())||(sym||"").toUpperCase().startsWith("BINANCE:");
+
 function useMarket(tickers){
   const safeT=tickers&&tickers.length?tickers:DEFAULT_TICKERS;
   const[prices,setPrices]=useState({});
   const[loading,setLoading]=useState(true);
   const[lastUpdated,setLastUpdated]=useState(null);
+  const[fxRate,setFxRate]=useState(1);
 
   const fetchAll=useCallback(async()=>{
     setLoading(true);
     const results={};
-    await Promise.all(safeT.filter(tk=>tk.symbol&&tk.symbol.trim()).map(async tk=>{
-      try{
-        const r=await fetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
-        const d=await r.json();
-        results[tk.symbol]={price:d.price,pct:d.pct||0,change:d.change||0,loading:false,error:false};
-      }catch{
-        results[tk.symbol]={price:null,pct:0,loading:false,error:true};
-      }
-    }));
+    const hasCrypto=safeT.some(tk=>isCryptoSymbol(tk.symbol));
+    const userCurrency=L().currency;
+    const needsFx=hasCrypto&&userCurrency!=="USD";
+
+    const fxPromise=needsFx?fetch("/api/quote?symbol="+encodeURIComponent(userCurrency==="AUD"?"AUDUSD=X":userCurrency+"USD=X")).then(r=>r.json()).catch(()=>null):Promise.resolve(null);
+
+    const[fxData]=await Promise.all([
+      fxPromise,
+      Promise.all(safeT.filter(tk=>tk.symbol&&tk.symbol.trim()).map(async tk=>{
+        try{
+          const r=await fetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
+          const d=await r.json();
+          results[tk.symbol]={price:d.price,pct:d.pct||0,change:d.change||0,loading:false,error:false,isCrypto:isCryptoSymbol(tk.symbol)};
+        }catch{
+          results[tk.symbol]={price:null,pct:0,loading:false,error:true,isCrypto:isCryptoSymbol(tk.symbol)};
+        }
+      }))
+    ]);
+
+    let rate=1;
+    if(needsFx&&fxData?.price){
+      // AUDUSD=X gives USD per 1 AUD, so to convert USD->AUD we divide by that rate
+      rate=1/fxData.price;
+    }
+    setFxRate(rate);
     setPrices(results);
     setLastUpdated(new Date());
     setLoading(false);
@@ -226,7 +246,7 @@ function useMarket(tickers){
 
   useEffect(()=>{fetchAll();const id=setInterval(fetchAll,60000);return()=>clearInterval(id);},[fetchAll]);
 
-  return{prices,loading,lastUpdated,refresh:fetchAll};
+  return{prices,loading,lastUpdated,refresh:fetchAll,fxRate};
 }
 
 function useCommodities(holdings){
@@ -794,7 +814,11 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const monthNet=monthIncome-monthExpense;
   const nextBill=(bills||[]).filter(b=>(new Date(b.nextDue+"T12:00:00")-new Date())>0).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue))[0];
   const monthlyBills=(bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+b.amount*(m[b.frequency]||1);},0);
-  const mktRows=(marketTickers||DEFAULT_TICKERS).map(tk=>({l:tk.label,d:market.prices[tk.symbol]||{loading:!market.lastUpdated,price:null,pct:0},fx:tk.fx,symbol:tk.symbol}));
+  const mktRows=(marketTickers||DEFAULT_TICKERS).map(tk=>{
+    const raw=market.prices[tk.symbol]||{loading:!market.lastUpdated,price:null,pct:0};
+    const converted=raw.isCrypto&&raw.price&&market.fxRate!==1?{...raw,price:raw.price*market.fxRate,convertedFrom:"USD"}:raw;
+    return{l:tk.label,d:converted,fx:tk.fx,symbol:tk.symbol,isCrypto:raw.isCrypto};
+  });
   const goalPeriods=["year","month","week"];
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
@@ -946,7 +970,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
                 })}
               </div>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Or enter manually (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8,opacity:0.7}}>Crypto prices always shown in USD, even if AUD is entered</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8,opacity:0.7}}>Crypto auto-converts to your profile currency ({L().currency})</div>
               {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
                 <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
                   <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Symbol" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
@@ -969,8 +993,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
               {i>0&&<Divider/>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
                 <div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{m.l}</div>
-                  {m.d.loading?<Skeleton width={80} height={14}/>:(m.d.price?<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>:<div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>No data — check symbol</div>)}
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{m.l}{m.isCrypto&&L().currency!=="USD"&&<span style={{color:t.GOLD,marginLeft:5,fontSize:9}}>{L().currency}</span>}</div>
+                  {m.d.loading?<Skeleton width={80} height={14}/>:(m.d.price?<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):(m.isCrypto&&L().currency!=="USD"?L().symbol:"")+m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>:<div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>No data — check symbol</div>)}
                 </div>
                 {!m.d.loading&&m.d.price&&<div style={{fontSize:11,color:m.d.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(m.d.pct>=0?"+ ":"- ")+Math.abs(m.d.pct||0).toFixed(2)+"%"}</div>}
               </div>
