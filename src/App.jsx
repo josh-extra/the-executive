@@ -459,7 +459,7 @@ function Skeleton({width="100%",height=14}){
 }
 function Inp({value,onChange,placeholder,type,style}){
   const t=T();
-  return <input type={type||"text"} value={value||""} onChange={onChange} placeholder={placeholder||""} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box",...style}}/>;
+  return <input type={type||"text"} value={value||""} onChange={onChange} placeholder={placeholder||""} spellCheck={!type||type==="text"} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box",...style}}/>;
 }
 function Sel({value,onChange,children,style}){
   const t=T();
@@ -2112,7 +2112,7 @@ function JournalPage({entries,setEntries}){
               <div style={{display:"flex",gap:5,marginBottom:10}}>
                 {MOODS.map(m=><button key={m.v} onClick={()=>setEditMood(m.v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:"1px solid "+(editMood===m.v?m.c:t.BORDER),background:editMood===m.v?m.c+"22":"transparent",color:editMood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
               </div>
-              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={12} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <textarea spellCheck={true} value={editText} onChange={e=>setEditText(e.target.value)} rows={12} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
               <div style={{display:"flex",gap:8,marginTop:10}}>
                 <Btn onClick={()=>saveEdit(entry.id)}>Save Changes</Btn>
                 <Btn onClick={()=>setEditingId(null)} variant="ghost">Cancel</Btn>
@@ -2129,7 +2129,7 @@ function JournalPage({entries,setEntries}){
                 appending?(
                   <div style={{marginTop:16,borderTop:"1px solid "+t.BORDER,paddingTop:14}}>
                     <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add to today's entry</div>
-                    <textarea value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={5} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+                    <textarea spellCheck={true} value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={5} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
                     <div style={{display:"flex",gap:8,marginTop:8}}>
                       <Btn onClick={appendToToday}>Append</Btn>
                       <Btn onClick={()=>{setAppending(false);setAppendText("");}} variant="ghost">Cancel</Btn>
@@ -2183,7 +2183,7 @@ function JournalPage({entries,setEntries}){
           {appending&&(
             <div style={{marginTop:12,borderTop:"1px solid "+t.BORDER,paddingTop:12}}>
               <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add to today</div>
-              <textarea value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <textarea spellCheck={true} value={appendText} onChange={e=>setAppendText(e.target.value)} placeholder="Continue writing..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
               <div style={{display:"flex",gap:8,marginTop:8}}>
                 <Btn onClick={appendToToday}>Append</Btn>
                 <Btn onClick={()=>{setAppending(false);setAppendText("");}} variant="ghost">Cancel</Btn>
@@ -2196,7 +2196,7 @@ function JournalPage({entries,setEntries}){
               <div style={{display:"flex",gap:5,marginBottom:10}}>
                 {MOODS.map(m=><button key={m.v} onClick={()=>setEditMood(m.v)} style={{flex:1,padding:"5px 2px",borderRadius:6,border:"1px solid "+(editMood===m.v?m.c:t.BORDER),background:editMood===m.v?m.c+"22":"transparent",color:editMood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
               </div>
-              <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={8} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+              <textarea spellCheck={true} value={editText} onChange={e=>setEditText(e.target.value)} rows={8} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
               <div style={{display:"flex",gap:8,marginTop:8}}>
                 <Btn onClick={()=>saveEdit(todayEntry.id)}>Save</Btn>
                 <Btn onClick={()=>setEditingId(null)} variant="ghost">Cancel</Btn>
@@ -2214,7 +2214,7 @@ function JournalPage({entries,setEntries}){
           <div style={{display:"flex",gap:5,marginBottom:10}}>
             {MOODS.map(m=><button key={m.v} onClick={()=>setMood(m.v)} style={{flex:1,padding:"6px 2px",borderRadius:6,border:"1px solid "+(mood===m.v?m.c:t.BORDER),background:mood===m.v?m.c+"22":"transparent",color:mood===m.v?m.c:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>{m.l}</button>)}
           </div>
-          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Write freely..." rows={7} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
+          <textarea spellCheck={true} value={text} onChange={e=>setText(e.target.value)} placeholder="Write freely..." rows={7} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.85,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:8,marginTop:10}}><Btn onClick={save}>Save</Btn><Btn onClick={()=>setShowNew(false)} variant="ghost">Cancel</Btn></div>
         </Card>
       )}
@@ -4410,7 +4410,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
               <button onClick={()=>setWf(f=>({...f,sets:f.sets.filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.RED,cursor:"pointer",fontSize:10}}>X</button>
             </div>
           ))}
-          <textarea value={wf.notes} onChange={e=>setWf(f=>({...f,notes:e.target.value}))} placeholder="Notes..." rows={2} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"7px 10px",color:t.TEXT,fontFamily:"sans-serif",fontSize:12,outline:"none",resize:"vertical",marginTop:7,boxSizing:"border-box"}}/>
+          <textarea spellCheck={true} value={wf.notes} onChange={e=>setWf(f=>({...f,notes:e.target.value}))} placeholder="Notes..." rows={2} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"7px 10px",color:t.TEXT,fontFamily:"sans-serif",fontSize:12,outline:"none",resize:"vertical",marginTop:7,boxSizing:"border-box"}}/>
           <div style={{display:"flex",gap:8,marginTop:8}}>
             <Btn onClick={save}>Save</Btn>
             <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
@@ -4714,7 +4714,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                 {notePrompt.rating>0&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{["","One star","Two stars","Three stars","Four stars","Five stars"][notePrompt.rating]}</span>}
               </div>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Review / Key Takeaways (optional)</div>
-              <textarea
+              <textarea spellCheck={true}
                 value={notePrompt.review||""}
                 onChange={e=>setNotePrompt(p=>({...p,review:e.target.value}))}
                 placeholder="What did you think? Key ideas, favourite quotes, would you recommend it?"
@@ -4722,7 +4722,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                 style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box",marginBottom:10}}
               />
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Final Session Note (optional)</div>
-              <textarea
+              <textarea spellCheck={true}
                 value={notePrompt.text}
                 onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
                 placeholder="Last pages - anything that stood out?"
@@ -4736,7 +4736,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
               <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>
                 {"Pages "+notePrompt.fromPage+" - "+notePrompt.toPage+" - What stood out?"}
               </div>
-              <textarea
+              <textarea spellCheck={true}
                 autoFocus
                 value={notePrompt.text}
                 onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
@@ -4791,7 +4791,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                 </div>
                 <div>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Review and Notes</div>
-                  <textarea value={form.review} onChange={e=>setForm(f=>({...f,review:e.target.value}))} placeholder="What did you think? Key takeaways, favourite ideas, quotes..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box"}}/>
+                  <textarea spellCheck={true} value={form.review} onChange={e=>setForm(f=>({...f,review:e.target.value}))} placeholder="What did you think? Key takeaways, favourite ideas, quotes..." rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box"}}/>
                 </div>
               </>
             )}
@@ -4866,7 +4866,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                         </div>
                         <div>
                           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Review / Notes</div>
-                          <textarea value={b.review||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,review:e.target.value}:x))} placeholder="Your thoughts on the book..." rows={3} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 10px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
+                          <textarea spellCheck={true} value={b.review||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,review:e.target.value}:x))} placeholder="Your thoughts on the book..." rows={3} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 10px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
                         </div>
                         <div style={{display:"flex",gap:7}}>
                           <button onClick={()=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,status:"reading"}:x))} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Move back to Reading</button>
@@ -5059,7 +5059,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         </div>
         {showReflection&&(
           <div>
-            <textarea value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
+            <textarea spellCheck={true} value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
             <Btn onClick={()=>{setWeeklyReflections(r=>({...(r||{}),[weekKey]:reflection}));setShowReflection(false);}}>Save Reflection</Btn>
           </div>
         )}
@@ -6985,7 +6985,7 @@ function NotesPage({notes,setNotes}){
                 <input type="checkbox" checked={form.pinned} onChange={e=>setForm(f=>({...f,pinned:e.target.checked}))} style={{accentColor:t.GOLD}}/>Pin
               </label>
             </div>
-            <textarea value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))} placeholder="Write anything..." rows={6} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.8,boxSizing:"border-box"}}/>
+            <textarea spellCheck={true} value={form.content} onChange={e=>setForm(f=>({...f,content:e.target.value}))} placeholder="Write anything..." rows={6} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.8,boxSizing:"border-box"}}/>
             <div style={{display:"flex",gap:8}}><Btn onClick={save}>{editing?"Save":"Add"}</Btn><Btn onClick={()=>{setShowAdd(false);setEditing(null);}} variant="ghost">Cancel</Btn></div>
           </div>
         </Card>
@@ -7101,7 +7101,7 @@ function ServicesPage({services,setServices}){
             </div>
             <div>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Notes from last meeting</div>
-              <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Key points, action items, advice given..." rows={3} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
+              <textarea spellCheck={true} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Key points, action items, advice given..." rows={3} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
             </div>
             <div style={{display:"flex",gap:8}}><Btn onClick={save}>{editing?"Save":"Add"}</Btn><Btn onClick={()=>{setShowAdd(false);setEditing(null);}} variant="ghost">Cancel</Btn></div>
           </div>
