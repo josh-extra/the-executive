@@ -84,6 +84,7 @@ function rollAutopayForward(b){
 const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
 const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
+const fmtDateNum=d=>{if(!d)return d;const[y,m,day]=d.split("-");return y&&m&&day?day+"/"+m+"/"+y:d;};
 const AU_TAX=[[18200,0,0],[45000,.19,0],[120000,.325,5092],[180000,.37,29467],[Infinity,.45,51667]];
 const calcTax=inc=>{for(let i=AU_TAX.length-1;i>=0;i--)if(inc>AU_TAX[i][0])return AU_TAX[i][2]+AU_TAX[i][1]*(inc-AU_TAX[i][0]);return 0;};
 const ASSET_COLORS={shares:"#C9A84C",property:"#7A9E7E",cash:"#7EB8C9",crypto:"#B07EC9",super:"#C97E7E"};
@@ -1958,7 +1959,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
                                     </div>
                                     <div style={{flex:1,minWidth:0}}>
                                       <div style={{fontSize:12,color:cp.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:cp.done?"line-through":"none"}}>{cp.text}</div>
-                                      {cp.dueDate&&<div style={{fontSize:9,color:cp.done?t.GREEN:overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{cp.done?"Done "+cp.doneAt:overdue?"Overdue · "+cp.dueDate:soon?"Due soon · "+cp.dueDate:"By "+cp.dueDate}</div>}
+                                      {cp.dueDate&&<div style={{fontSize:9,color:cp.done?t.GREEN:overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{cp.done?"Done "+fmtDateNum(cp.doneAt):overdue?"Overdue · "+fmtDateNum(cp.dueDate):soon?"Due soon · "+fmtDateNum(cp.dueDate):"By "+fmtDateNum(cp.dueDate)}</div>}
                                     </div>
                                     <button onClick={()=>{setEditingCp({goalId:g.id,cpId:cp.id});setEditCpForm({text:cp.text,dueDate:cp.dueDate||""});}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.5,flexShrink:0}}>E</button>
                                     <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}>X</button>
@@ -2007,7 +2008,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
             <div key={g.id||i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:9,padding:"10px 14px",marginBottom:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:12,color:t.MUTED,textDecoration:"line-through",fontFamily:"sans-serif"}}>{g.title}</div>
-                <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",marginTop:2}}>{"Completed "+g.completedAt}</div>
+                <div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif",marginTop:2}}>{"Completed "+fmtDateNum(g.completedAt)}</div>
               </div>
               <div style={{fontSize:16,color:t.GREEN}}>V</div>
             </div>
