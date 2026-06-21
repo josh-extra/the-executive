@@ -1568,10 +1568,11 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                       </div>
                       <div>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>Colour:</div>
-                        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                        <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
                           {["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A","#7EC8A0","#C8D870"].map(col=>(
                             <div key={col} onClick={()=>setEditForm(f=>({...f,color:col}))} style={{width:26,height:26,borderRadius:"50%",background:col,border:"2px solid "+(editForm.color===col?"#fff":"transparent"),cursor:"pointer"}}/>
                           ))}
+                          <input type="color" value={editForm.color||"#C9A84C"} onChange={e=>setEditForm(f=>({...f,color:e.target.value}))} title="Choose any colour" style={{width:30,height:30,borderRadius:"50%",border:"1px solid "+t.BORDER,cursor:"pointer",padding:0,background:"none"}}/>
                         </div>
                       </div>
                       <div style={{display:"flex",gap:7}}>
