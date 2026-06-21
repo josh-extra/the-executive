@@ -1870,7 +1870,12 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
             <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>{periodLabel[period]}</div>
             {gs.map(g=>{
               const col=catColor(g.category);
-              const cps=g.checkpoints||[];
+              const cps=[...(g.checkpoints||[])].sort((a,b)=>{
+                if(!a.dueDate&&!b.dueDate)return 0;
+                if(!a.dueDate)return 1;
+                if(!b.dueDate)return -1;
+                return a.dueDate.localeCompare(b.dueDate);
+              });
               const pct=calcProgress(g);
               const doneCps=cps.filter(cp=>cp.done).length;
               const isCollapsed=collapsed[g.id]!==false; // default collapsed
