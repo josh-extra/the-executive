@@ -107,7 +107,7 @@ const NAV=[
   ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
-  ["invest","💵","Invest"],["health","💊","Health"],["body","💪","Body"],
+  ["invest","💵","Invest"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
@@ -650,7 +650,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","cashflow","bills","budget","debt","invest"]],
+    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","news"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -7233,6 +7233,112 @@ function UpgradeModal({onClose,onCheckout,loading}){
   );
 }
 
+// ── News Page ─────────────────────────────────────────────────────────────────
+function NewsPage(){
+  const t=T();
+  const[news,setNews]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[error,setError]=useState("");
+  const[lastFetched,setLastFetched]=useState(null);
+  const[activeTab,setActiveTab]=useState("asx");
+
+  const CATS=[
+    {id:"asx",label:"ASX",icon:"🇦🇺"},
+    {id:"us",label:"US Markets",icon:"🇺🇸"},
+    {id:"crypto",label:"Crypto",icon:"₿"},
+    {id:"macro",label:"Macro",icon:"🌐"},
+  ];
+
+  const fetchNews=async()=>{
+    setLoading(true);setError("");
+    try{
+      const r=await fetch("/api/news");
+      if(!r.ok)throw new Error("Server error "+r.status);
+      const d=await r.json();
+      setNews(d);
+      setLastFetched(new Date());
+    }catch(e){setError("Unable to load news — "+e.message);}
+    setLoading(false);
+  };
+
+  useEffect(()=>{fetchNews();},[]);
+
+  const fmtAge=ts=>{
+    if(!ts)return "";
+    const mins=Math.round((Date.now()-ts)/60000);
+    if(mins<60)return mins+"m ago";
+    const hrs=Math.floor(mins/60);
+    if(hrs<24)return hrs+"h ago";
+    return Math.floor(hrs/24)+"d ago";
+  };
+
+  const items=news?.[activeTab]||[];
+
+  return(
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:11,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Financial Intelligence</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+          <div style={{fontSize:22,color:t.TEXT}}>Market News</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {lastFetched&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{lastFetched.toLocaleTimeString(_locale,{hour:"2-digit",minute:"2-digit"})}</div>}
+            <button onClick={fetchNews} disabled={loading} style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"5px 10px",color:t.GOLD,cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:11}}>{loading?"Loading...":"↻ Refresh"}</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Category tabs */}
+      <div style={{display:"flex",gap:7,marginBottom:14,overflowX:"auto",scrollbarWidth:"none"}}>
+        {CATS.map(c=>(
+          <button key={c.id} onClick={()=>setActiveTab(c.id)} style={{flexShrink:0,padding:"7px 14px",borderRadius:20,border:"1px solid "+(activeTab===c.id?t.GOLD:t.BORDER),background:activeTab===c.id?t.GOLD+"22":"transparent",color:activeTab===c.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
+            <span>{c.icon}</span><span>{c.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      {error&&<Card style={{marginBottom:14,border:"1px solid #C97E7E44"}}><div style={{fontSize:13,color:"#C97E7E",fontFamily:"sans-serif"}}>{error}</div></Card>}
+
+      {loading&&<Card>{[90,75,85,70,80,65].map((w,i)=>(
+        <div key={i} style={{paddingBottom:i<5?12:0,marginBottom:i<5?12:0,borderBottom:i<5?"1px solid "+t.BORDER:"none"}}>
+          <Skeleton width={w+"%"} height={14} style={{marginBottom:6}}/>
+          <Skeleton width={(w-15)+"%"} height={10}/>
+        </div>
+      ))}</Card>}
+
+      {!loading&&!error&&items.length===0&&(
+        <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"sans-serif"}}>
+          <div style={{fontSize:32,marginBottom:12}}>📰</div>
+          <div style={{fontSize:14,marginBottom:6}}>No stories loaded</div>
+          <div style={{fontSize:12}}>Tap Refresh to try again</div>
+        </div>
+      )}
+
+      {!loading&&items.length>0&&(
+        <Card>
+          {items.map((item,i)=>{
+            const age=fmtAge(item.timestamp);
+            return(
+              <div key={i}>
+                {i>0&&<Divider/>}
+                <a href={item.link} target="_blank" rel="noopener noreferrer" style={{display:"block",padding:"12px 0",textDecoration:"none"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:4}}>
+                    <div style={{fontSize:13,color:t.TEXT,lineHeight:1.4,fontFamily:"sans-serif",fontWeight:500,flex:1}}>{item.title}</div>
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,marginTop:2}}>{age}</div>
+                  </div>
+                  {item.description&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6,marginBottom:4}}>{item.description}{item.description.length>=200?"…":""}</div>}
+                  <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif"}}>{item.source} →</div>
+                </a>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",marginTop:16,lineHeight:1.6}}>News sourced from public RSS feeds. Refreshes every 5 minutes.<br/>Tap any headline to read the full article.</div>
+    </div>
+  );
+}
+
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
   const[sessionExpired,setSessionExpired]=useState(false);
@@ -7889,6 +7995,7 @@ function App(){
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
+          {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
