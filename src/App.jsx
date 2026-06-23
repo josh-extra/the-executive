@@ -453,6 +453,16 @@ function Tag({children,color}){
   const t=T();const c=color||t.GOLD;
   return <div style={{display:"inline-block",background:c+"22",border:"1px solid "+c+"44",borderRadius:4,padding:"2px 6px",fontSize:10,color:c,fontFamily:"sans-serif",fontWeight:700}}>{children}</div>;
 }
+function UpgradeHint({message,onUpgrade}){
+  const t=T();
+  if(!onUpgrade)return null;
+  return(
+    <div onClick={onUpgrade} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.GOLD+"0A",border:"1px dashed "+t.GOLD+"44",borderRadius:9,padding:"10px 14px",cursor:"pointer",marginTop:16}}>
+      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{message||"✦ Unlock AI features with The Executive"}</div>
+      <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600,flexShrink:0,marginLeft:10}}>Upgrade →</div>
+    </div>
+  );
+}
 function Skeleton({width="100%",height=14}){
   const t=T();
   return <div style={{background:t.CARD2,borderRadius:4,width,height,animation:"sk 1.5s infinite"}}/>;
@@ -3457,6 +3467,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
           <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(true);}}>+ Add First Debt</Btn>
         </div>
       )}
+      {!isPro(subscription)&&<UpgradeHint message="✦ Get AI debt elimination strategy with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
     </div>
   );
 }
@@ -4255,6 +4266,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
         ))}
         {!(supplements||[]).length&&<div style={{textAlign:"center",padding:"16px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>No supplements - add your stack</div>}
       </Card>
+      {!isPro(subscription)&&<UpgradeHint message="✦ Get AI personalised supplement recommendations with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
     </div>
   );
 }
@@ -4597,6 +4609,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
           )}
         </div>
       )}
+      {!isPro(subscription)&&<UpgradeHint message="✦ Generate AI workout plans tailored to your goals with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
     </div>
   );
 }
@@ -5088,6 +5101,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         {aiReview&&!loading&&<div style={{marginTop:10,fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiReview}</div>}
         {!aiReview&&!loading&&<div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Generates an honest assessment of your week using all your logged data.</div>}
       </Card>
+      {!isPro(subscription)&&<UpgradeHint message="✦ Generate your AI Weekly Review with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
     </div>
   );
 }
@@ -5295,7 +5309,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
               <div style={{background:subscription.status==="trialing"?t.GOLD+"22":subscription.status==="active"?t.GREEN+"22":t.RED+"22",border:"1px solid "+(subscription.status==="trialing"?t.GOLD:subscription.status==="active"?t.GREEN:t.RED)+"44",borderRadius:10,padding:"3px 10px"}}>
                 <span style={{fontSize:10,color:subscription.status==="trialing"?t.GOLD:subscription.status==="active"?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600,textTransform:"capitalize"}}>
-                  {subscription.status==="trialing"?"Free Trial":subscription.status==="active"?"Executive — Active":subscription.status==="past_due"?"Past Due — Update Payment":"Cancelled"}
+                  {subscription.status==="trialing"?"Active (Trial)":subscription.status==="active"?"Executive — Active":subscription.status==="past_due"?"Past Due — Update Payment":"Cancelled"}
                 </span>
               </div>
               {subscription.status==="trialing"&&subscription.trial_end&&(
@@ -7158,25 +7172,25 @@ function ServicesPage({services,setServices}){
 
 function PaywallPage({onUpgrade}){
   const t=T();
-  const features=["Live stock, crypto & commodity prices","AI Advisor — full dashboard awareness","Morning / Afternoon / Evening Briefing","AI goal checkpoint suggestions","Supplement recommendations","Full wealth tracking & market intelligence"];
+  const proFeatures=["AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Invest intelligence & market insights"];
   return(
-    <div style={{maxWidth:480,margin:"0 auto",padding:"40px 20px",textAlign:"center"}}>
-      <div style={{fontSize:36,marginBottom:16}}>L</div>
+    <div style={{maxWidth:440,margin:"0 auto",padding:"40px 20px",textAlign:"center"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:8}}>Executive Feature</div>
-      <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>Upgrade to unlock this</div>
-      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24}}>Start your 7-day free trial. No credit card required.</div>
-      <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:"16px",marginBottom:20,textAlign:"left"}}>
-        {features.map((f,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<features.length-1?"1px solid "+t.BORDER:"none"}}>
-            <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span></div>
+      <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>This is an Executive feature</div>
+      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24,lineHeight:1.6}}>You're on the free plan — and you can stay here as long as you like. Upgrade when you're ready to unlock AI-powered intelligence.</div>
+      <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"44",borderRadius:12,padding:"16px",marginBottom:20,textAlign:"left"}}>
+        <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Unlocked with The Executive</div>
+        {proFeatures.map((f,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<proFeatures.length-1?"1px solid "+t.BORDER+"66":"none"}}>
+            <span style={{color:t.GOLD,fontSize:11,flexShrink:0}}>✦</span>
             <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
           </div>
         ))}
       </div>
       <button onClick={onUpgrade} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:.5,marginBottom:10}}>
-        Start Free Trial — 7 Days Free
+        Upgrade to The Executive
       </button>
-      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>From $19/month after trial · Cancel anytime</div>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>$19/month or $159/year · Cancel anytime · Free plan always available</div>
     </div>
   );
 }
@@ -7188,47 +7202,80 @@ function UpgradeModal({onClose,onCheckout,loading}){
     {id:"monthly",label:"Monthly",price:"$19",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
     {id:"annual",label:"Annual",price:"$159",period:"/year",note:"Save $69 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
   ];
-  const proFeatures=["Live stock, crypto & commodity prices","AI Advisor with full dashboard access","Morning / Afternoon / Evening Briefing","AI-powered goal checkpoint suggestions","AI supplement recommendations","Full wealth tracking — super, alternatives","Invest intelligence & market insights"];
+  const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
+  const PRO_FEATURES=["Everything in Free","AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:480,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
-        <div style={{padding:"24px 24px 0"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+      <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:520,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{padding:"24px 24px 20px"}}>
+          {/* Header */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
             <div>
-              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Upgrade</div>
+              <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:3,textTransform:"uppercase",marginBottom:6}}>Choose Your Plan</div>
               <div style={{fontSize:24,color:t.TEXT}}>The Executive</div>
             </div>
-            <button onClick={onClose} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>
+            <button onClick={onClose} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>✕</button>
           </div>
-          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Start your 7-day free trial. Cancel anytime.</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>Use the free version forever, or upgrade for AI-powered intelligence.</div>
+
+          {/* Free vs Pro columns */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {plans.map(p=>(
-              <div key={p.id} style={{background:p.popular?t.GOLD+"14":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:10,padding:"14px 12px",position:"relative"}}>
-                {p.popular&&<div style={{position:"absolute",top:-1,right:-1,background:t.GOLD,color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 8px",borderRadius:"0 9px 0 6px",letterSpacing:1}}>BEST VALUE</div>}
-                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6}}>{p.label}</div>
-                <div style={{fontSize:28,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{p.price}</div>
-                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>{p.period}</div>
-                <div style={{fontSize:9,color:p.popular?t.GREEN:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{p.note}</div>
-                <button onClick={()=>onCheckout(p.priceId)} disabled={loading} style={{width:"100%",background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:7,padding:"9px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:p.popular?700:400}}>
-                  {loading?"Loading...":"Start Free Trial"}
-                </button>
-              </div>
-            ))}
-          </div>
-          <div style={{marginBottom:20}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Everything included</div>
-            {proFeatures.map((f,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid "+t.BORDER}}>
-                <div style={{width:16,height:16,borderRadius:"50%",background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  <span style={{fontSize:8,color:t.GOLD,fontWeight:700}}>V</span>
+            {/* Free column */}
+            <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:12,padding:"16px 14px"}}>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Free</div>
+              <div style={{fontSize:26,color:t.TEXT,fontFamily:"sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$0</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>forever</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>You're already on this.</div>
+              {FREE_FEATURES.map((f,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0"}}>
+                  <span style={{color:"#7A9E7E",fontSize:10,marginTop:1,flexShrink:0}}>✓</span>
+                  <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.4}}>{f}</span>
                 </div>
-                <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
-              </div>
+              ))}
+            </div>
+
+            {/* Executive column */}
+            <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"66",borderRadius:12,padding:"16px 14px",position:"relative"}}>
+              <div style={{position:"absolute",top:-1,right:-1,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 10px",borderRadius:"0 11px 0 7px",letterSpacing:1}}>UPGRADE</div>
+              <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>The Executive</div>
+              <div style={{fontSize:26,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$19</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>/month</div>
+              {PRO_FEATURES.map((f,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0"}}>
+                  <span style={{color:t.GOLD,fontSize:10,marginTop:1,flexShrink:0}}>✦</span>
+                  <span style={{fontSize:11,color:i===0?t.GOLD:t.TEXT,fontFamily:"sans-serif",lineHeight:1.4,fontWeight:i===0?600:400}}>{f}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pricing buttons */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            {plans.map(p=>(
+              <button key={p.id} onClick={()=>onCheckout(p.priceId)} disabled={loading} style={{background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:9,padding:"12px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,position:"relative"}}>
+                {p.popular&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:"#7A9E7E",color:"#fff",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap"}}>BEST VALUE</div>}
+                <div>{loading?"Loading...":(p.price+" "+p.period)}</div>
+                <div style={{fontSize:9,color:p.popular?"#08080888":t.MUTED,marginTop:2}}>{p.note}</div>
+              </button>
             ))}
           </div>
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"0 0 20px"}}>No credit card required for trial · Cancel anytime · Founding member pricing locked in</div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center"}}>Cancel anytime · Founding member pricing locked in forever</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Upgrade Hint Banner ───────────────────────────────────────────────────────
+function UpgradeHint({onUpgrade,hint}){
+  const t=T();
+  return(
+    <div onClick={onUpgrade} style={{margin:"24px 0 8px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:10,padding:"12px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+      <div>
+        <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>✦ Executive Feature</div>
+        <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{hint||"Upgrade to unlock AI-powered features for this page"}</div>
+      </div>
+      <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600,flexShrink:0}}>Upgrade →</div>
     </div>
   );
 }
@@ -7988,9 +8035,11 @@ function App(){
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
+          {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
           {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
@@ -8001,6 +8050,7 @@ function App(){
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
+          {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}

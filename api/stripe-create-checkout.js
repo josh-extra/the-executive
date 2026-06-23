@@ -16,7 +16,6 @@ export default async function handler(req, res) {
       customer_email: email,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: mode !== "payment" ? {
-        trial_period_days: 7,
         metadata: { userId }
       } : undefined,
       metadata: { userId },
