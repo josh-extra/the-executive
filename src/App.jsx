@@ -453,12 +453,13 @@ function Tag({children,color}){
   const t=T();const c=color||t.GOLD;
   return <div style={{display:"inline-block",background:c+"22",border:"1px solid "+c+"44",borderRadius:4,padding:"2px 6px",fontSize:10,color:c,fontFamily:"sans-serif",fontWeight:700}}>{children}</div>;
 }
-function UpgradeHint({message,onUpgrade}){
+function UpgradeHint({message,hint,onUpgrade}){
   const t=T();
   if(!onUpgrade)return null;
+  const text=hint||message||"✦ Unlock AI features with The Executive";
   return(
     <div onClick={onUpgrade} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.GOLD+"0A",border:"1px dashed "+t.GOLD+"44",borderRadius:9,padding:"10px 14px",cursor:"pointer",marginTop:16}}>
-      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{message||"✦ Unlock AI features with The Executive"}</div>
+      <div><div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>✦ Executive Feature</div><div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{text}</div></div>
       <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600,flexShrink:0,marginLeft:10}}>Upgrade →</div>
     </div>
   );
@@ -7262,20 +7263,6 @@ function UpgradeModal({onClose,onCheckout,loading}){
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center"}}>Cancel anytime · Founding member pricing locked in forever</div>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Upgrade Hint Banner ───────────────────────────────────────────────────────
-function UpgradeHint({onUpgrade,hint}){
-  const t=T();
-  return(
-    <div onClick={onUpgrade} style={{margin:"24px 0 8px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:10,padding:"12px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
-      <div>
-        <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>✦ Executive Feature</div>
-        <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{hint||"Upgrade to unlock AI-powered features for this page"}</div>
-      </div>
-      <div style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600,flexShrink:0}}>Upgrade →</div>
     </div>
   );
 }
