@@ -4172,7 +4172,7 @@ function InvestPage({profile}){
   );
 }
 
-function HealthPage({profile,supplements,setSupplements,bodyLog,setPage}){
+function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
   const[editingSupp,setEditingSupp]=useState(null);
   const[editForm,setEditForm]=useState({});
@@ -8033,7 +8033,7 @@ function App(){
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
-          {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage}/>}
+          {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
