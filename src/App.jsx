@@ -1004,18 +1004,57 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
                   );
                 })}
               </div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Or enter manually (e.g. ^GSPC, BTC-USD, AAPL, CBA.AX)</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Or search by name or symbol below</div>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8,opacity:0.7}}>Crypto auto-converts to your profile currency ({L().currency})</div>
-              {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>(
-                <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
-                  <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Symbol" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
-                  <Inp value={tk.label} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,label:e.target.value}:t))} placeholder="Label" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
-                  <label style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,cursor:"pointer"}}>
-                    <input type="checkbox" checked={tk.fx||false} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,fx:e.target.checked}:t))} style={{accentColor:t.GOLD}}/>FX
-                  </label>
-                  {(marketTickers||DEFAULT_TICKERS).length>1&&<button onClick={()=>setMarketTickers(ts=>ts.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,flexShrink:0,padding:"0 4px"}}>✕</button>}
-                </div>
-              ))}
+              {(marketTickers||DEFAULT_TICKERS).map((tk,i)=>{
+                const TICKER_DB=[
+                  // Indices
+                  {symbol:"^GSPC",label:"S&P 500",cat:"Index"},{symbol:"^AXJO",label:"ASX 200",cat:"Index"},{symbol:"^IXIC",label:"Nasdaq",cat:"Index"},{symbol:"^DJI",label:"Dow Jones",cat:"Index"},{symbol:"^RUT",label:"Russell 2000",cat:"Index"},{symbol:"^VIX",label:"VIX",cat:"Index"},{symbol:"^FTSE",label:"FTSE 100",cat:"Index"},{symbol:"^N225",label:"Nikkei 225",cat:"Index"},{symbol:"^HSI",label:"Hang Seng",cat:"Index"},
+                  // Forex
+                  {symbol:"AUDUSD=X",label:"AUD/USD",cat:"Forex",fx:true},{symbol:"GBPUSD=X",label:"GBP/USD",cat:"Forex",fx:true},{symbol:"EURUSD=X",label:"EUR/USD",cat:"Forex",fx:true},{symbol:"USDJPY=X",label:"USD/JPY",cat:"Forex",fx:true},{symbol:"USDCAD=X",label:"USD/CAD",cat:"Forex",fx:true},{symbol:"NZDUSD=X",label:"NZD/USD",cat:"Forex",fx:true},
+                  // Crypto
+                  {symbol:"BTC-USD",label:"Bitcoin",cat:"Crypto"},{symbol:"ETH-USD",label:"Ethereum",cat:"Crypto"},{symbol:"SOL-USD",label:"Solana",cat:"Crypto"},{symbol:"XRP-USD",label:"XRP",cat:"Crypto"},{symbol:"DOGE-USD",label:"Dogecoin",cat:"Crypto"},{symbol:"BNB-USD",label:"BNB",cat:"Crypto"},{symbol:"ADA-USD",label:"Cardano",cat:"Crypto"},
+                  // US Stocks
+                  {symbol:"AAPL",label:"Apple",cat:"US"},{symbol:"MSFT",label:"Microsoft",cat:"US"},{symbol:"NVDA",label:"Nvidia",cat:"US"},{symbol:"GOOGL",label:"Alphabet",cat:"US"},{symbol:"AMZN",label:"Amazon",cat:"US"},{symbol:"META",label:"Meta",cat:"US"},{symbol:"TSLA",label:"Tesla",cat:"US"},{symbol:"NFLX",label:"Netflix",cat:"US"},{symbol:"AMD",label:"AMD",cat:"US"},{symbol:"INTC",label:"Intel",cat:"US"},{symbol:"JPM",label:"JPMorgan",cat:"US"},{symbol:"V",label:"Visa",cat:"US"},{symbol:"JNJ",label:"Johnson & Johnson",cat:"US"},{symbol:"WMT",label:"Walmart",cat:"US"},{symbol:"BAC",label:"Bank of America",cat:"US"},{symbol:"DIS",label:"Disney",cat:"US"},{symbol:"SPY",label:"S&P 500 ETF",cat:"ETF"},{symbol:"QQQ",label:"Nasdaq ETF",cat:"ETF"},{symbol:"GLD",label:"Gold ETF",cat:"ETF"},{symbol:"VTI",label:"Vanguard Total Market",cat:"ETF"},
+                  // ASX Stocks
+                  {symbol:"CBA.AX",label:"Commonwealth Bank",cat:"ASX"},{symbol:"BHP.AX",label:"BHP Group",cat:"ASX"},{symbol:"CSL.AX",label:"CSL",cat:"ASX"},{symbol:"ANZ.AX",label:"ANZ Bank",cat:"ASX"},{symbol:"NAB.AX",label:"NAB",cat:"ASX"},{symbol:"WBC.AX",label:"Westpac",cat:"ASX"},{symbol:"WES.AX",label:"Wesfarmers",cat:"ASX"},{symbol:"MQG.AX",label:"Macquarie Group",cat:"ASX"},{symbol:"RIO.AX",label:"Rio Tinto",cat:"ASX"},{symbol:"WOW.AX",label:"Woolworths",cat:"ASX"},{symbol:"TLS.AX",label:"Telstra",cat:"ASX"},{symbol:"GMG.AX",label:"Goodman Group",cat:"ASX"},{symbol:"FMG.AX",label:"Fortescue",cat:"ASX"},{symbol:"NCM.AX",label:"Newcrest Mining",cat:"ASX"},{symbol:"TCL.AX",label:"Transurban",cat:"ASX"},{symbol:"SHL.AX",label:"Sonic Healthcare",cat:"ASX"},{symbol:"REA.AX",label:"REA Group",cat:"ASX"},{symbol:"XRO.AX",label:"Xero",cat:"ASX"},{symbol:"PME.AX",label:"Pro Medicus",cat:"ASX"},{symbol:"APX.AX",label:"Appen",cat:"ASX"},
+                  // Commodities
+                  {symbol:"GC=F",label:"Gold Futures",cat:"Commodity"},{symbol:"SI=F",label:"Silver Futures",cat:"Commodity"},{symbol:"CL=F",label:"Crude Oil",cat:"Commodity"},{symbol:"NG=F",label:"Natural Gas",cat:"Commodity"},
+                ];
+                const q=(tk.symbol||"").toLowerCase();
+                const suggestions=q.length>=1?TICKER_DB.filter(s=>
+                  s.symbol.toLowerCase().startsWith(q)||
+                  s.label.toLowerCase().includes(q)||
+                  s.cat.toLowerCase().includes(q)
+                ).slice(0,6):[];
+                return(
+                  <div key={i} style={{position:"relative",marginBottom:6}}>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <div style={{flex:1,position:"relative"}}>
+                        <Inp value={tk.symbol} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,symbol:e.target.value.toUpperCase()}:t))} placeholder="Search symbol or name..." style={{fontSize:11,padding:"6px 8px"}}/>
+                        {suggestions.length>0&&(
+                          <div style={{position:"absolute",top:"100%",left:0,right:0,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:7,zIndex:200,boxShadow:"0 4px 20px rgba(0,0,0,.5)",marginTop:2,overflow:"hidden"}}>
+                            {suggestions.map(s=>(
+                              <div key={s.symbol} onClick={()=>setMarketTickers(ts=>ts.map((tk2,j)=>j===i?{...tk2,symbol:s.symbol,label:s.label,fx:s.fx||false}:tk2))} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",cursor:"pointer",borderBottom:"1px solid "+t.BORDER+"66"}} onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                                <div>
+                                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{s.symbol}</span>
+                                  <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginLeft:8}}>{s.label}</span>
+                                </div>
+                                <span style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",background:t.GOLD+"18",padding:"2px 6px",borderRadius:8}}>{s.cat}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Inp value={tk.label} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,label:e.target.value}:t))} placeholder="Label" style={{flex:1,fontSize:11,padding:"6px 8px"}}/>
+                      <label style={{display:"flex",alignItems:"center",gap:3,fontSize:10,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0,cursor:"pointer"}}>
+                        <input type="checkbox" checked={tk.fx||false} onChange={e=>setMarketTickers(ts=>ts.map((t,j)=>j===i?{...t,fx:e.target.checked}:t))} style={{accentColor:t.GOLD}}/>FX
+                      </label>
+                      {(marketTickers||DEFAULT_TICKERS).length>1&&<button onClick={()=>setMarketTickers(ts=>ts.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,flexShrink:0,padding:"0 4px"}}>✕</button>}
+                    </div>
+                  </div>
+                );
+              })}
               <div style={{display:"flex",gap:6,marginTop:6}}>
                 {(marketTickers||DEFAULT_TICKERS).length<5&&<Btn onClick={()=>setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:"",label:"",fx:false}])} variant="ghost" style={{fontSize:10,padding:"5px 10px"}}>+ Add Ticker</Btn>}
                 <Btn onClick={()=>{setShowMktEdit(false);market.refresh();}} style={{fontSize:10,padding:"5px 10px"}}>Save & Refresh</Btn>
