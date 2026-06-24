@@ -806,7 +806,6 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 
 function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
-  const[mktSearch,setMktSearch]=useState("");
 
   const t=T();
   const[visibleRows,setVisibleRows]=useState([]);
@@ -986,72 +985,13 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
               <button onClick={()=>setShowMktEdit(s=>!s)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.MUTED,cursor:"pointer",fontSize:10}}>Edit</button>
             </div>
           }>Markets</SectionLabel>
-          {showMktEdit&&(()=>{
-            const TICKER_DB=[
-              {symbol:"^GSPC",label:"S&P 500",cat:"Index"},{symbol:"^AXJO",label:"ASX 200",cat:"Index"},{symbol:"^IXIC",label:"Nasdaq",cat:"Index"},{symbol:"^DJI",label:"Dow Jones",cat:"Index"},{symbol:"^RUT",label:"Russell 2000",cat:"Index"},{symbol:"^FTSE",label:"FTSE 100",cat:"Index"},{symbol:"^N225",label:"Nikkei 225",cat:"Index"},{symbol:"^HSI",label:"Hang Seng",cat:"Index"},
-              {symbol:"AUDUSD=X",label:"AUD/USD",cat:"Forex",fx:true},{symbol:"GBPUSD=X",label:"GBP/USD",cat:"Forex",fx:true},{symbol:"EURUSD=X",label:"EUR/USD",cat:"Forex",fx:true},{symbol:"USDJPY=X",label:"USD/JPY",cat:"Forex",fx:true},{symbol:"NZDUSD=X",label:"NZD/USD",cat:"Forex",fx:true},
-              {symbol:"BTC-USD",label:"Bitcoin",cat:"Crypto"},{symbol:"ETH-USD",label:"Ethereum",cat:"Crypto"},{symbol:"SOL-USD",label:"Solana",cat:"Crypto"},{symbol:"XRP-USD",label:"XRP",cat:"Crypto"},{symbol:"DOGE-USD",label:"Dogecoin",cat:"Crypto"},{symbol:"BNB-USD",label:"BNB",cat:"Crypto"},
-              {symbol:"AAPL",label:"Apple",cat:"US"},{symbol:"MSFT",label:"Microsoft",cat:"US"},{symbol:"NVDA",label:"Nvidia",cat:"US"},{symbol:"GOOGL",label:"Alphabet",cat:"US"},{symbol:"AMZN",label:"Amazon",cat:"US"},{symbol:"META",label:"Meta",cat:"US"},{symbol:"TSLA",label:"Tesla",cat:"US"},{symbol:"NFLX",label:"Netflix",cat:"US"},{symbol:"AMD",label:"AMD",cat:"US"},{symbol:"JPM",label:"JPMorgan",cat:"US"},{symbol:"SPY",label:"S&P 500 ETF",cat:"ETF"},{symbol:"QQQ",label:"Nasdaq ETF",cat:"ETF"},{symbol:"GLD",label:"Gold ETF",cat:"ETF"},
-              {symbol:"CBA.AX",label:"Commonwealth Bank",cat:"ASX"},{symbol:"BHP.AX",label:"BHP Group",cat:"ASX"},{symbol:"CSL.AX",label:"CSL",cat:"ASX"},{symbol:"ANZ.AX",label:"ANZ Bank",cat:"ASX"},{symbol:"NAB.AX",label:"NAB",cat:"ASX"},{symbol:"WBC.AX",label:"Westpac",cat:"ASX"},{symbol:"WES.AX",label:"Wesfarmers",cat:"ASX"},{symbol:"MQG.AX",label:"Macquarie",cat:"ASX"},{symbol:"RIO.AX",label:"Rio Tinto",cat:"ASX"},{symbol:"WOW.AX",label:"Woolworths",cat:"ASX"},{symbol:"TLS.AX",label:"Telstra",cat:"ASX"},{symbol:"GMG.AX",label:"Goodman Group",cat:"ASX"},{symbol:"FMG.AX",label:"Fortescue",cat:"ASX"},{symbol:"XRO.AX",label:"Xero",cat:"ASX"},{symbol:"PME.AX",label:"Pro Medicus",cat:"ASX"},
-              {symbol:"GC=F",label:"Gold",cat:"Commodity"},{symbol:"SI=F",label:"Silver",cat:"Commodity"},{symbol:"CL=F",label:"Crude Oil",cat:"Commodity"},{symbol:"NG=F",label:"Natural Gas",cat:"Commodity"},
-            ];
-            const current=marketTickers||DEFAULT_TICKERS;
-            const isFull=current.length>=5;
-            const q=mktSearch.toLowerCase();
-            const suggestions=q.length>=1?TICKER_DB.filter(s=>
-              !current.some(c=>c.symbol===s.symbol)&&(
-                s.symbol.toLowerCase().startsWith(q)||s.label.toLowerCase().includes(q)||s.cat.toLowerCase().includes(q)
-              )
-            ).slice(0,6):[];
-            return(
-              <div style={{marginBottom:12,background:t.CARD2,borderRadius:10,padding:12,border:"1px solid "+t.BORDER}}>
-                {/* Current tickers as chips */}
-                <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:12}}>
-                  {current.map((tk,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:20,padding:"5px 10px 5px 12px"}}>
-                      <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{tk.label||tk.symbol}</span>
-                      <button onClick={()=>setMarketTickers(ts=>ts.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,padding:"0 2px",lineHeight:1,opacity:.7}}>✕</button>
-                    </div>
-                  ))}
-                  {!isFull&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",alignSelf:"center"}}>{5-current.length} slot{5-current.length!==1?"s":""} left</div>}
-                </div>
-                {/* Search */}
-                {!isFull&&<div style={{position:"relative"}}>
-                  <input
-                    value={mktSearch}
-                    onChange={e=>setMktSearch(e.target.value)}
-                    placeholder="Search stocks, crypto, indices, forex..."
-                    style={{width:"100%",background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"10px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}
-                  />
-                  {suggestions.length>0&&(
-                    <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:9,zIndex:300,boxShadow:"0 8px 32px rgba(0,0,0,.6)",overflow:"hidden"}}>
-                      {suggestions.map((s,si)=>(
-                        <div key={s.symbol}
-                          onClick={()=>{setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:s.symbol,label:s.label,fx:s.fx||false}]);setMktSearch("");}}
-                          style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",cursor:"pointer",borderBottom:si<suggestions.length-1?"1px solid "+t.BORDER+"33":"none"}}
-                          onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"}
-                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          <div>
-                            <span style={{fontSize:13,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{s.symbol}</span>
-                            <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",marginLeft:10}}>{s.label}</span>
-                          </div>
-                          <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 8px",borderRadius:8}}>{s.cat}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {mktSearch.length>0&&suggestions.length===0&&(
-                    <div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No matches — try a different symbol or name</div>
-                  )}
-                </div>}
-                {isFull&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"4px 0"}}>5 tickers maximum — remove one to add another</div>}
-                <div style={{display:"flex",gap:8,marginTop:12}}>
-                  <Btn onClick={()=>{setShowMktEdit(false);setMktSearch("");market.refresh();}} style={{fontSize:11,padding:"8px 14px"}}>Save & Refresh</Btn>
-                  <Btn onClick={()=>{setMarketTickers(DEFAULT_TICKERS);setShowMktEdit(false);setMktSearch("");}} variant="ghost" style={{fontSize:11,padding:"8px 14px"}}>Reset</Btn>
-                </div>
-              </div>
-            );
-          })()}
+          {showMktEdit&&<TickerSearch
+            marketTickers={marketTickers}
+            setMarketTickers={setMarketTickers}
+            DEFAULT_TICKERS={DEFAULT_TICKERS}
+            onSave={()=>{setShowMktEdit(false);market.refresh();}}
+            onReset={()=>{setMarketTickers(DEFAULT_TICKERS);setShowMktEdit(false);}}
+          />}
           {mktRows.map((m,i)=>(
             <div key={m.l}>
               {i>0&&<Divider/>}
@@ -7296,7 +7236,73 @@ function UpgradeModal({onClose,onCheckout,loading}){
   );
 }
 
-// ── News Page ─────────────────────────────────────────────────────────────────
+function TickerSearch({marketTickers,setMarketTickers,DEFAULT_TICKERS,onSave,onReset}){
+  const t=T();
+  const[search,setSearch]=useState("");
+  const TICKER_DB=[
+    {symbol:"^GSPC",label:"S&P 500",cat:"Index"},{symbol:"^AXJO",label:"ASX 200",cat:"Index"},{symbol:"^IXIC",label:"Nasdaq",cat:"Index"},{symbol:"^DJI",label:"Dow Jones",cat:"Index"},{symbol:"^RUT",label:"Russell 2000",cat:"Index"},{symbol:"^FTSE",label:"FTSE 100",cat:"Index"},{symbol:"^N225",label:"Nikkei 225",cat:"Index"},{symbol:"^HSI",label:"Hang Seng",cat:"Index"},
+    {symbol:"AUDUSD=X",label:"AUD/USD",cat:"Forex",fx:true},{symbol:"GBPUSD=X",label:"GBP/USD",cat:"Forex",fx:true},{symbol:"EURUSD=X",label:"EUR/USD",cat:"Forex",fx:true},{symbol:"USDJPY=X",label:"USD/JPY",cat:"Forex",fx:true},{symbol:"NZDUSD=X",label:"NZD/USD",cat:"Forex",fx:true},
+    {symbol:"BTC-USD",label:"Bitcoin",cat:"Crypto"},{symbol:"ETH-USD",label:"Ethereum",cat:"Crypto"},{symbol:"SOL-USD",label:"Solana",cat:"Crypto"},{symbol:"XRP-USD",label:"XRP",cat:"Crypto"},{symbol:"DOGE-USD",label:"Dogecoin",cat:"Crypto"},{symbol:"BNB-USD",label:"BNB",cat:"Crypto"},
+    {symbol:"AAPL",label:"Apple",cat:"US"},{symbol:"MSFT",label:"Microsoft",cat:"US"},{symbol:"NVDA",label:"Nvidia",cat:"US"},{symbol:"GOOGL",label:"Alphabet",cat:"US"},{symbol:"AMZN",label:"Amazon",cat:"US"},{symbol:"META",label:"Meta",cat:"US"},{symbol:"TSLA",label:"Tesla",cat:"US"},{symbol:"NFLX",label:"Netflix",cat:"US"},{symbol:"AMD",label:"AMD",cat:"US"},{symbol:"JPM",label:"JPMorgan",cat:"US"},{symbol:"SPY",label:"S&P 500 ETF",cat:"ETF"},{symbol:"QQQ",label:"Nasdaq ETF",cat:"ETF"},{symbol:"GLD",label:"Gold ETF",cat:"ETF"},
+    {symbol:"CBA.AX",label:"Commonwealth Bank",cat:"ASX"},{symbol:"BHP.AX",label:"BHP Group",cat:"ASX"},{symbol:"CSL.AX",label:"CSL",cat:"ASX"},{symbol:"ANZ.AX",label:"ANZ Bank",cat:"ASX"},{symbol:"NAB.AX",label:"NAB",cat:"ASX"},{symbol:"WBC.AX",label:"Westpac",cat:"ASX"},{symbol:"WES.AX",label:"Wesfarmers",cat:"ASX"},{symbol:"MQG.AX",label:"Macquarie",cat:"ASX"},{symbol:"RIO.AX",label:"Rio Tinto",cat:"ASX"},{symbol:"WOW.AX",label:"Woolworths",cat:"ASX"},{symbol:"TLS.AX",label:"Telstra",cat:"ASX"},{symbol:"GMG.AX",label:"Goodman Group",cat:"ASX"},{symbol:"FMG.AX",label:"Fortescue",cat:"ASX"},{symbol:"XRO.AX",label:"Xero",cat:"ASX"},{symbol:"PME.AX",label:"Pro Medicus",cat:"ASX"},
+    {symbol:"GC=F",label:"Gold",cat:"Commodity"},{symbol:"SI=F",label:"Silver",cat:"Commodity"},{symbol:"CL=F",label:"Crude Oil",cat:"Commodity"},{symbol:"NG=F",label:"Natural Gas",cat:"Commodity"},
+  ];
+  const current=marketTickers||DEFAULT_TICKERS;
+  const isFull=current.length>=5;
+  const q=search.toLowerCase();
+  const suggestions=q.length>=1?TICKER_DB.filter(s=>
+    !current.some(c=>c.symbol===s.symbol)&&(
+      s.symbol.toLowerCase().startsWith(q)||s.label.toLowerCase().includes(q)||s.cat.toLowerCase().includes(q)
+    )
+  ).slice(0,6):[];
+  return(
+    <div style={{background:t.CARD2,borderRadius:10,padding:12,border:"1px solid "+t.BORDER,marginBottom:12}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:current.length>0?12:0}}>
+        {current.map((tk,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:5,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:20,padding:"5px 12px 5px 12px"}}>
+            <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{tk.label||tk.symbol}</span>
+            <button onClick={()=>setMarketTickers(ts=>ts.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,padding:"0 0 0 4px",lineHeight:1,opacity:.6}}>✕</button>
+          </div>
+        ))}
+      </div>
+      {!isFull&&(
+        <div style={{position:"relative"}}>
+          <input
+            value={search}
+            onChange={e=>setSearch(e.target.value)}
+            placeholder="Search stocks, crypto, indices, forex..."
+            style={{width:"100%",background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"10px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}
+          />
+          {suggestions.length>0&&(
+            <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:9,zIndex:300,boxShadow:"0 8px 32px rgba(0,0,0,.6)",overflow:"hidden"}}>
+              {suggestions.map((s,si)=>(
+                <div key={s.symbol}
+                  onClick={()=>{setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:s.symbol,label:s.label,fx:s.fx||false}]);setSearch("");}}
+                  style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 14px",cursor:"pointer",borderBottom:si<suggestions.length-1?"1px solid "+t.BORDER+"33":"none"}}
+                  onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <div>
+                    <span style={{fontSize:13,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{s.symbol}</span>
+                    <span style={{fontSize:13,color:t.TEXT,fontFamily:"sans-serif",marginLeft:10}}>{s.label}</span>
+                  </div>
+                  <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 8px",borderRadius:8}}>{s.cat}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {search.length>0&&suggestions.length===0&&(
+            <div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No matches — try a different name or symbol</div>
+          )}
+        </div>
+      )}
+      {isFull&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"4px 0"}}>5 tickers maximum — remove one to add another</div>}
+      <div style={{display:"flex",gap:8,marginTop:12}}>
+        <Btn onClick={onSave} style={{fontSize:11,padding:"8px 14px"}}>Save & Refresh</Btn>
+        <Btn onClick={onReset} variant="ghost" style={{fontSize:11,padding:"8px 14px"}}>Reset</Btn>
+      </div>
+    </div>
+  );
+}
 function NewsPage(){
   const t=T();
   const[news,setNews]=useState(null);
