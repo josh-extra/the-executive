@@ -7680,15 +7680,25 @@ function App(){
   const todayT=todayTasks(tasks);
   const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
-  const tS=todayT.length?Math.round(tDone/todayT.length*40):0;
-  const sS=supplements.length?Math.round(sDone/supplements.length*30):0;
-  const gS=goals.length?Math.round(goals.filter(g=>g.progress>=50).length/goals.length*30):0;
-  const todayScore=tS+sS+gS;
+  const hDone=(habits||[]).filter(h=>habitLog[h.id+"_"+todayStr()]).length;
+
+  // Only score categories that have data — redistribute 100 points across active categories
+  const cats=[];
+  if(todayT.length)cats.push(tDone/todayT.length);
+  if(supplements.length)cats.push(sDone/supplements.length);
+  if(goals.length)cats.push(goals.filter(g=>g.progress>=50).length/goals.length);
+  if((habits||[]).length)cats.push(hDone/(habits||[]).length);
+  const todayScore=cats.length?Math.round(cats.reduce((a,b)=>a+b,0)/cats.length*100):0;
+
+  const tS=todayT.length?Math.round(tDone/todayT.length*35):0;
+  const sS=supplements.length?Math.round(sDone/supplements.length*25):0;
+  const gS=goals.length?Math.round(goals.filter(g=>g.progress>=50).length/goals.length*25):0;
+  const hS=(habits||[]).length?Math.round(hDone/(habits||[]).length*15):0;
 
   useEffect(()=>{
     if(!hydrated)return;
-    setHistory(h=>({...h,[todayStr()]:{score:todayScore,tasks:tDone,supps:sDone}}));
-  },[todayScore,hydrated]);
+    setHistory(h=>({...h,[todayStr()]:{score:todayScore,tasks:tDone,supps:sDone,habits:hDone}}));
+  },[todayScore,hydrated,hDone]);
 
   // Midnight reset — handles app left open overnight
   useEffect(()=>{
