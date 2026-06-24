@@ -831,16 +831,19 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const quote=quotes[(new Date().getFullYear()*10000+new Date().getMonth()*100+new Date().getDate())%quotes.length];
   const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
   const highTasks=tasks.filter(tk=>tk.priority==="high");
+  const goalsDone=goals.filter(g=>g.progress>=50).length;
   const rings=[
-    {pct:tasks.length?Math.round(tDone/tasks.length*100):0,c:t.GREEN,label:"Tasks",sub:tDone+"/"+tasks.length,page:"tasks"},
+    {pct:todayT.length?Math.round(tDone/todayT.length*100):0,c:t.GREEN,label:"Tasks",sub:tDone+"/"+todayT.length,page:"tasks"},
     {pct:(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0,c:t.GOLD,label:"Habits",sub:hDone+"/"+((habits||[]).length),page:"habits"},
-    {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"}
+    {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"},
+    ...(goals.length?[{pct:Math.round(goalsDone/goals.length*100),c:"#B07EC9",label:"Goals",sub:goalsDone+"/"+goals.length,page:"goals"}]:[])
   ];
-  const tPct=tasks.length?Math.round(tDone/tasks.length*100):0;
-  const hbPct=(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0;
-  const sPct=supplements.length?Math.round(sDone/supplements.length*100):0;
-  const activeCats=[tasks.length>0,(habits||[]).length>0,supplements.length>0].filter(Boolean).length;
-  const todayScore=activeCats>0?Math.round((tPct+hbPct+sPct)/activeCats):0;
+  const tPct=todayT.length?Math.round(tDone/todayT.length*100):null;
+  const hbPct=(habits||[]).length?Math.round(hDone/(habits||[]).length*100):null;
+  const sPct=supplements.length?Math.round(sDone/supplements.length*100):null;
+  const gPct=goals.length?Math.round(goals.filter(g=>g.progress>=50).length/goals.length*100):null;
+  const activePcts=[tPct,hbPct,sPct,gPct].filter(v=>v!==null);
+  const todayScore=activePcts.length?Math.round(activePcts.reduce((a,b)=>a+b,0)/activePcts.length):0;
   const scoreColor=todayScore>=80?t.GREEN:todayScore>=60?t.GOLD:todayScore>=40?t.BLUE:t.RED;
   const r=32,circ=2*Math.PI*r;
   const mk=monthStr();
