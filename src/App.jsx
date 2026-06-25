@@ -3078,7 +3078,8 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
   }));
 
   const totalDebt=allDebts.reduce((s,d)=>s+parseFloat(d.balance||0),0);
-  const totalMinPayment=allDebts.reduce((s,d)=>s+parseFloat(d.minPayment||0),0);
+  const debtMonthlyEq=d=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return parseFloat(d.minPayment||0)*(m[d.frequency||"monthly"]||1);};
+  const totalMinPayment=allDebts.reduce((s,d)=>s+debtMonthlyEq(d),0);
 
   // Payoff calc
   const calcPayoff=(bal,rate,payment)=>{
@@ -3296,7 +3297,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <Inp type="number" value={form.rate} onChange={e=>setForm(f=>({...f,rate:e.target.value}))} placeholder="6.2"/>
               </div>
               <div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Min Payment ($/mo)</div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Min Payment ({form.frequency==="weekly"?"$/wk":form.frequency==="fortnightly"?"$/fn":form.frequency==="quarterly"?"$/qtr":form.frequency==="annually"?"$/yr":"$/mo"})</div>
                 <Inp type="number" value={form.minPayment} onChange={e=>setForm(f=>({...f,minPayment:e.target.value}))} placeholder="2400"/>
               </div>
               <div>
@@ -3341,7 +3342,8 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
       {/* Debt cards */}
       {sorted.map((d,idx)=>{
         const bal=parseFloat(d.balance||0);
-        const payment=(parseFloat(d.minPayment)||0)+(idx===0?extra:0);
+        const monthlyPayment=debtMonthlyEq(d)+(idx===0?extra:0);
+        const payment=monthlyPayment;
         const months=calcPayoff(bal,d.rate,payment);
         const totalInt=calcTotalInterest(bal,d.rate,payment);
         const pct=totalDebt>0?Math.round(bal/totalDebt*100):0;
