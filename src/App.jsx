@@ -3058,7 +3058,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
   const[extra,setExtra]=useState(500);
   const[strategy,setStrategy]=useState("avalanche");
   const[confirmDel,setConfirmDel]=useState(null);
-  const emptyForm={name:"",type:"Mortgage",originalBalance:"",balance:"",rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:""};
+  const emptyForm={name:"",type:"Mortgage",originalBalance:"",balance:"",rate:"",minPayment:"",frequency:"monthly",nextPaymentDate:"",startDate:"",endDate:"",lender:"",notes:""};
   const[form,setForm]=useState(emptyForm);
 
   const DEBT_TYPES=["Mortgage","Investment Loan","Car Finance","Credit Card","Personal Loan","Student Loan","Business Loan","Other"];
@@ -3114,7 +3114,6 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
     const origBal=parseFloat(form.originalBalance)||parseFloat(form.balance);
     const curBal=parseFloat(form.balance);
     if(editing){
-      // Always write to setDebts — use allDebts as fallback base if debts not yet set
       const base = debts?.length ? debts : allDebts;
       setDebts(base.map(d=>d.id===editing?{
         ...d,...form,
@@ -3122,6 +3121,8 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
         originalBalance:origBal,
         rate:form.rate===""?"":parseFloat(form.rate)||0,
         minPayment:parseFloat(form.minPayment)||0,
+        frequency:form.frequency||"monthly",
+        nextPaymentDate:form.nextPaymentDate||"",
       }:d));
     } else {
       const newDebt={
@@ -3129,6 +3130,8 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
         balance:curBal,originalBalance:origBal,
         rate:form.rate===""?"":parseFloat(form.rate)||0,
         minPayment:parseFloat(form.minPayment)||0,
+        frequency:form.frequency||"monthly",
+        nextPaymentDate:form.nextPaymentDate||"",
         startDate:form.startDate,endDate:form.endDate,
         lender:form.lender,notes:form.notes,
         payments:[]
@@ -3145,6 +3148,8 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
       originalBalance:d.originalBalance||d.balance||"",
       balance:d.balance||"",
       rate:d.rate||"",minPayment:d.minPayment||"",
+      frequency:d.frequency||"monthly",
+      nextPaymentDate:d.nextPaymentDate||"",
       startDate:d.startDate||"",endDate:d.endDate||"",
       lender:d.lender||"",notes:d.notes||""
     });
@@ -3301,6 +3306,18 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Payment Frequency</div>
+                <Sel value={form.frequency||"monthly"} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))}>
+                  {["weekly","fortnightly","monthly","quarterly","annually"].map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+                </Sel>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Next Payment Date</div>
+                <Inp type="date" value={form.nextPaymentDate} onChange={e=>setForm(f=>({...f,nextPaymentDate:e.target.value}))}/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Start Date</div>
                 <Inp type="date" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))}/>
               </div>
@@ -3345,6 +3362,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                   <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{d.type}</span>
                   {d.lender&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{d.lender}</span>}
                   <span style={{fontSize:10,color:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(d.rate||0)+"%"+" p.a."}</span>
+                  {d.nextPaymentDate&&d.minPayment&&<span style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif"}}>{"Next: "+fmtDateNum(d.nextPaymentDate)+" · -"+fmt(d.minPayment)}</span>}
                 </div>
               </div>
               <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
@@ -7541,6 +7559,33 @@ function App(){
       window.removeEventListener("focus",checkOnFocus);
     };
   },[lastResetDate]);
+
+  // Auto-deduct debt repayments when nextPaymentDate passes
+  useEffect(()=>{
+    if(!readyToSave||!debts?.length)return;
+    const today=todayStr();
+    const needsDeduct=debts.some(d=>d.nextPaymentDate&&d.nextPaymentDate<=today&&parseFloat(d.minPayment)>0&&parseFloat(d.balance)>0);
+    if(!needsDeduct)return;
+    setDebts(ds=>ds.map(d=>{
+      if(!d.nextPaymentDate||d.nextPaymentDate>today||!parseFloat(d.minPayment)||!parseFloat(d.balance))return d;
+      // Roll through any missed payment cycles
+      let nextDate=d.nextPaymentDate;
+      let balance=parseFloat(d.balance);
+      const freq=d.frequency||"monthly";
+      const payment=parseFloat(d.minPayment);
+      const payments=[...(d.payments||[])];
+      let safety=0;
+      while(nextDate<=today&&balance>0&&safety<60){
+        const actual=Math.min(payment,balance);
+        payments.unshift({date:nextDate,amount:actual,balance:Math.max(balance-actual,0)});
+        balance=Math.max(balance-actual,0);
+        nextDate=advanceDate(nextDate,freq);
+        safety++;
+      }
+      if(payments.length===(d.payments||[]).length)return d;
+      return{...d,balance:Math.round(balance*100)/100,nextPaymentDate:nextDate,payments:payments.slice(0,24)};
+    }));
+  },[readyToSave,lastResetDate]);
 
   // Auto-advance autopay bills past their due date — these are paid automatically by the bank,
   // so the app should roll nextDue forward on its own rather than waiting for a manual "Paid" click.
