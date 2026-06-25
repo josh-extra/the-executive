@@ -4046,6 +4046,43 @@ function BillsPage({bills,setBills}){
     </div>
   );
 }
+function WatchlistItem({w,onRemove}){
+  const t=T();
+  const[price,setPrice]=useState(null);
+  const[pct,setPct]=useState(null);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{
+    if(!w.ticker)return;
+    fetch("/api/quote?symbol="+encodeURIComponent(w.ticker))
+      .then(r=>r.json())
+      .then(d=>{if(d.price!=null){setPrice(d.price);setPct(d.pct);}setLoading(false);})
+      .catch(()=>setLoading(false));
+  },[w.ticker]);
+  return(
+    <Card style={{marginBottom:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <Tag>{w.ticker}</Tag>
+            {w.name&&<span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{w.name}</span>}
+          </div>
+          {w.notes&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>{w.notes}</div>}
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{"Added: "+w.addedDate}</div>
+        </div>
+        <div style={{textAlign:"right",marginLeft:12,flexShrink:0}}>
+          {loading?<Skeleton width={60} height={16}/>:price!=null?(
+            <div>
+              <div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:700}}>{price>1?price.toLocaleString(_locale,{maximumFractionDigits:2}):price.toFixed(4)}</div>
+              {pct!=null&&<div style={{fontSize:11,color:pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(pct>=0?"▲ ":"▼ ")+Math.abs(pct).toFixed(2)+"%"}</div>}
+            </div>
+          ):<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No data</div>}
+        </div>
+        <button onClick={onRemove} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:13,opacity:.5,marginLeft:10}}>✕</button>
+      </div>
+    </Card>
+  );
+}
+
 function InvestPage({profile}){
   const t=T();
   const[tab,setTab]=useState("ideas");
@@ -4146,19 +4183,7 @@ function InvestPage({profile}){
             </div>
           )}
           {watchlist.map((w,i)=>(
-            <Card key={w.id} style={{marginBottom:8}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
-                    <Tag>{w.ticker}</Tag>
-                    {w.name&&<span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{w.name}</span>}
-                  </div>
-                  {w.notes&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>{w.notes}</div>}
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"Added: "+w.addedDate}</div>
-                </div>
-                <button onClick={()=>setWatchlist(wl=>wl.filter(x=>x.id!==w.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
-              </div>
-            </Card>
+            <WatchlistItem key={w.id} w={w} onRemove={()=>setWatchlist(wl=>wl.filter(x=>x.id!==w.id))}/>
           ))}
         </div>
       )}
