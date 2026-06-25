@@ -838,12 +838,12 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
     {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"},
     ...(goals.length?[{pct:Math.round(goalsDone/goals.length*100),c:"#B07EC9",label:"Goals",sub:goalsDone+"/"+goals.length,page:"goals"}]:[])
   ];
-  const tPct=todayT.length?Math.round(tDone/todayT.length*100):null;
-  const hbPct=(habits||[]).length?Math.round(hDone/(habits||[]).length*100):null;
-  const sPct=supplements.length?Math.round(sDone/supplements.length*100):null;
-  const gPct=goals.length?Math.round(goals.filter(g=>g.progress>=50).length/goals.length*100):null;
+  const tPct=todayT.length?tDone/todayT.length:null;
+  const hbPct=(habits||[]).length?hDone/(habits||[]).length:null;
+  const sPct=supplements.length?sDone/supplements.length:null;
+  const gPct=goals.length?goals.filter(g=>g.progress>=50).length/goals.length:null;
   const activePcts=[tPct,hbPct,sPct,gPct].filter(v=>v!==null);
-  const todayScore=activePcts.length?Math.round(activePcts.reduce((a,b)=>a+b,0)/activePcts.length):0;
+  const todayScore=activePcts.length?Math.round(activePcts.reduce((a,b)=>a+b,0)/activePcts.length*100):0;
   const scoreColor=todayScore>=80?t.GREEN:todayScore>=60?t.GOLD:todayScore>=40?t.BLUE:t.RED;
   const r=32,circ=2*Math.PI*r;
   const mk=monthStr();
