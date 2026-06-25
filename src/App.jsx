@@ -3442,8 +3442,13 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <Btn onClick={()=>{setPayingDebt(null);setPayAmount("");}} variant="ghost">Cancel</Btn>
               </div>
             ):(
-              <div style={{display:"flex",gap:7,marginTop:4}}>
+              <div style={{display:"flex",gap:7,marginTop:4,flexWrap:"wrap"}}>
                 <button onClick={()=>setPayingDebt(d.id)} style={{background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>+ Record Payment</button>
+                <button onClick={()=>{
+                  if(!window.confirm("Mark "+d.name+" as fully paid off? This will set the balance to $0."))return;
+                  const base=debts?.length?debts:allDebts;
+                  setDebts(base.map(x=>x.id===d.id?{...x,balance:0,payments:[{date:todayStr(),amount:bal,note:"Paid in full"},...(x.payments||[])].slice(0,24)}:x));
+                }} style={{background:"#C9A84C18",border:"1px solid #C9A84C44",borderRadius:6,padding:"5px 10px",color:"#C9A84C",cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>🏆 Paid in Full</button>
                 <button onClick={()=>openEdit(d)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Edit</button>
                 <button onClick={()=>setExpanded(x=>({...x,[d.id]:!x[d.id]}))} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{isExpanded?"Less":"Details"}</button>
               </div>
