@@ -5020,6 +5020,64 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
           })}
         </div>
       </Card>
+
+      {/* Monthly heatmap */}
+      {(()=>{
+        const now=new Date();
+        const year=now.getFullYear();
+        const month=now.getMonth();
+        const daysInMonth=new Date(year,month+1,0).getDate();
+        const firstDay=new Date(year,month,1).getDay();
+        const monthLabel=now.toLocaleDateString(_locale,{month:"long",year:"numeric"});
+        const dayLettersAll=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+        const today=todayStr();
+        const cells=[];
+        for(let i=0;i<firstDay;i++)cells.push(null);
+        for(let d=1;d<=daysInMonth;d++){
+          const ds=year+"-"+String(month+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+          cells.push({d,ds,score:history[ds]?.score||0,isToday:ds===today,isFuture:ds>today});
+        }
+        const getColor=(score,isFuture,isToday)=>{
+          if(isFuture)return"transparent";
+          if(score===0)return t.CARD2;
+          if(score>=80)return t.GREEN;
+          if(score>=60)return t.GOLD;
+          if(score>=40)return t.BLUE;
+          return"#C97E7E";
+        };
+        return(
+          <Card style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <SectionLabel>{monthLabel}</SectionLabel>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:"#C97E7E",l:"<40"}].map(k=>(
+                  <div key={k.l} style={{display:"flex",alignItems:"center",gap:3}}>
+                    <div style={{width:8,height:8,borderRadius:2,background:k.c+"88"}}/>
+                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{k.l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+              {dayLettersAll.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",paddingBottom:2}}>{l}</div>)}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
+              {cells.map((cell,i)=>{
+                if(!cell)return<div key={"pad"+i}/>;
+                const col=getColor(cell.score,cell.isFuture,cell.isToday);
+                return(
+                  <div key={cell.ds} title={cell.isFuture?"":cell.ds+(cell.score>0?" — "+cell.score+"/100":"")}
+                    style={{aspectRatio:"1",borderRadius:4,background:cell.score>0&&!cell.isFuture?col+"66":col,border:"1px solid "+(cell.isToday?t.GOLD:cell.score>0&&!cell.isFuture?col+"88":t.BORDER+"44"),display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+                    <span style={{fontSize:8,color:cell.isToday?t.GOLD:cell.score>0?col:t.MUTED,fontFamily:"sans-serif",fontWeight:cell.isToday?700:400}}>{cell.d}</span>
+                    {cell.score>0&&!cell.isFuture&&<div style={{position:"absolute",bottom:1,left:"50%",transform:"translateX(-50%)",width:3,height:3,borderRadius:"50%",background:col}}/>}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        );
+      })()}
+
       <Card style={{marginBottom:14}}>
         <SectionLabel>Habit Compliance</SectionLabel>
         {habitPerf.map(h=>(
