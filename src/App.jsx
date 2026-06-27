@@ -9,13 +9,13 @@ const THEMES={
 
 const THEME_ALIASES={dark:"obsidian",light:"parchment"};
 const BG_PHOTOS=[
-  {id:"none",label:"None",thumb:null},
-  {id:"bRVtv5VEXUE",label:"Dark Architecture",url:"https://images.unsplash.com/photo-bRVtv5VEXUE?w=1920&q=85",thumb:"https://images.unsplash.com/photo-bRVtv5VEXUE?w=400&q=70",anim:"kb-zoom"},
-  {id:"t-6GW8T6Jsc",label:"Aerial Yacht",url:"https://images.unsplash.com/photo-t-6GW8T6Jsc?w=1920&q=85",thumb:"https://images.unsplash.com/photo-t-6GW8T6Jsc?w=400&q=70",anim:"kb-drift"},
-  {id:"s_V24rQgAvw",label:"Lakeside Cottage",url:"https://images.unsplash.com/photo-s_V24rQgAvw?w=1920&q=85",thumb:"https://images.unsplash.com/photo-s_V24rQgAvw?w=400&q=70",anim:"kb-pan"},
-  {id:"_DhwDMZVWVo",label:"Infinity Pool",url:"https://images.unsplash.com/photo-_DhwDMZVWVo?w=1920&q=85",thumb:"https://images.unsplash.com/photo-_DhwDMZVWVo?w=400&q=70",anim:"kb-breathe"},
-  {id:"b_dDRZ95Zi0",label:"Lake Como",url:"https://images.unsplash.com/photo-b_dDRZ95Zi0?w=1920&q=85",thumb:"https://images.unsplash.com/photo-b_dDRZ95Zi0?w=400&q=70",anim:"kb-zoom"},
-  {id:"ZWGexQLecAI",label:"Castle Study",url:"https://images.unsplash.com/photo-ZWGexQLecAI?w=1920&q=85",thumb:"https://images.unsplash.com/photo-ZWGexQLecAI?w=400&q=70",anim:"kb-drift"},
+  {id:"none",label:"None",url:null,thumb:null,anim:"kb-zoom"},
+  {id:"bg1",label:"Dark Architecture",url:"/bg/bg1.jpg",thumb:"/bg/bg1-thumb.jpg",anim:"kb-zoom"},
+  {id:"bg2",label:"Aerial Yacht",url:"/bg/bg2.jpg",thumb:"/bg/bg2-thumb.jpg",anim:"kb-drift"},
+  {id:"bg3",label:"Lakeside Cottage",url:"/bg/bg3.jpg",thumb:"/bg/bg3-thumb.jpg",anim:"kb-pan"},
+  {id:"bg4",label:"Infinity Pool",url:"/bg/bg4.jpg",thumb:"/bg/bg4-thumb.jpg",anim:"kb-breathe"},
+  {id:"bg5",label:"Lake Como",url:"/bg/bg5.jpg",thumb:"/bg/bg5-thumb.jpg",anim:"kb-zoom"},
+  {id:"bg6",label:"Castle Study",url:"/bg/bg6.jpg",thumb:"/bg/bg6-thumb.jpg",anim:"kb-drift"},
 ];
 let _themeKey="obsidian";
 let _bgPhotoId="none";
@@ -5362,17 +5362,17 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
               <div key={p.id} onClick={()=>setBgPhotoId&&setBgPhotoId(p.id)} style={{cursor:"pointer",borderRadius:8,border:"2px solid "+(active?t.GOLD:t.BORDER),overflow:"hidden",position:"relative",background:t.CARD2}}>
                 <div style={{paddingBottom:"56%",position:"relative"}}>
                   {p.thumb
-                    ?<img src={p.thumb} alt={p.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:active?1:0.55}}/>
+                    ?<img src={p.thumb} alt={p.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:active?1:0.6}}/>
                     :<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:t.MUTED}}>⊗</div>
                   }
-                  {active&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:t.GOLD,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#080808",fontWeight:700}}>✓</span></div>}
-                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"3px 5px",background:"rgba(0,0,0,0.7)",fontSize:8,color:"#fff",fontFamily:"sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{p.label}</div>
+                  {active&&<div style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",background:t.GOLD,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span></div>}
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"4px 6px",background:"rgba(0,0,0,0.75)",fontSize:9,color:"#fff",fontFamily:"sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{p.label}</div>
                 </div>
               </div>
             );
           })}
         </div>
-        {bgPhoto&&bgPhoto!=="none"&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2,fontStyle:"italic"}}>Glass cards + dark overlay applied automatically</div>}
+        {bgPhoto&&bgPhoto!=="none"&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2,fontStyle:"italic"}}>Glass cards + dark overlay applied automatically · Changes live instantly</div>}
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Country and Currency</SectionLabel>
