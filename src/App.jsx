@@ -8,7 +8,18 @@ const THEMES={
 };
 
 const THEME_ALIASES={dark:"obsidian",light:"parchment"};
+const BG_PHOTOS=[
+  {id:"none",label:"None",thumb:null},
+  {id:"bRVtv5VEXUE",label:"Dark Architecture",url:"https://images.unsplash.com/photo-bRVtv5VEXUE?w=1920&q=85",thumb:"https://images.unsplash.com/photo-bRVtv5VEXUE?w=400&q=70",anim:"kb-zoom"},
+  {id:"t-6GW8T6Jsc",label:"Aerial Yacht",url:"https://images.unsplash.com/photo-t-6GW8T6Jsc?w=1920&q=85",thumb:"https://images.unsplash.com/photo-t-6GW8T6Jsc?w=400&q=70",anim:"kb-drift"},
+  {id:"s_V24rQgAvw",label:"Lakeside Cottage",url:"https://images.unsplash.com/photo-s_V24rQgAvw?w=1920&q=85",thumb:"https://images.unsplash.com/photo-s_V24rQgAvw?w=400&q=70",anim:"kb-pan"},
+  {id:"_DhwDMZVWVo",label:"Infinity Pool",url:"https://images.unsplash.com/photo-_DhwDMZVWVo?w=1920&q=85",thumb:"https://images.unsplash.com/photo-_DhwDMZVWVo?w=400&q=70",anim:"kb-breathe"},
+  {id:"b_dDRZ95Zi0",label:"Lake Como",url:"https://images.unsplash.com/photo-b_dDRZ95Zi0?w=1920&q=85",thumb:"https://images.unsplash.com/photo-b_dDRZ95Zi0?w=400&q=70",anim:"kb-zoom"},
+  {id:"ZWGexQLecAI",label:"Castle Study",url:"https://images.unsplash.com/photo-ZWGexQLecAI?w=1920&q=85",thumb:"https://images.unsplash.com/photo-ZWGexQLecAI?w=400&q=70",anim:"kb-drift"},
+];
 let _themeKey="obsidian";
+let _bgPhotoId="none";
+const hasPhoto=()=>_bgPhotoId&&_bgPhotoId!=="none";
 const T=()=>THEMES[_themeKey]||THEMES[THEME_ALIASES[_themeKey]]||THEMES.obsidian;
 const LOCALES={
   "en-AU":{label:"Australia",flag:"AU",currency:"AUD",symbol:"$",taxPage:true,superLabel:"Superannuation"},
@@ -414,6 +425,33 @@ class ErrorBoundary extends Component{
   }
 }
 
+// ── Background Photo Layer ────────────────────────────────────────────────────
+const BG_PHOTO_CSS=`
+@keyframes kb-zoom    {0%{transform:translate(-50%,-50%) scale(1)}100%{transform:translate(-50%,-50%) scale(1.04)}}
+@keyframes kb-drift   {0%{transform:translate(-50%,-50%) scale(1.02) translate(0px,0px)}100%{transform:translate(-50%,-50%) scale(1.02) translate(-16px,-8px)}}
+@keyframes kb-pan     {0%{transform:translate(-50%,-50%) scale(1.03) translateX(-16px)}100%{transform:translate(-50%,-50%) scale(1.03) translateX(16px)}}
+@keyframes kb-breathe {0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.03)}}
+.kb-zoom    {animation:kb-zoom    35s ease-in-out infinite alternate}
+.kb-drift   {animation:kb-drift   40s ease-in-out infinite alternate}
+.kb-pan     {animation:kb-pan     45s ease-in-out infinite alternate}
+.kb-breathe {animation:kb-breathe 30s ease-in-out infinite}
+`;
+function BgPhotoLayer({photoId}){
+  if(!photoId||photoId==="none")return null;
+  const photo=BG_PHOTOS.find(p=>p.id===photoId);
+  if(!photo||!photo.url)return null;
+  return(
+    <>
+      <style>{BG_PHOTO_CSS}</style>
+      <div style={{position:"fixed",inset:0,zIndex:0,overflow:"hidden",pointerEvents:"none"}}>
+        <img src={photo.url} alt="" className={photo.anim} style={{position:"absolute",top:"50%",left:"50%",minWidth:"100%",minHeight:"100%",width:"auto",height:"auto",objectFit:"cover"}}/>
+        {/* Glass-dark overlay — medium glass + dark setting as chosen */}
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,rgba(8,5,3,0.72) 0%,rgba(8,5,3,0.58) 50%,rgba(8,5,3,0.72) 100%)"}}/>
+      </div>
+    </>
+  );
+}
+
 function PB({value,color,height=4}){
   const t=T();
   return (
@@ -424,7 +462,18 @@ function PB({value,color,height=4}){
 }
 function Card({children,style,onClick}){
   const t=T();
-  return <div onClick={onClick} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16,...style,cursor:onClick?"pointer":"default"}}>{children}</div>;
+  const glass=hasPhoto();
+  const base=glass?{
+    background:"rgba(10,8,6,0.55)",
+    border:"1px solid rgba(255,255,255,0.1)",
+    backdropFilter:"blur(24px)",
+    WebkitBackdropFilter:"blur(24px)",
+    boxShadow:"0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
+  }:{
+    background:t.CARD,
+    border:"1px solid "+t.BORDER,
+  };
+  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,...style,cursor:onClick?"pointer":"default"}}>{children}</div>;
 }
 function Divider(){
   const t=T();
@@ -5258,7 +5307,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -5305,6 +5354,25 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,nw
             </button>
           ))}
         </div>
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Background Photo</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}>
+          {BG_PHOTOS.map(p=>{
+            const active=(bgPhoto||"none")===p.id;
+            return(
+              <div key={p.id} onClick={()=>setBgPhotoId&&setBgPhotoId(p.id)} style={{cursor:"pointer",borderRadius:8,border:"2px solid "+(active?t.GOLD:t.BORDER),overflow:"hidden",position:"relative",background:t.CARD2}}>
+                <div style={{paddingBottom:"56%",position:"relative"}}>
+                  {p.thumb
+                    ?<img src={p.thumb} alt={p.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:active?1:0.55}}/>
+                    :<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:t.MUTED}}>⊗</div>
+                  }
+                  {active&&<div style={{position:"absolute",top:4,right:4,width:14,height:14,borderRadius:"50%",background:t.GOLD,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:8,color:"#080808",fontWeight:700}}>✓</span></div>}
+                  <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"3px 5px",background:"rgba(0,0,0,0.7)",fontSize:8,color:"#fff",fontFamily:"sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{p.label}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {bgPhoto&&bgPhoto!=="none"&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2,fontStyle:"italic"}}>Glass cards + dark overlay applied automatically</div>}
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Country and Currency</SectionLabel>
@@ -7649,6 +7717,7 @@ function App(){
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
   const[theme,setThemeState]=useState("obsidian");
+  const[bgPhoto,setBgPhoto]=useState("none");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
   const[tasks,setTasks]=useState(D_TASKS);
@@ -7728,6 +7797,7 @@ function App(){
           if(hasCloudData){
             const d = applyDailyReset(cloudData, today);
             if(d.theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
+            if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
             if(d.profile){setProfile(d.profile);if(d.profile.locale)_locale=d.profile.locale;}
             if(d.tasks!==undefined)setTasks(d.tasks);
             if(d.goals!==undefined)setGoals(d.goals);
@@ -7815,7 +7885,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         saveData(dataToSave);
@@ -7832,7 +7902,7 @@ function App(){
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -7850,6 +7920,7 @@ function App(){
   },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
+  const setBgPhotoId=id=>{_bgPhotoId=id;setBgPhoto(id);};
   const todayT=todayTasks(tasks);
   const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
@@ -8027,6 +8098,7 @@ function App(){
             if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
+            if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
           } else {
             // No cloud data — migrate from localStorage
             const localData = loadData();
@@ -8058,6 +8130,7 @@ function App(){
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
               if(d.nwHistory)setNwHistory(d.nwHistory);
               if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
+            if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
               await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
             }
           }
@@ -8146,7 +8219,9 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
+    <div style={{display:"flex",minHeight:"100vh",background:bgPhoto&&bgPhoto!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
+      <BgPhotoLayer photoId={bgPhoto}/>
+      <style>{`@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}`}</style>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
       {sessionExpired&&(
@@ -8197,7 +8272,7 @@ function App(){
             <button onClick={()=>setShowSetup(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
         ))}
-        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:t.BG}}>
+        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1}}>
           <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
@@ -8226,7 +8301,7 @@ function App(){
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
           {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
       </div>
