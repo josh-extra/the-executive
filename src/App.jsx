@@ -444,7 +444,7 @@ function BgPhotoLayer({photoId}){
     <>
       <style>{BG_PHOTO_CSS}</style>
       <div style={{position:"fixed",inset:0,zIndex:0,overflow:"hidden",pointerEvents:"none"}}>
-        <img src={photo.url} alt="" className={photo.anim} style={{position:"absolute",top:"50%",left:"50%",minWidth:"100%",minHeight:"100%",width:"auto",height:"auto",objectFit:"cover"}}/>
+        <img src={photo.url} alt="" className={photo.anim} style={{position:"absolute",top:"50%",left:"50%",minWidth:"100%",minHeight:"100%",width:"auto",height:"auto",objectFit:"cover",willChange:"transform",contain:"strict"}}/>
         {/* Glass-dark overlay — medium glass + dark setting as chosen */}
         <div style={{position:"absolute",inset:0,background:"linear-gradient(160deg,rgba(8,5,3,0.72) 0%,rgba(8,5,3,0.58) 50%,rgba(8,5,3,0.72) 100%)"}}/>
       </div>
@@ -464,11 +464,10 @@ function Card({children,style,onClick}){
   const t=T();
   const glass=hasPhoto();
   const base=glass?{
-    background:"rgba(10,8,6,0.55)",
-    border:"1px solid rgba(255,255,255,0.1)",
-    backdropFilter:"blur(24px)",
-    WebkitBackdropFilter:"blur(24px)",
-    boxShadow:"0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)",
+    background:"rgba(10,8,6,0.58)",
+    border:"1px solid rgba(255,255,255,0.09)",
+    backdropFilter:"blur(12px)",
+    WebkitBackdropFilter:"blur(12px)",
   }:{
     background:t.CARD,
     border:"1px solid "+t.BORDER,
@@ -8272,7 +8271,7 @@ function App(){
             <button onClick={()=>setShowSetup(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
           </div>
         ))}
-        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1}}>
+        <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1,transform:"translateZ(0)"}}>
           <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
