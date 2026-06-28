@@ -5055,6 +5055,99 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   );
 }
 
+function MonthlyHeatmap({history}){
+  const t=T();
+  const[hovered,setHovered]=useState(null);
+  const now=new Date();
+  const year=now.getFullYear(),month=now.getMonth();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const firstDay=new Date(year,month,1).getDay();
+  const monthLabel=now.toLocaleDateString(_locale,{month:"long",year:"numeric"});
+  const today=todayStr();
+  const DAY_LABELS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const getColor=score=>{
+    if(!score)return t.CARD2;
+    if(score>=80)return t.GREEN;
+    if(score>=60)return t.GOLD;
+    if(score>=40)return t.BLUE;
+    return"#C97E7E";
+  };
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push(null);
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=year+"-"+String(month+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    cells.push({d,ds,score:history[ds]?.score||0,data:history[ds]||null,isToday:ds===today,isFuture:ds>today});
+  }
+  const hovCell=hovered!==null?cells.find(c=>c&&c.ds===hovered):null;
+  const col=hovCell?getColor(hovCell.score):t.BORDER;
+  return(
+    <Card style={{marginBottom:14}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <SectionLabel>{monthLabel}</SectionLabel>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:"#C97E7E",l:"<40"}].map(k=>(
+            <div key={k.l} style={{display:"flex",alignItems:"center",gap:3}}>
+              <div style={{width:8,height:8,borderRadius:2,background:k.c+"88"}}/>
+              <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{k.l}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+        {DAY_LABELS.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center"}}>{l}</div>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:hovCell?10:0}}>
+        {cells.map((cell,i)=>{
+          if(!cell)return<div key={"pad"+i}/>;
+          const c=getColor(cell.isFuture?0:cell.score);
+          const isHov=hovered===cell.ds;
+          return(
+            <div key={cell.ds}
+              onMouseEnter={()=>!cell.isFuture&&setHovered(cell.ds)}
+              onMouseLeave={()=>setHovered(null)}
+              onClick={()=>!cell.isFuture&&setHovered(hovered===cell.ds?null:cell.ds)}
+              style={{aspectRatio:"1",borderRadius:4,background:cell.isFuture?"transparent":cell.score>0?c+"66":c,border:"1px solid "+(isHov?c:cell.isToday?t.GOLD:cell.score>0&&!cell.isFuture?c+"55":t.BORDER+"33"),display:"flex",alignItems:"center",justifyContent:"center",cursor:cell.isFuture?"default":"pointer",transform:isHov?"scale(1.15)":"scale(1)",transition:"transform .1s, border .1s",zIndex:isHov?2:1,position:"relative"}}>
+              <span style={{fontSize:8,color:isHov?c:cell.isToday?t.GOLD:cell.score>0?c:t.MUTED,fontFamily:"sans-serif",fontWeight:isHov||cell.isToday?700:400}}>{cell.d}</span>
+            </div>
+          );
+        })}
+      </div>
+      {hovCell&&(
+        <div style={{background:t.CARD2,border:"1px solid "+col+"55",borderRadius:8,padding:"10px 14px",animation:"fadeIn .15s ease"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>
+              {new Date(hovCell.ds+"T12:00:00").toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"})}
+            </div>
+            <div style={{fontSize:18,color:col,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>
+              {hovCell.score||0}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>/100</span>
+            </div>
+          </div>
+          {hovCell.data?(
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              {[
+                {label:"Tasks",value:hovCell.data.tasks,icon:"✓",color:t.GREEN},
+                {label:"Habits",value:hovCell.data.habits,icon:"🔥",color:t.GOLD},
+                {label:"Supps",value:hovCell.data.supps,icon:"💊",color:t.BLUE},
+              ].map(s=>(
+                <div key={s.label} style={{display:"flex",alignItems:"center",gap:7,background:s.color+"12",border:"1px solid "+s.color+"30",borderRadius:8,padding:"6px 12px",flex:1,minWidth:80}}>
+                  <span style={{fontSize:14}}>{s.icon}</span>
+                  <div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{s.label}</div>
+                    <div style={{fontSize:13,color:s.color,fontFamily:"sans-serif",fontWeight:700}}>{s.value!=null?s.value+" done":"—"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ):(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>No activity recorded this day</div>
+          )}
+        </div>
+      )}
+      {!hovCell&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",marginTop:8}}>Hover or tap any day to see breakdown</div>}
+    </Card>
+  );
+}
+
 function DayScoreChart({last7,scores,history,dayLetters}){
   const t=T();
   const[hovered,setHovered]=useState(null);
@@ -5165,62 +5258,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       </div>
       <DayScoreChart last7={last7} scores={scores} history={history} dayLetters={dayLetters}/>
 
-      {/* Monthly heatmap */}
-      {(()=>{
-        const now=new Date();
-        const year=now.getFullYear();
-        const month=now.getMonth();
-        const daysInMonth=new Date(year,month+1,0).getDate();
-        const firstDay=new Date(year,month,1).getDay();
-        const monthLabel=now.toLocaleDateString(_locale,{month:"long",year:"numeric"});
-        const dayLettersAll=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-        const today=todayStr();
-        const cells=[];
-        for(let i=0;i<firstDay;i++)cells.push(null);
-        for(let d=1;d<=daysInMonth;d++){
-          const ds=year+"-"+String(month+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
-          cells.push({d,ds,score:history[ds]?.score||0,isToday:ds===today,isFuture:ds>today});
-        }
-        const getColor=(score,isFuture,isToday)=>{
-          if(isFuture)return"transparent";
-          if(score===0)return t.CARD2;
-          if(score>=80)return t.GREEN;
-          if(score>=60)return t.GOLD;
-          if(score>=40)return t.BLUE;
-          return"#C97E7E";
-        };
-        return(
-          <Card style={{marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <SectionLabel>{monthLabel}</SectionLabel>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:"#C97E7E",l:"<40"}].map(k=>(
-                  <div key={k.l} style={{display:"flex",alignItems:"center",gap:3}}>
-                    <div style={{width:8,height:8,borderRadius:2,background:k.c+"88"}}/>
-                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{k.l}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
-              {dayLettersAll.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",paddingBottom:2}}>{l}</div>)}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-              {cells.map((cell,i)=>{
-                if(!cell)return<div key={"pad"+i}/>;
-                const col=getColor(cell.score,cell.isFuture,cell.isToday);
-                return(
-                  <div key={cell.ds} title={cell.isFuture?"":cell.ds+(cell.score>0?" — "+cell.score+"/100":"")}
-                    style={{aspectRatio:"1",borderRadius:4,background:cell.score>0&&!cell.isFuture?col+"66":col,border:"1px solid "+(cell.isToday?t.GOLD:cell.score>0&&!cell.isFuture?col+"88":t.BORDER+"44"),display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-                    <span style={{fontSize:8,color:cell.isToday?t.GOLD:cell.score>0?col:t.MUTED,fontFamily:"sans-serif",fontWeight:cell.isToday?700:400}}>{cell.d}</span>
-                    {cell.score>0&&!cell.isFuture&&<div style={{position:"absolute",bottom:1,left:"50%",transform:"translateX(-50%)",width:3,height:3,borderRadius:"50%",background:col}}/>}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        );
-      })()}
+      <MonthlyHeatmap history={history}/>
 
       <Card style={{marginBottom:14}}>
         <SectionLabel>Habit Compliance</SectionLabel>
