@@ -464,10 +464,9 @@ function Card({children,style,onClick}){
   const t=T();
   const glass=hasPhoto();
   const base=glass?{
-    background:"rgba(10,8,6,0.58)",
-    border:"1px solid rgba(255,255,255,0.09)",
-    backdropFilter:"blur(12px)",
-    WebkitBackdropFilter:"blur(12px)",
+    background:"rgba(6,5,4,0.65)",
+    border:"1px solid rgba(255,255,255,0.1)",
+    boxShadow:"0 2px 12px rgba(0,0,0,0.4)",
   }:{
     background:t.CARD,
     border:"1px solid "+t.BORDER,
@@ -1016,7 +1015,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
         const highIncomplete=tasks.filter(tk=>tk.priority==="high"&&!tk.done);
         if(highIncomplete.length>2) alerts.push({type:"task",msg:highIncomplete.length+" high priority tasks incomplete",page:"tasks",color:t.PURPLE});
         return alerts.slice(0,3).map((a,i)=>(
-          <div key={i} onClick={()=>setPage(a.page)} style={{padding:"9px 13px",background:hexA(t.CARD,"E6"),border:"1px solid "+a.color+"44",borderRadius:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",position:"relative",zIndex:1}}>
+          <div key={i} onClick={()=>setPage(a.page)} style={{padding:"9px 13px",background:hexA(t.CARD,"E6"),border:"1px solid "+a.color+"44",borderRadius:7,display:"flex",alignItems:"center",gap:10,cursor:"pointer",position:"relative",zIndex:1}}>
             <div style={{width:6,height:6,borderRadius:"50%",background:a.color,flexShrink:0}}/>
             <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",flex:1}}>{a.msg}</div>
             <div style={{fontSize:10,color:a.color,fontFamily:"sans-serif",flexShrink:0}}>View</div>
