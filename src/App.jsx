@@ -5055,6 +5055,68 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   );
 }
 
+function DayScoreChart({last7,scores,history,dayLetters}){
+  const t=T();
+  const[hovered,setHovered]=useState(null);
+  const hovData=hovered!==null?history[last7[hovered]]:null;
+  return(
+    <Card style={{marginBottom:14}}>
+      <SectionLabel>Daily Scores</SectionLabel>
+      <div style={{display:"flex",gap:4,alignItems:"flex-end",height:72,marginBottom:6}}>
+        {last7.map((d,i)=>{
+          const sc=scores[i];
+          const col=sc>=75?t.GREEN:sc>=50?t.GOLD:sc>0?t.BLUE:t.BORDER;
+          const isHov=hovered===i;
+          return(
+            <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer"}}
+              onMouseEnter={()=>setHovered(i)}
+              onMouseLeave={()=>setHovered(null)}
+              onClick={()=>setHovered(hovered===i?null:i)}>
+              <div style={{fontSize:9,color:sc>0?col:t.MUTED,fontFamily:"sans-serif",fontWeight:isHov?700:400,transition:"font-weight .1s"}}>{sc||"—"}</div>
+              <div style={{width:"100%",background:sc>0?(isHov?col:col+"77"):t.CARD2,borderRadius:"3px 3px 0 0",height:Math.max((sc/100)*56,sc>0?3:0)+"px",transition:"background .15s"}}/>
+              <div style={{fontSize:8,color:isHov?t.GOLD:t.MUTED,fontFamily:"sans-serif",fontWeight:isHov?600:400,transition:"color .15s"}}>{dayLetters[new Date(d+"T12:00:00").getDay()]}</div>
+            </div>
+          );
+        })}
+      </div>
+      {hovered!==null?(
+        <div style={{background:t.CARD2,border:"1px solid "+(hovData?.score>=75?t.GREEN+"66":hovData?.score>=50?t.GOLD+"66":t.BORDER),borderRadius:8,padding:"10px 14px",animation:"fadeIn .15s ease"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>
+              {new Date(last7[hovered]+"T12:00:00").toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"short"})}
+            </div>
+            <div style={{fontSize:18,color:hovData?.score>=75?t.GREEN:hovData?.score>=50?t.GOLD:hovData?.score>0?t.BLUE:t.MUTED,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>
+              {hovData?.score||0}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>/100</span>
+            </div>
+          </div>
+          {hovData?(
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              {[
+                {label:"Tasks",value:hovData.tasks,icon:"✓",color:t.GREEN},
+                {label:"Habits",value:hovData.habits,icon:"🔥",color:t.GOLD},
+                {label:"Supps",value:hovData.supps,icon:"💊",color:t.BLUE},
+              ].map(s=>(
+                <div key={s.label} style={{display:"flex",alignItems:"center",gap:7,background:s.color+"12",border:"1px solid "+s.color+"30",borderRadius:8,padding:"6px 12px",flex:1,minWidth:80}}>
+                  <span style={{fontSize:14}}>{s.icon}</span>
+                  <div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{s.label}</div>
+                    <div style={{fontSize:13,color:s.color,fontFamily:"sans-serif",fontWeight:700}}>{s.value!=null?s.value+"  done":"—"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ):(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>No activity recorded — open the app each day to track your score</div>
+          )}
+        </div>
+      ):(
+        <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",paddingTop:2}}>Hover or tap a bar to see the day's breakdown</div>
+      )}
+      <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    </Card>
+  );
+}
+
 function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade}){
   const t=T();
   const[aiReview,setAiReview]=useState("");
@@ -5101,22 +5163,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
         <StatCard label="Habit Avg" value={habitAvg+"%"} color={t.GOLD}/>
       </div>
-      <Card style={{marginBottom:14}}>
-        <SectionLabel>Daily Scores</SectionLabel>
-        <div style={{display:"flex",gap:4,alignItems:"flex-end",height:72,marginBottom:6}}>
-          {last7.map((d,i)=>{
-            const sc=scores[i];
-            const col=sc>=75?t.GREEN:sc>=50?t.GOLD:sc>0?t.BLUE:t.BORDER;
-            return (
-              <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                <div style={{fontSize:9,color:sc>0?col:t.MUTED,fontFamily:"sans-serif"}}>{sc||"-"}</div>
-                <div style={{width:"100%",background:sc>0?col+"66":t.CARD2,borderRadius:"2px 2px 0 0",height:((sc/100)*52)+"px",minHeight:sc>0?3:0}}/>
-                <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>{dayLetters[new Date(d+"T12:00:00").getDay()]}</div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
+      <DayScoreChart last7={last7} scores={scores} history={history} dayLetters={dayLetters}/>
 
       {/* Monthly heatmap */}
       {(()=>{
