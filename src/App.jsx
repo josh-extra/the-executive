@@ -2360,6 +2360,115 @@ function AddAltAssetForm({onAdd}){
   );
 }
 
+function AddCommodityForm({commodityHoldings,setCommodityHoldings}){
+  const t=T();
+  const[showAdd,setShowAdd]=useState(false);
+  const[mode,setMode]=useState("preset");
+  const[selected,setSelected]=useState(null);
+  const[form,setForm]=useState({qty:"",avgCost:"",name:"",symbol:"",unit:"oz"});
+  const CATS=[
+    {label:"Precious Metals",emoji:"🥇",items:["GC=F","SI=F","PL=F","PA=F"]},
+    {label:"Energy",emoji:"⚡",items:["CL=F","NG=F"]},
+    {label:"Industrial Metals",emoji:"🔩",items:["HG=F"]},
+    {label:"Agriculture",emoji:"🌾",items:["ZW=F","ZC=F","ZS=F"]},
+  ];
+  const alreadyAdded=(commodityHoldings||[]).map(h=>h.ticker);
+  const reset=()=>{setForm({qty:"",avgCost:"",name:"",symbol:"",unit:"oz"});setSelected(null);setShowAdd(false);};
+  const addPreset=()=>{
+    if(!selected||!form.qty)return;
+    const base=POPULAR_COMMODITIES.find(c=>c.ticker===selected);
+    setCommodityHoldings(cs=>[...(cs||[]),{...base,qty:parseFloat(form.qty),avgCost:form.avgCost?parseFloat(form.avgCost):null}]);
+    reset();
+  };
+  const addCustom=()=>{
+    if(!form.name||!form.qty)return;
+    const ticker="CUSTOM_"+(form.symbol||form.name).toUpperCase().replace(/\s/g,"_");
+    setCommodityHoldings(cs=>[...(cs||[]),{ticker,name:form.name,symbol:form.symbol||form.name.slice(0,3).toUpperCase(),unit:form.unit||"unit",qty:parseFloat(form.qty),avgCost:form.avgCost?parseFloat(form.avgCost):null,isCustom:true}]);
+    reset();
+  };
+  if(!showAdd) return(
+    <button onClick={()=>setShowAdd(true)} style={{width:"100%",background:t.CARD2,border:"1px dashed "+t.BORDER,borderRadius:8,padding:"11px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+      <span style={{fontSize:15,lineHeight:1}}>+</span> Add Commodity
+    </button>
+  );
+  return(
+    <div style={{background:t.CARD2,borderRadius:9,padding:"14px",border:"1px solid "+t.GOLD+"33"}}>
+      <div style={{display:"flex",gap:6,marginBottom:14}}>
+        {[{id:"preset",l:"From List"},{id:"custom",l:"Custom"}].map(m=>(
+          <button key={m.id} onClick={()=>{setMode(m.id);setSelected(null);}} style={{flex:1,padding:"7px",borderRadius:7,border:"1px solid "+(mode===m.id?t.GOLD:t.BORDER),background:mode===m.id?t.GOLD+"18":"transparent",color:mode===m.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{m.l}</button>
+        ))}
+      </div>
+      {mode==="preset"&&(
+        <div>
+          {CATS.map(cat=>(
+            <div key={cat.label} style={{marginBottom:12}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{cat.emoji} {cat.label}</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {cat.items.map(ticker=>{
+                  const c=POPULAR_COMMODITIES.find(x=>x.ticker===ticker);
+                  if(!c)return null;
+                  const added=alreadyAdded.includes(ticker);
+                  const isSel=selected===ticker;
+                  return(
+                    <button key={ticker} disabled={added} onClick={()=>setSelected(isSel?null:ticker)}
+                      style={{padding:"6px 13px",borderRadius:16,border:"1px solid "+(isSel?t.GOLD:t.BORDER),background:isSel?t.GOLD+"22":"transparent",color:isSel?t.GOLD:added?t.MUTED:t.TEXT,cursor:added?"default":"pointer",fontFamily:"sans-serif",fontSize:11,opacity:added?0.4:1}}>
+                      {added?"✓ ":isSel?"● ":""}{c.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {selected&&(
+            <div style={{display:"flex",gap:7,marginTop:4,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:80}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Qty ({POPULAR_COMMODITIES.find(c=>c.ticker===selected)?.unit})</div>
+                <Inp type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))} placeholder="e.g. 10"/>
+              </div>
+              <div style={{flex:1,minWidth:80}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Avg cost (optional)</div>
+                <Inp type="number" value={form.avgCost} onChange={e=>setForm(f=>({...f,avgCost:e.target.value}))} placeholder="$0.00"/>
+              </div>
+              <Btn onClick={addPreset} disabled={!form.qty}>Add</Btn>
+            </div>
+          )}
+        </div>
+      )}
+      {mode==="custom"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:9}}>
+          <div style={{display:"flex",gap:7}}>
+            <div style={{flex:2}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Name</div>
+              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Rhodium, Carbon Credits"/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Symbol</div>
+              <Inp value={form.symbol} onChange={e=>setForm(f=>({...f,symbol:e.target.value}))} placeholder="Rh"/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:7}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Quantity</div>
+              <Inp type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))} placeholder="0"/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Unit</div>
+              <Inp value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} placeholder="oz, kg, tonne..."/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Value / unit ($)</div>
+              <Inp type="number" value={form.avgCost} onChange={e=>setForm(f=>({...f,avgCost:e.target.value}))} placeholder="0.00"/>
+            </div>
+          </div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>Custom commodities use manual pricing — update value/unit to keep it current</div>
+          <Btn onClick={addCustom} disabled={!form.name||!form.qty}>Add Custom</Btn>
+        </div>
+      )}
+      <button onClick={reset} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,marginTop:12,width:"100%",textAlign:"center"}}>Cancel</button>
+    </div>
+  );
+}
+
 function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,superLog,setSuperLog}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
@@ -2746,86 +2855,75 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
         <Card style={{marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <SectionLabel>Commodities</SectionLabel>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
               {(commodityHoldings||[]).length>0&&commodityPortfolio?.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
-              {(commodityHoldings||[]).length>0&&<button onClick={commodityPortfolio?.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>Refresh</button>}
+              {(commodityHoldings||[]).length>0&&<button onClick={commodityPortfolio?.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>↻ Refresh</button>}
             </div>
           </div>
 
-          {/* Summary stats */}
+          {/* Summary row */}
           {(commodityHoldings||[]).length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
               {[
                 {l:"Total Value",v:fmt(commodityPortfolio?.totalValue||0),c:t.GOLD},
                 {l:"Total Gain",v:(commodityPortfolio?.totalGain>=0?"+":"")+fmt(commodityPortfolio?.totalGain||0),c:(commodityPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
                 {l:"Return",v:(commodityPortfolio?.totalGainPct>=0?"+":"")+((commodityPortfolio?.totalGainPct||0).toFixed(1))+"%",c:(commodityPortfolio?.totalGainPct||0)>=0?t.GREEN:t.RED},
               ].map(s=>(
-                <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"7px 8px",textAlign:"center"}}>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{s.l}</div>
+                <div key={s.l} style={{background:t.CARD2,borderRadius:7,padding:"8px",textAlign:"center"}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>{s.l}</div>
                   <div style={{fontSize:13,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Holdings list */}
-          {(commodityHoldings||[]).map((h,i)=>{
-            const liveData=commodityPortfolio?.prices?.[h.ticker];
-            const livePrice=liveData?.price;
-            const currentP=livePrice||h.avgCost||0;
-            const lv=currentP?currentP*h.qty:null;
-            const cb=h.avgCost?parseFloat(h.avgCost)*h.qty:null;
-            const gain=lv&&cb?lv-cb:null;
-            const gainPct=gain&&cb?gain/cb*100:null;
-            return (
-              <div key={h.ticker||i}>
-                {i>0&&<Divider/>}
-                <div style={{display:"flex",alignItems:"center",padding:"8px 0"}}>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
-                      <div style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:4,padding:"1px 6px",fontSize:10,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{h.symbol||h.ticker}</div>
-                      <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{h.name}</span>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{h.qty+" "+h.unit}</span>
+          {/* Holdings list — card per holding */}
+          {(commodityHoldings||[]).length>0&&(
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+              {(commodityHoldings||[]).map((h,i)=>{
+                const liveData=commodityPortfolio?.prices?.[h.ticker];
+                const livePrice=liveData?.price;
+                const isCustom=h.isCustom;
+                const currentP=livePrice||parseFloat(h.avgCost)||0;
+                const lv=currentP&&h.qty?currentP*h.qty:null;
+                const cb=h.avgCost&&h.qty?parseFloat(h.avgCost)*h.qty:null;
+                const gain=lv&&cb?lv-cb:null;
+                const gainPct=gain&&cb?(gain/cb*100):null;
+                const col=gain>=0?t.GREEN:t.RED;
+                return(
+                  <div key={h.ticker+i} style={{background:t.CARD2,borderRadius:9,padding:"12px 14px",border:"1px solid "+t.BORDER}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4}}>
+                          <div style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:5,padding:"2px 8px",fontSize:10,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{h.symbol||h.ticker}</div>
+                          <span style={{fontSize:13,color:t.TEXT}}>{h.name}</span>
+                          {isCustom&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:4,padding:"1px 5px"}}>custom</span>}
+                        </div>
+                        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{h.qty+" "+h.unit+(h.avgCost?" · avg $"+parseFloat(h.avgCost).toFixed(2)+"/"+h.unit:"")}</div>
+                        {livePrice?(
+                          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                            <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>${parseFloat(livePrice).toFixed(2)}/{h.unit}</span>
+                            {liveData?.pct!=null&&<span style={{fontSize:11,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{liveData.pct>=0?"▲":"▼"} {Math.abs(liveData.pct).toFixed(2)}%</span>}
+                          </div>
+                        ):isCustom?(
+                          <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Manual value · ${parseFloat(h.avgCost||0).toFixed(2)}/{h.unit}</span>
+                        ):(
+                          <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio?.loading?"Fetching price...":"No live price available"}</span>
+                        )}
+                      </div>
+                      <div style={{textAlign:"right",marginLeft:12}}>
+                        {lv!=null&&<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:700}}>{fmt(lv)}</div>}
+                        {gain!=null&&<div style={{fontSize:11,color:col,fontFamily:"sans-serif"}}>{gain>=0?"+":""}{fmt(gain)} ({gainPct>=0?"+":""}{(gainPct||0).toFixed(1)}%)</div>}
+                        <button onClick={()=>setCommodityHoldings(cs=>(cs||[]).filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,marginTop:4,opacity:.5}}>✕ Remove</button>
+                      </div>
                     </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                      {livePrice?(
-                        <>
-                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{"$"+(parseFloat(livePrice)||0).toFixed(2)+"/"+(h.unit||"unit")}</span>
-                          {liveData?.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
-                        </>
-                      ):(
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio?.loading?"Loading price...":"No live price"}</span>
-                      )}
-                      {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
-                    </div>
-                    {gain!==null&&<div style={{marginTop:2}}><span style={{fontSize:10,color:gain>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(gain>=0?"+ ":"- ")+fmt(Math.abs(gain))+" ("+(gainPct>=0?"+":"")+((gainPct||0).toFixed(1))+"%)"}</span></div>}
                   </div>
-                  <div style={{textAlign:"right",marginLeft:10}}>
-                    {lv&&<div style={{fontSize:14,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{fmt(lv)}</div>}
-                  </div>
-                  <button onClick={()=>setCommodityHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:8,opacity:.5}}>X</button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Add commodity form */}
-          <div style={{marginTop:(commodityHoldings||[]).length>0?10:0}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add Commodity</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-              {POPULAR_COMMODITIES.filter(c=>!(commodityHoldings||[]).some(h=>h.ticker===c.ticker)).map(c=>(
-                <button key={c.ticker} onClick={()=>{
-                  const qty=parseFloat(prompt("How many "+c.unit+" of "+c.name+"?")||"0");
-                  const avg=parseFloat(prompt("Average cost per "+c.unit+" (or leave blank):")||"0");
-                  if(qty>0)setCommodityHoldings(cs=>[...(cs||[]),{...c,qty,avgCost:avg||null}]);
-                }} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 10px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
-                  {"+ "+c.name}
-                </button>
-              ))}
+                );
+              })}
             </div>
-          </div>
+          )}
 
-          {!(commodityHoldings||[]).length&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"8px 0"}}>Tap a commodity above to add your holding</div>}
+          <AddCommodityForm commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings}/>
         </Card>
 
         {/* ── ALTERNATIVE ASSETS ── */}
