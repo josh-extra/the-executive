@@ -8077,7 +8077,7 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
@@ -8091,14 +8091,27 @@ function App(){
         }catch{}
       }
     };
-    const onVisibility=()=>{if(document.visibilityState==="hidden")flush();};
+    const onVisibility=()=>{
+      if(document.visibilityState==="hidden") flush();
+      // Re-fetch from Supabase when tab becomes visible — picks up changes from other devices
+      if(document.visibilityState==="visible"&&authToken&&authUser?.id){
+        fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+authUser.id+"&select=data",{headers:sbH(authToken)})
+          .then(r=>r.json()).then(rows=>{
+            const d=rows?.[0]?.data;
+            if(!d)return;
+            if(d.theme&&d.theme!==theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
+            if(d.bgPhoto&&d.bgPhoto!==bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
+            if(d.marketTickers)setMarketTickers(d.marketTickers);
+          }).catch(()=>{});
+      }
+    };
     document.addEventListener("visibilitychange",onVisibility);
     window.addEventListener("beforeunload",flush);
     return()=>{
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
   const setBgPhotoId=id=>{_bgPhotoId=id;setBgPhoto(id);};
