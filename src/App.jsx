@@ -963,8 +963,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
             {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].map(x=>(
               <div key={x.l} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",width:34}}>{x.l}</div>
-                <div style={{flex:1}}><PB value={x.v} color={x.c} height={4}/></div>
-                <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v+"%"}</div>
+                <div style={{flex:1}}><PB value={x.v!=null?Math.round(x.v*100):0} color={x.c} height={4}/></div>
+                <div style={{fontSize:9,color:x.c,fontFamily:"sans-serif",width:28,textAlign:"right"}}>{x.v!=null?Math.round(x.v*100)+"%":"—"}</div>
               </div>
             ))}
           </div>
