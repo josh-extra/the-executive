@@ -754,7 +754,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-                {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"},{id:"parchment",l:"Parchment"},{id:"minimal",l:"Minimal"}].map(th=>(
+                {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
                   <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"6px 4px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
                     {th.l}
                   </button>
@@ -789,7 +789,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             </button>
           )}
           {/* Theme toggle */}
-          <button onClick={()=>{const order=["obsidian","charcoal","parchment","minimal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
+          <button onClick={()=>{const order=["obsidian","charcoal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif"}}>
             <span style={{fontSize:16,lineHeight:1}}>{theme==="obsidian"||theme==="charcoal"?"Sun":"Moon"}</span>
             <span style={{fontSize:9,letterSpacing:.3}}>Theme</span>
           </button>
@@ -839,7 +839,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             </div>
           </div>
           <div style={{display:"flex",gap:4}}>
-            {[{id:"obsidian",l:"Ob"},{id:"charcoal",l:"Ch"},{id:"parchment",l:"Pa"},{id:"minimal",l:"Mi"}].map(th=>(
+            {[{id:"obsidian",l:"Ob"},{id:"charcoal",l:"Ch"}].map(th=>(
               <button key={th.id} onClick={()=>setTheme(th.id)} style={{flex:1,padding:"4px 2px",borderRadius:5,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"sans-serif"}}>
                 {th.l}
               </button>
@@ -5529,7 +5529,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
       <Card style={{marginBottom:12}}>
         <SectionLabel>Appearance</SectionLabel>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:14}}>
-          {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"},{id:"parchment",l:"Parchment"},{id:"minimal",l:"Minimal"}].map(th=>(
+          {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
             <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"10px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":t.CARD2,color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
               {th.l}
             </button>
@@ -6276,8 +6276,6 @@ function SetupPage({onComplete}){
               {[
                 {id:"obsidian",label:"Obsidian",sub:"Dark - gold accents",bg:"#0D0D0D",card:"#141414",border:"#2A2A2A",accent:"#C9A84C",text:"#E8E0D0",muted:"#7A7060"},
                 {id:"charcoal",label:"Charcoal",sub:"Dark - grey tones",bg:"#141414",card:"#1E1E1E",border:"#2E2E2E",accent:"#AFAFAF",text:"#E0E0E0",muted:"#666"},
-                {id:"parchment",label:"Parchment",sub:"Light - warm beige",bg:"#F5F0E8",card:"#FFFDF8",border:"#E5DDD0",accent:"#A07830",text:"#1A1208",muted:"#8A7A60"},
-                {id:"minimal",label:"Minimal",sub:"Light - pure white",bg:"#FFFFFF",card:"#F7F7F7",border:"#E8E8E8",accent:"#111111",text:"#111111",muted:"#888"},
               ].map(th=>(
                 <div key={th.id} onClick={()=>{setP(f=>({...f,theme:th.id}));_themeKey=th.id;setThemeState&&setThemeState(th.id);}} style={{background:th.card,border:"2px solid "+(p.theme===th.id?th.accent:th.border),borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
                   <div style={{background:th.bg,borderRadius:7,padding:10,marginBottom:10,border:"1px solid "+th.border}}>
