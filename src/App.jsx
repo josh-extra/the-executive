@@ -889,7 +889,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const hbPct=(habits||[]).length?hDone/(habits||[]).length:null;
   const sPct=supplements.length?sDone/supplements.length:null;
   const gPct=goals.length?goals.filter(g=>g.progress>=50).length/goals.length:null;
-  const activePcts=[tPct,hbPct,sPct,gPct].filter(v=>v!==null);
+  const activePcts=[tPct,hbPct,sPct].filter(v=>v!==null);
   const todayScore=activePcts.length?Math.round(activePcts.reduce((a,b)=>a+b,0)/activePcts.length*100):0;
   const scoreColor=todayScore>=80?t.GREEN:todayScore>=60?t.GOLD:todayScore>=40?t.BLUE:t.RED;
   const r=32,circ=2*Math.PI*r;
@@ -991,6 +991,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
               </div>
             ))}
           </div>
+          {goals.length>0&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",marginTop:8,fontStyle:"italic"}}>Goals tracks overall progress — it doesn't affect today's score</div>}
         </Card>}
         {/* Net Worth */}
         <Card style={{cursor:"pointer"}} onClick={()=>setPage("wealth")}>
@@ -8122,7 +8123,6 @@ function App(){
   const cats=[];
   if(todayT.length)cats.push(tDone/todayT.length);
   if(supplements.length)cats.push(sDone/supplements.length);
-  if(goals.length)cats.push(goals.filter(g=>g.progress>=50).length/goals.length);
   if((habits||[]).length)cats.push(hDone/(habits||[]).length);
   const todayScore=cats.length?Math.round(cats.reduce((a,b)=>a+b,0)/cats.length*100):0;
 
