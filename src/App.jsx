@@ -7544,7 +7544,7 @@ function PaywallPage({onUpgrade}){
       <button onClick={onUpgrade} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:.5,marginBottom:10}}>
         Upgrade to The Executive
       </button>
-      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>$19/month or $159/year · Cancel anytime · Free plan always available</div>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>$14/month or $139/year · Cancel anytime · Free plan always available</div>
     </div>
   );
 }
@@ -7553,8 +7553,8 @@ function PaywallPage({onUpgrade}){
 function UpgradeModal({onClose,onCheckout,loading}){
   const t=T();
   const plans=[
-    {id:"monthly",label:"Monthly",price:"$19",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
-    {id:"annual",label:"Annual",price:"$159",period:"/year",note:"Save $69 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
+    {id:"monthly",label:"Monthly",price:"$14",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
+    {id:"annual",label:"Annual",price:"$139",period:"/year",note:"Save $29 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
   ];
   const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
   const PRO_FEATURES=["Everything in Free","AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
@@ -7592,7 +7592,7 @@ function UpgradeModal({onClose,onCheckout,loading}){
             <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"66",borderRadius:12,padding:"16px 14px",position:"relative"}}>
               <div style={{position:"absolute",top:-1,right:-1,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",color:"#080808",fontSize:8,fontFamily:"sans-serif",fontWeight:700,padding:"3px 10px",borderRadius:"0 11px 0 7px",letterSpacing:1}}>UPGRADE</div>
               <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>The Executive</div>
-              <div style={{fontSize:26,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$19</div>
+              <div style={{fontSize:26,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$14</div>
               <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>/month</div>
               {PRO_FEATURES.map((f,i)=>(
                 <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0"}}>
