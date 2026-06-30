@@ -851,7 +851,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
   const t=T();
@@ -874,6 +874,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
   const nwLabels=[...nwEntries.map(e=>e[0]),todayStr()];
   const togTask=id=>setTasks(ts=>ts.map(tk=>tk.id===id?{...tk,done:!tk.done}:tk));
   const togHabit=id=>setHabitLog(l=>({...l,[id+"_"+todayStr()]:!l[id+"_"+todayStr()]}));
+  const togSupp=id=>setSupplements&&setSupplements(ss=>(ss||[]).map(s=>s.id===id?{...s,taken:!s.taken}:s));
   const quotes=["Wealth is the slave of a wise man, the master of a fool.","The secret of getting ahead is getting started.","An investment in knowledge pays the best interest. — Franklin","Do not save what is left after spending; spend what is left after saving. — Buffett","Discipline is the bridge between goals and accomplishment. — Jim Rohn","Fortune favours the prepared mind. — Pasteur","Either you run the day or the day runs you. — Jim Rohn","The goal is not more money. The goal is living life on your own terms.","It's not about having time. It's about making time.","The man who moves a mountain begins by carrying away small stones. — Confucius","Success is nothing more than a few simple disciplines, practised every day. — Jim Rohn","You don't rise to the level of your goals. You fall to the level of your systems. — James Clear","The best time to plant a tree was 20 years ago. The second best time is now.","Risk comes from not knowing what you're doing. — Buffett","Price is what you pay. Value is what you get. — Buffett","In investing, what is comfortable is rarely profitable. — Robert Arnott","The stock market is a device for transferring money from the impatient to the patient. — Buffett","Compound interest is the eighth wonder of the world. — Einstein","The four most dangerous words in investing: this time it's different. — Templeton","An investor who has all the answers doesn't even understand the questions. — Templeton","The successful warrior is the average man, with laser-like focus. — Bruce Lee","Do not go where the path may lead. Go instead where there is no path. — Emerson","He who is not courageous enough to take risks will accomplish nothing in life. — Ali","The only way to do great work is to love what you do. — Steve Jobs","Your time is limited. Don't waste it living someone else's life. — Steve Jobs","The harder I work, the luckier I get. — Samuel Goldwyn","Opportunities don't happen. You create them. — Chris Grosser","I find that the harder I work, the more luck I seem to have. — Jefferson","Success usually comes to those who are too busy to be looking for it. — Thoreau","Don't watch the clock; do what it does. Keep going. — Sam Levenson","The way to get started is to quit talking and begin doing. — Walt Disney","It is not the strongest species that survive, but the most adaptable. — Darwin","Tough times never last, but tough people do. — Robert H. Schuller","The mind is everything. What you think, you become. — Buddha","Quality is not an act. It is a habit. — Aristotle","We are what we repeatedly do. Excellence, then, is not an act, but a habit. — Aristotle","The secret of change is to focus all energy not on fighting the old, but building the new. — Socrates","Knowing is not enough; we must apply. Willing is not enough; we must do. — Goethe","A person who never made a mistake never tried anything new. — Einstein","Life is what happens when you're busy making other plans. — Lennon","Twenty years from now you'll be more disappointed by the things you didn't do. — Twain","You miss 100% of the shots you don't take. — Gretzky","Whether you think you can or think you can't, you're right. — Henry Ford","The only limit to our realisation of tomorrow is our doubts of today. — FDR","It does not matter how slowly you go as long as you do not stop. — Confucius","Everything you've ever wanted is on the other side of fear. — George Addair","Hardships often prepare ordinary people for an extraordinary destiny. — C.S. Lewis","Believe you can and you're halfway there. — Theodore Roosevelt","What we achieve inwardly will change outer reality. — Plutarch","Simplicity is the ultimate sophistication. — Leonardo da Vinci","Real wealth is not about money. Real wealth is not having to go to meetings. — Naval Ravikant","Play long-term games with long-term people. — Naval Ravikant","Earn with your mind, not your time. — Naval Ravikant","The goal of investing is to find businesses you can predict and own them forever. — Munger","All I want to know is where I'm going to die, so I'll never go there. — Munger","Invert, always invert. — Munger","Spend each day trying to be a little wiser than you were when you woke up. — Munger","It takes 20 years to build a reputation and 5 minutes to ruin it. — Buffett","The most important investment you can make is in yourself. — Buffett","Someone is sitting in the shade today because someone planted a tree long ago. — Buffett"];
   const quote=quotes[(new Date().getFullYear()*10000+new Date().getMonth()*100+new Date().getDate())%quotes.length];
   const upcoming=(bills||[]).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
@@ -1185,7 +1186,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,alignItems:"start"}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr 1fr",gap:12,alignItems:"start"}}>
         {/* Tasks */}
         <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
@@ -1247,6 +1248,28 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,history,streak,
           </div>
           <div style={{marginTop:10}}><PB value={(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0} color={t.GOLD} height={3}/></div>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,textAlign:"right"}}>{hDone+"/"+(habits||[]).length+" today"}</div>
+        </Card>
+        {/* Supplements */}
+        <Card style={{height:"100%",boxSizing:"border-box"}}>
+          <SectionLabel action={<button onClick={()=>setPage("health")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All supps</button>}>Supplements</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            {(supplements||[]).slice(0,8).map((s,i)=>(
+              <div key={s.id}>
+                {i>0&&<Divider/>}
+                <div onClick={()=>togSupp(s.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",cursor:"pointer"}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(s.taken?t.BLUE:t.BORDER2),background:s.taken?t.BLUE:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s"}}>
+                    {s.taken&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span>}
+                  </div>
+                  <span style={{flex:1,fontSize:12,color:s.taken?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:s.taken?"line-through":"none"}}>{s.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {(supplements||[]).length===0&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",padding:"8px 0"}}>No supplements yet</div>}
+          {(supplements||[]).length>0&&<>
+            <div style={{marginTop:10}}><PB value={(supplements||[]).length?Math.round(sDone/(supplements||[]).length*100):0} color={t.BLUE} height={3}/></div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,textAlign:"right"}}>{sDone+"/"+(supplements||[]).length+" today"}</div>
+          </>}
         </Card>
       </div>
 
