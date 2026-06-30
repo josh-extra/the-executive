@@ -7654,7 +7654,14 @@ function TickerSearch({marketTickers,setMarketTickers,DEFAULT_TICKERS,onSave,onR
           <input
             value={search}
             onChange={e=>setSearch(e.target.value)}
-            placeholder="Search stocks, crypto, indices, forex..."
+            onKeyDown={e=>{
+              if(e.key==="Enter"&&search.trim()&&suggestions.length===0){
+                const sym=search.trim().toUpperCase();
+                setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:sym,label:sym,fx:false}]);
+                setSearch("");
+              }
+            }}
+            placeholder="Search stocks, crypto, indices, forex... or type any symbol"
             style={{width:"100%",background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"10px 12px",color:t.TEXT,fontFamily:"sans-serif",fontSize:13,outline:"none",boxSizing:"border-box"}}
           />
           {suggestions.length>0&&(
@@ -7674,8 +7681,18 @@ function TickerSearch({marketTickers,setMarketTickers,DEFAULT_TICKERS,onSave,onR
               ))}
             </div>
           )}
-          {search.length>0&&suggestions.length===0&&(
-            <div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No matches — try a different name or symbol</div>
+          {search.trim().length>0&&suggestions.length===0&&(
+            <div style={{marginTop:8,background:t.CARD,border:"1px solid "+t.GOLD+"33",borderRadius:9,padding:"11px 14px"}}>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>Not in our quick list — but you can still add it directly:</div>
+              <div onClick={()=>{const sym=search.trim().toUpperCase();setMarketTickers(ts=>[...(ts||DEFAULT_TICKERS),{symbol:sym,label:sym,fx:false}]);setSearch("");}}
+                style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",padding:"8px 10px",background:t.GOLD+"12",borderRadius:7,border:"1px solid "+t.GOLD+"33"}}
+                onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"22"}
+                onMouseLeave={e=>e.currentTarget.style.background=t.GOLD+"12"}>
+                <span style={{fontSize:13,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>+ Add "{search.trim().toUpperCase()}"</span>
+                <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>Press Enter</span>
+              </div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:6,fontStyle:"italic"}}>Use the exact ticker — e.g. TSLA, CBA.AX, ETH-USD, ^FTSE</div>
+            </div>
           )}
         </div>
       )}
