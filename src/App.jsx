@@ -1009,7 +1009,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       <div style={rowStyle(2)}>
       {(()=>{
         const alerts=[];
-        if(upcoming.length>0) alerts.push({type:"bill",msg:"Bill due: "+upcoming[0].name+" ("+fmt(upcoming[0].amount)+")",page:"bills",color:t.RED});
+        const dueToday=(bills||[]).filter(b=>b.nextDue===todayStr());
+        if(dueToday.length>0) alerts.push({type:"bill",msg:"Bill due today: "+dueToday[0].name+" ("+fmt(dueToday[0].amount)+")"+(dueToday.length>1?" +"+(dueToday.length-1)+" more":""),page:"bills",color:t.RED});
         const behindGoals=(goals||[]).filter(g=>g.progress<30&&g.period!=="year");
         if(behindGoals.length>0) alerts.push({type:"goal",msg:"Goal behind: "+behindGoals[0].title+" at "+behindGoals[0].progress+"%",page:"goals",color:t.GOLD});
         const missedSupps=(supplements||[]).filter(s=>!s.taken);
