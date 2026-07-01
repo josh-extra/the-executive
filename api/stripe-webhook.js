@@ -176,7 +176,8 @@ async function getUserEmail(userId, supabaseUrl, supabaseKey) {
 export default async function handler(req, res) {
   if (req.method !== "POST") { res.status(405).end(); return; }
 
-  const stripe = await import("stripe").then(m => m.default(process.env.STRIPE_SECRET_KEY));
+  const { default: Stripe } = await import("stripe");
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
   const SUPABASE_URL = "https://vvnnzepagtrlvnqyqbdr.supabase.co";
   const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
 
