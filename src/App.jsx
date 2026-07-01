@@ -49,8 +49,8 @@ const supabase={
 // ── Stripe ────────────────────────────────────────────────────────────────────
 // Replace these with your actual Stripe Price IDs from the Stripe Dashboard
 const STRIPE_PRICES={
-  monthly:"price_1Ti01CRwVRKTnmPjQlIcIfaV",
-  annual:"price_1Ti00YRwVRKTnmPjA6OetwUj",
+  monthly:"price_1Ti00YRwVRKTnmPjA6OetwUj",
+  annual:"price_1Ti01CRwVRKTnmPjQlIcIfaV",
 };
 const FOUNDING_LIMIT=100;
 const PRO_FEATURES=["advisor","invest","tax","learn","services"];
