@@ -5702,10 +5702,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
 
       <Card style={{marginBottom:12}}>
         <SectionLabel>Privacy</SectionLabel>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75,marginBottom:8}}>Data saved to this device only. AI questions sent to Anthropic API only. No accounts, no cloud, no tracking.</div>
-        <div style={{padding:"8px 10px",background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:6,fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.6}}>
-          Multi-device sync and account login are coming in a future update. Your data will be automatically migrated when accounts are enabled.
-        </div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.75}}>Your data is encrypted and stored securely in the cloud, synced across all your devices. AI Advisor questions are sent to Anthropic's API only. We don't advertise, sell data, or use your information to train AI models.</div>
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Export Data</SectionLabel>
@@ -8243,15 +8240,23 @@ function App(){
     if(params.get("stripe")==="success"){
       setShowUpgrade(false);
       window.history.replaceState({},"","/app");
-      setTimeout(async()=>{
-        if(authUser&&authToken){
-          try{
-            const r=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${authUser.id}&select=*`,{headers:sbH(authToken)});
-            const d=await r.json();
-            if(d?.[0])setSubscription(d[0]);
-          }catch{}
-        }
-      },2000);
+      // Retry subscription check up to 8 times over 30 seconds
+      // Webhook can take 5-15s to fire and update Supabase
+      let attempts=0;
+      const checkSub=async()=>{
+        if(!authUser||!authToken)return;
+        try{
+          const r=await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${authUser.id}&select=*`,{headers:sbH(authToken)});
+          const d=await r.json();
+          if(d?.[0]&&["active","trialing"].includes(d[0].status)){
+            setSubscription(d[0]);
+            return; // Done — subscription is active
+          }
+        }catch{}
+        attempts++;
+        if(attempts<8)setTimeout(checkSub,3000); // retry every 3s up to 8 times
+      };
+      setTimeout(checkSub,2000); // first check after 2s
     }
   },[authUser]);
 
@@ -8289,6 +8294,8 @@ function App(){
       const res = await supabase.signIn(authEmail, authPassword);
       if(res.access_token){
         setAuthError("");
+        // Clear any local cached data from previous user before loading new user's data
+        localStorage.removeItem(SK);
         localStorage.setItem("exec_token", res.access_token);
         if(res.refresh_token) localStorage.setItem("exec_refresh", res.refresh_token);
         setAuthToken(res.access_token);
