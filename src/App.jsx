@@ -124,7 +124,7 @@ const NAV=[
   ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
-  ["invest","💵","Invest"],["projector","📈","Forecast"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
+  ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
@@ -719,7 +719,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","projector","tax","news"]],
+    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","projector","dividends","tax","news"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -7121,6 +7121,196 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
+function DividendPage({holdings,cryptoHoldings,portfolio}){
+  const t=T();
+  const[divs,setDivs]=useState([]);
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({ticker:"",name:"",amountPerShare:"",frequency:"quarterly",nextPayDate:"",franking:"100"});
+
+  const FREQS={weekly:52,fortnightly:26,monthly:12,quarterly:4,"semi-annual":2,annual:1};
+  const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  // Merge holdings for autocomplete
+  const allHoldings=[...(holdings||[]).map(h=>({ticker:h.ticker,name:h.name||h.ticker,shares:h.shares}))];
+
+  const annualIncome=d=>{
+    const shares=(holdings||[]).find(h=>h.ticker===d.ticker)?.shares||d.shares||0;
+    return parseFloat(d.amountPerShare||0)*shares*(FREQS[d.frequency]||4);
+  };
+
+  const totalAnnual=divs.reduce((s,d)=>s+annualIncome(d),0);
+  const totalMonthly=totalAnnual/12;
+
+  // Build 12-month payment calendar
+  const today=new Date();
+  const calMonths=Array.from({length:12},(_,i)=>{
+    const d=new Date(today.getFullYear(),today.getMonth()+i,1);
+    return{year:d.getFullYear(),month:d.getMonth(),label:MONTHS[d.getMonth()]+" "+d.getFullYear().toString().slice(2)};
+  });
+
+  const paymentsInMonth=(year,month)=>divs.filter(d=>{
+    if(!d.nextPayDate)return false;
+    const next=new Date(d.nextPayDate);
+    const freq=FREQS[d.frequency]||4;
+    const monthsApart=(year-next.getFullYear())*12+(month-next.getMonth());
+    if(monthsApart<0)return false;
+    const cycleMonths=12/freq;
+    return monthsApart%cycleMonths===0;
+  });
+
+  const addDiv=()=>{
+    if(!form.ticker||!form.amountPerShare)return;
+    const h=allHoldings.find(h=>h.ticker===form.ticker.toUpperCase());
+    setDivs(ds=>[...ds,{...form,ticker:form.ticker.toUpperCase(),id:Date.now(),shares:h?.shares||0}]);
+    setForm({ticker:"",name:"",amountPerShare:"",frequency:"quarterly",nextPayDate:"",franking:"100"});
+    setShowAdd(false);
+  };
+
+  const portfolioValue=(holdings||[]).reduce((s,h)=>{
+    const p=portfolio?.prices?.[h.ticker]?.price;
+    return s+(p?p*h.shares:0);
+  },0);
+  const yieldPct=portfolioValue>0?((totalAnnual/portfolioValue)*100).toFixed(2):null;
+
+  return(
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
+      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Income Investing</div>
+      <div style={{fontSize:26,color:t.TEXT,marginBottom:20}}>Dividend Tracker</div>
+
+      {/* Summary */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[
+          {l:"Annual Income",v:fmt(totalAnnual),c:t.GREEN},
+          {l:"Monthly Income",v:fmt(Math.round(totalMonthly)),c:t.GOLD},
+          {l:"Portfolio Yield",v:yieldPct?yieldPct+"%":"—",c:t.BLUE},
+        ].map(s=>(
+          <Card key={s.l} style={{textAlign:"center",padding:"12px 8px"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4,letterSpacing:1}}>{s.l.toUpperCase()}</div>
+            <div style={{fontSize:16,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Payment Calendar */}
+      {divs.length>0&&(
+        <Card style={{marginBottom:14}}>
+          <SectionLabel>Payment Calendar</SectionLabel>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+            {calMonths.map(({year,month,label})=>{
+              const payments=paymentsInMonth(year,month);
+              const monthTotal=payments.reduce((s,d)=>s+annualIncome(d)/(FREQS[d.frequency]||4),0);
+              const isThisMonth=year===today.getFullYear()&&month===today.getMonth();
+              return(
+                <div key={label} style={{background:payments.length>0?t.GREEN+"14":t.CARD2,border:"1px solid "+(isThisMonth?t.GOLD:payments.length>0?t.GREEN+"44":t.BORDER),borderRadius:7,padding:"8px",textAlign:"center"}}>
+                  <div style={{fontSize:9,color:isThisMonth?t.GOLD:t.MUTED,fontFamily:"sans-serif",marginBottom:3,fontWeight:isThisMonth?600:400}}>{label}</div>
+                  {payments.length>0?(
+                    <>
+                      <div style={{fontSize:12,color:t.GREEN,fontFamily:"sans-serif",fontWeight:700}}>{fmt(Math.round(monthTotal))}</div>
+                      <div style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>{payments.map(p=>p.ticker).join(", ")}</div>
+                    </>
+                  ):(
+                    <div style={{fontSize:9,color:t.BORDER,fontFamily:"sans-serif"}}>—</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {/* Holdings */}
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <SectionLabel>Dividend Holdings</SectionLabel>
+          <Btn onClick={()=>setShowAdd(s=>!s)} style={{fontSize:10,padding:"5px 10px"}}>+ Add</Btn>
+        </div>
+
+        {showAdd&&(
+          <div style={{background:t.CARD2,borderRadius:9,padding:14,marginBottom:14,border:"1px solid "+t.GOLD+"33"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Ticker</div>
+                <div style={{position:"relative"}}>
+                  <Inp value={form.ticker} onChange={e=>setForm(f=>({...f,ticker:e.target.value.toUpperCase()}))} placeholder="e.g. CBA.AX"/>
+                  {form.ticker.length>0&&allHoldings.filter(h=>h.ticker.startsWith(form.ticker)).length>0&&(
+                    <div style={{position:"absolute",top:"100%",left:0,right:0,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,zIndex:10,overflow:"hidden"}}>
+                      {allHoldings.filter(h=>h.ticker.startsWith(form.ticker)).slice(0,4).map(h=>(
+                        <div key={h.ticker} onClick={()=>setForm(f=>({...f,ticker:h.ticker,name:h.name}))}
+                          style={{padding:"8px 10px",cursor:"pointer",fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}
+                          onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"}
+                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                          {h.ticker} — {h.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Amount per share ($)</div>
+                <Inp type="number" value={form.amountPerShare} onChange={e=>setForm(f=>({...f,amountPerShare:e.target.value}))} placeholder="0.00"/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Frequency</div>
+                <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))}>
+                  {Object.keys(FREQS).map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+                </Sel>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Next pay date</div>
+                <Inp type="date" value={form.nextPayDate} onChange={e=>setForm(f=>({...f,nextPayDate:e.target.value}))}/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Franking %</div>
+                <Inp type="number" value={form.franking} onChange={e=>setForm(f=>({...f,franking:e.target.value}))} placeholder="100"/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn onClick={addDiv} disabled={!form.ticker||!form.amountPerShare}>Add Dividend</Btn>
+              <button onClick={()=>setShowAdd(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {divs.length===0&&!showAdd&&(
+          <div style={{textAlign:"center",padding:"24px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>
+            <div style={{fontSize:32,marginBottom:8}}>💰</div>
+            Add your dividend-paying stocks to track income and see a payment calendar
+          </div>
+        )}
+
+        {divs.map((d,i)=>{
+          const shares=(holdings||[]).find(h=>h.ticker===d.ticker)?.shares||d.shares||0;
+          const annual=annualIncome(d);
+          const perPayment=annual/(FREQS[d.frequency]||4);
+          return(
+            <div key={d.id}>
+              {i>0&&<Divider/>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <Tag>{d.ticker}</Tag>
+                    {d.name&&<span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{d.name}</span>}
+                    {d.franking&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"1px 5px",borderRadius:4}}>{d.franking}% franked</span>}
+                  </div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>${d.amountPerShare}/share · {d.frequency} · {shares} shares{d.nextPayDate?" · Next: "+fmtDateNum(d.nextPayDate):""}</div>
+                </div>
+                <div style={{textAlign:"right",marginLeft:12}}>
+                  <div style={{fontSize:14,color:t.GREEN,fontFamily:"sans-serif",fontWeight:700}}>{fmt(Math.round(annual))}<span style={{fontSize:9,color:t.MUTED,fontWeight:400}}>/yr</span></div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(Math.round(perPayment))} per payment</div>
+                </div>
+                <button onClick={()=>setDivs(ds=>ds.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:10,opacity:.5}}>✕</button>
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+    </div>
+  );
+}
+
 function TaxPage({profile,transactions}){
   const t=T();
   const[deductions,setDeductions]=useState([]);
@@ -9041,6 +9231,7 @@ function App(){
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
+          {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
