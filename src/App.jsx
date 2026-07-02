@@ -857,7 +857,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
+function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
   const t=T();
@@ -930,6 +930,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           </div>
           <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
             {syncing&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",opacity:.7}}>Syncing...</div>}
+            {!isOnline&&<div style={{fontSize:9,color:"#C97E7E",fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:4}}><span>●</span> Offline — changes saved locally</div>}
+            {isOnline&&pendingSave&&<div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",opacity:.8}}>Syncing pending changes...</div>}
             {authUser?(
               <button onClick={()=>setPage("profile")} style={{display:"flex",alignItems:"center",gap:5,background:t.GREEN+"14",border:"1px solid "+t.GREEN+"33",borderRadius:6,padding:"4px 9px",cursor:"pointer"}}>
                 <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
@@ -7833,6 +7835,34 @@ function App(){
   const[authLoading,setAuthLoading]=useState(false);
   const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
+  const[isOnline,setIsOnline]=useState(()=>navigator.onLine);
+  const[pendingSave,setPendingSave]=useState(false);
+
+  // Sync pending saves when coming back online
+  useEffect(()=>{
+    if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    (async()=>{
+      try{
+        setSyncing(true);
+        await supabase.save(authUser.id,authToken,dataToSave);
+        setPendingSave(false);
+        setLastSaved(Date.now());
+      }catch{}
+      finally{setSyncing(false);}
+    })();
+  },[isOnline]);
+  useEffect(()=>{
+    const goOnline=()=>{
+      setIsOnline(true);
+      // Flush any pending save when coming back online
+      if(pendingSave)setPendingSave(false);
+    };
+    const goOffline=()=>setIsOnline(false);
+    window.addEventListener("online",goOnline);
+    window.addEventListener("offline",goOffline);
+    return()=>{window.removeEventListener("online",goOnline);window.removeEventListener("offline",goOffline);};
+  },[pendingSave]);
   const[lastResetDate,setLastResetDate]=useState(()=>todayStr());
 
   // Auto-reset tasks/supplements at midnight without requiring a manual reload
@@ -8128,9 +8158,21 @@ function App(){
     const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
+        // Always save to localStorage — works offline
         saveData(dataToSave);
         if(authToken && authUser?.id){
-          try{await supabase.save(authUser.id, authToken, dataToSave);}catch{}
+          if(!navigator.onLine){
+            // Mark as pending — will sync when back online
+            setPendingSave(true);
+            setLastSaved(Date.now());
+            return;
+          }
+          try{
+            setSyncing(true);
+            await supabase.save(authUser.id, authToken, dataToSave);
+            setPendingSave(false);
+          }catch{}
+          finally{setSyncing(false);}
         }
         setLastSaved(Date.now());
       })();
@@ -8497,7 +8539,7 @@ function App(){
   const liveProfile=hasLiveData?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,netWorth:liveAssets-(activeProfile.totalDebt||0)}:activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:bgPhoto&&bgPhoto!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
