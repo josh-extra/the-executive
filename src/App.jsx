@@ -517,9 +517,14 @@ function UpgradeHint({message,hint,onUpgrade}){
     </div>
   );
 }
-function Skeleton({width="100%",height=14}){
+function Skeleton({width="100%",height=14,style={}}){
   const t=T();
-  return <div style={{background:t.CARD2,borderRadius:4,width,height,animation:"sk 1.5s infinite"}}/>;
+  return(
+    <>
+      <style>{`@keyframes sk{0%,100%{opacity:.35}50%{opacity:.7}}`}</style>
+      <div style={{background:t.BORDER,borderRadius:4,width,height,animation:"sk 1.6s ease-in-out infinite",...style}}/>
+    </>
+  );
 }
 function Inp({value,onChange,placeholder,type,style}){
   const t=T();
@@ -2658,7 +2663,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
         )}
         {safeH.length>0&&(
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?"Fetching live prices...":sP.lastUpdated?"Updated "+sP.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"No prices yet"}</div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?<Skeleton width={120} height={10}/>:sP.lastUpdated?"Updated "+sP.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"No prices yet"}</div>
             <button onClick={sP.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Refresh</button>
           </div>
         )}
@@ -2705,7 +2710,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
                           {dayChange!==null&&<span style={{fontSize:10,color:dayChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{"("+(dayChange>=0?"+":"")+fmt(dayChange)+" today)"}</span>}
                         </>
                       ):(
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?"Loading...":"No live price"}</span>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{sP.loading?<Skeleton width={70} height={12}/>:"No live price"}</span>
                       )}
                       {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
@@ -2844,7 +2849,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
                           {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
                         </>
                       ):(
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{cryptoPortfolio?.loading?"Loading...":"No live price"}</span>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{cryptoPortfolio?.loading?<Skeleton width={70} height={12}/>:"No live price"}</span>
                       )}
                       {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
@@ -2942,7 +2947,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
                         ):isCustom?(
                           <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Manual value · ${parseFloat(h.avgCost||0).toFixed(2)}/{h.unit}</span>
                         ):(
-                          <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio?.loading?"Fetching price...":"No live price available"}</span>
+                          <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{commodityPortfolio?.loading?<Skeleton width={70} height={12}/>:"No live price available"}</span>
                         )}
                       </div>
                       <div style={{textAlign:"right",marginLeft:12}}>
@@ -8374,7 +8379,38 @@ function App(){
   }
 
   if(!hydrated){
-    return <div style={{minHeight:"100vh",background:"#080808"}}/>;
+    const t=T();
+    return(
+      <div style={{minHeight:"100vh",background:t.BG,display:"flex"}}>
+        <div style={{width:160,background:t.CARD,borderRight:"1px solid "+t.BORDER,flexShrink:0,padding:20,display:"flex",flexDirection:"column",gap:12}}>
+          <Skeleton width={80} height={10} style={{marginBottom:16}}/>
+          {[100,80,90,70,85,75,90,80,70,85].map((w,i)=><Skeleton key={i} width={w+"%"} height={9}/>)}
+        </div>
+        <div style={{flex:1,padding:24,maxWidth:900,margin:"0 auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+            {[1,2,3].map(i=><div key={i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16}}>
+              <Skeleton width="60%" height={9} style={{marginBottom:8}}/>
+              <Skeleton width="80%" height={22}/>
+            </div>)}
+          </div>
+          <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16,marginBottom:12}}>
+            <Skeleton width="40%" height={10} style={{marginBottom:16}}/>
+            <div style={{display:"flex",gap:24,justifyContent:"space-around"}}>
+              {[1,2,3,4].map(i=><div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                <Skeleton width={76} height={76} style={{borderRadius:"50%"}}/>
+                <Skeleton width={50} height={9}/>
+              </div>)}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {[1,2,3,4].map(i=><div key={i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16}}>
+              <Skeleton width="50%" height={9} style={{marginBottom:12}}/>
+              {[90,75,85,70].map((w,j)=><Skeleton key={j} width={w+"%"} height={10} style={{marginBottom:8}}/>)}
+            </div>)}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if(showSetup){
