@@ -2532,6 +2532,60 @@ function AddCommodityForm({commodityHoldings,setCommodityHoldings}){
   );
 }
 
+function AllocationChart({assets,profile}){
+  const t=T();
+  const[hov,setHov]=useState(null);
+  const activeAssets=assets.filter(a=>a.value>0);
+  if(!activeAssets.length)return<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",padding:"20px 0"}}>Add assets to see allocation</div>;
+  const total=activeAssets.reduce((s,a)=>s+a.value,0)||1;
+  const cx=60,cy=60,r=46,stroke=13,circ=2*Math.PI*r;
+  let offset=0;
+  const segments=activeAssets.map(a=>{
+    const pct=a.value/total;
+    const seg={...a,pct,da:pct*circ,do_:-offset*circ,color:ASSET_COLORS[a.type]};
+    offset+=pct;
+    return seg;
+  });
+  const hovSeg=hov!==null?segments[hov]:null;
+  return(
+    <div style={{display:"flex",alignItems:"center",gap:14}}>
+      <svg width={120} height={120} style={{flexShrink:0}}>
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={t.BORDER} strokeWidth={stroke}/>
+        {segments.map((seg,i)=>(
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={seg.color} strokeWidth={hov===i?stroke+3:stroke}
+            strokeDasharray={seg.da+" "+circ}
+            strokeDashoffset={seg.do_}
+            style={{transform:"rotate(-90deg)",transformOrigin:"60px 60px",cursor:"pointer",transition:"stroke-width .15s"}}
+            onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+          />
+        ))}
+        <text x={cx} y={cy-6} textAnchor="middle" fill={hovSeg?hovSeg.color:t.GOLD} fontSize={hovSeg?11:10} fontFamily="sans-serif" fontWeight="600">
+          {hovSeg?Math.round(hovSeg.pct*100)+"%":"Total"}
+        </text>
+        <text x={cx} y={cy+9} textAnchor="middle" fill={t.MUTED} fontSize={9} fontFamily="sans-serif">
+          {hovSeg?fmt(hovSeg.value):fmt(total)}
+        </text>
+      </svg>
+      <div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}>
+        {segments.map((seg,i)=>(
+          <div key={i} onMouseEnter={()=>setHov(i)} onMouseLeave={()=>setHov(null)}
+            style={{cursor:"default",opacity:hov!==null&&hov!==i?.4:1,transition:"opacity .15s"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+              <div style={{display:"flex",alignItems:"center",gap:5}}>
+                <div style={{width:7,height:7,borderRadius:2,background:seg.color,flexShrink:0}}/>
+                <span style={{fontSize:10,color:t.TEXT,fontFamily:"sans-serif"}}>{ASSET_LABELS[seg.type]}</span>
+              </div>
+              <span style={{fontSize:10,color:seg.color,fontFamily:"sans-serif",fontWeight:600}}>{Math.round(seg.pct*100)+"%"}</span>
+            </div>
+            <PB value={Math.round(seg.pct*100)} color={seg.color} height={3}/>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,superLog,setSuperLog}){
   const t=T();
   const[showAdd,setShowAdd]=useState(false);
@@ -2898,21 +2952,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
         <Card>
           <SectionLabel>Asset Allocation</SectionLabel>
-          {assets.filter(a=>a.value>0).map(a=>{
-            const pct=Math.round(a.value/(profile.totalAssets||1)*100)||0;
-            return (
-              <div key={a.type} style={{marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:7,height:7,borderRadius:"50%",background:ASSET_COLORS[a.type]}}/>
-                    <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{ASSET_LABELS[a.type]}</span>
-                  </div>
-                  <span style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{fmt(a.value)+" - "+pct+"%"}</span>
-                </div>
-                <PB value={pct} color={ASSET_COLORS[a.type]} height={4}/>
-              </div>
-            );
-          })}
+          <AllocationChart assets={assets} profile={profile}/>
         </Card>
         {/* ── COMMODITIES ── */}
         <Card style={{marginBottom:12}}>
