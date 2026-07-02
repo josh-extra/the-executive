@@ -5664,6 +5664,72 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
 
       <MonthlyHeatmap history={history}/>
 
+      {/* Personal Records */}
+      {(()=>{
+        const entries=Object.entries(history||{}).filter(([_,v])=>v?.score>0);
+        if(entries.length<3)return null;
+
+        // Best ever score
+        const bestEntry=entries.reduce((b,e)=>e[1].score>b[1].score?e:b,entries[0]);
+
+        // Longest streak ever
+        const allDates=[...new Set(entries.map(([d])=>d))].sort();
+        let longestStreak=0,currentStreak=0,streakStart="",bestStreakStart="";
+        allDates.forEach((d,i)=>{
+          if(i===0){currentStreak=1;streakStart=d;}
+          else{
+            const prev=new Date(allDates[i-1]+"T12:00:00");
+            const curr=new Date(d+"T12:00:00");
+            const diff=(curr-prev)/(1000*60*60*24);
+            if(diff===1){currentStreak++;}
+            else{currentStreak=1;streakStart=d;}
+          }
+          if(currentStreak>longestStreak){longestStreak=currentStreak;bestStreakStart=streakStart;}
+        });
+
+        // Most tasks in a day
+        const mostTasks=entries.reduce((b,e)=>((e[1].tasks||0)>(b[1].tasks||0)?e:b),entries[0]);
+
+        // Best week average (last 7 complete weeks)
+        let bestWeekAvg=0,bestWeekDate="";
+        for(let w=1;w<=12;w++){
+          const wDays=Array.from({length:7},(_,j)=>{
+            const d=new Date();d.setDate(d.getDate()-(7*w)+(j-6));
+            return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+          });
+          const wScores=wDays.map(d=>history[d]?.score||0).filter(s=>s>0);
+          if(wScores.length>=4){
+            const avg=Math.round(wScores.reduce((a,b)=>a+b,0)/wScores.length);
+            if(avg>bestWeekAvg){bestWeekAvg=avg;bestWeekDate=wDays[0];}
+          }
+        }
+
+        const records=[
+          {icon:"🏆",label:"Best Score",value:bestEntry[1].score+"/100",sub:fmtDateNum(bestEntry[0]),color:t.GOLD},
+          {icon:"🔥",label:"Longest Streak",value:longestStreak+" days",sub:longestStreak>0?"Starting "+fmtDateNum(bestStreakStart):"",color:t.RED},
+          {icon:"✓",label:"Most Tasks",value:(mostTasks[1].tasks||0)+" tasks",sub:fmtDateNum(mostTasks[0]),color:t.GREEN},
+          ...(bestWeekAvg>0?[{icon:"📅",label:"Best Week Avg",value:bestWeekAvg+"/100",sub:"Week of "+fmtDateNum(bestWeekDate),color:t.BLUE}]:[]),
+        ];
+
+        return(
+          <Card style={{marginBottom:14}}>
+            <SectionLabel>Personal Records</SectionLabel>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {records.map(r=>(
+                <div key={r.label} style={{background:t.CARD2,borderRadius:8,padding:"12px",border:"1px solid "+r.color+"22"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
+                    <span style={{fontSize:16}}>{r.icon}</span>
+                    <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>{r.label}</span>
+                  </div>
+                  <div style={{fontSize:18,color:r.color,fontFamily:"sans-serif",fontWeight:700,marginBottom:2}}>{r.value}</div>
+                  {r.sub&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{r.sub}</div>}
+                </div>
+              ))}
+            </div>
+          </Card>
+        );
+      })()}
+
       <Card style={{marginBottom:14}}>
         <SectionLabel>Habit Compliance</SectionLabel>
         {habitPerf.map(h=>(
