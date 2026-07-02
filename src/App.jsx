@@ -124,7 +124,7 @@ const NAV=[
   ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
-  ["invest","💵","Invest"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
+  ["invest","💵","Invest"],["projector","📈","Forecast"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
@@ -719,7 +719,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","news"]],
+    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","projector","news"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -3218,78 +3218,168 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
 }
 
 function ProjectorPage({profile}){
-  const t=T();const[sr,setSr]=useState(35);const[rr,setRr]=useState(8);const[yrs,setYrs]=useState(10);
-  const proj=(s,r,y)=>{let nw=profile.netWorth||958900;const a=[nw];for(let i=1;i<=y;i++){nw=nw*(1+r/100)+(parseFloat(profile.annualIncome)||320000)*(s/100);a.push(Math.round(nw));}return a;};
-  const base=proj(sr,rr,yrs),bull=proj(sr+5,rr+2,yrs),bear=proj(Math.max(sr-10,5),Math.max(rr-3,2),yrs);
+  const t=T();
+  const[sr,setSr]=useState(35);
+  const[rr,setRr]=useState(8);
+  const[yrs,setYrs]=useState(10);
+  const[hovYear,setHovYear]=useState(null);
+
+  const proj=(s,r,y)=>{
+    let nw=profile.netWorth||0;
+    const a=[nw];
+    for(let i=1;i<=y;i++){
+      nw=nw*(1+r/100)+(parseFloat(profile.annualIncome)||0)*(s/100);
+      a.push(Math.round(nw));
+    }
+    return a;
+  };
+
+  const base=proj(sr,rr,yrs);
+  const bull=proj(sr+5,rr+2,yrs);
+  const bear=proj(Math.max(sr-10,5),Math.max(rr-3,2),yrs);
   const pj=base[base.length-1];
-  const allV=[...base,...bull,parseFloat(profile.netWorthTarget)||3000000];
-  const maxV=Math.max(...allV)*1.02,minV=(profile.netWorth||958900)*.95;
-  const W=300,H=90,p=4;
+  const targetNW=parseFloat(profile.netWorthTarget)||3000000;
+  const currentNW=profile.netWorth||0;
+
+  // Find year when base scenario hits target
+  const yearsToTarget=base.findIndex(v=>v>=targetNW);
+  const willHitTarget=yearsToTarget>0;
+
+  const allV=[...base,...bull,targetNW];
+  const maxV=Math.max(...allV)*1.05;
+  const minV=Math.max(0,currentNW*0.9);
+  const W=320,H=130,p=8;
   const px=i=>p+(i/yrs)*(W-p*2);
   const py=v=>H-p-((v-minV)/(maxV-minV||1))*(H-p*2);
-  const mk=data=>data.map((v,i)=>(i===0?"M":"L")+px(i)+","+py(v)).join(" ");
-  const targetNW=parseFloat(profile.netWorthTarget)||3000000;
+  const mk=data=>data.map((v,i)=>(i===0?"M":"L")+px(i).toFixed(1)+","+py(v).toFixed(1)).join(" ");
+
   const controls=[
-    {l:"Savings Rate",v:sr,set:setSr,min:5,max:70,step:5,sub:fmt(Math.round((parseFloat(profile.annualIncome)||320000)*sr/100))+"/yr"},
-    {l:"Return Rate",v:rr,set:setRr,min:2,max:15,step:1,sub:"% p.a."},
-    {l:"Years",v:yrs,set:setYrs,min:3,max:30,step:1,sub:"To "+(new Date().getFullYear()+yrs)}
+    {l:"Savings Rate",v:sr,set:setSr,min:5,max:70,step:5,sub:fmt(Math.round((parseFloat(profile.annualIncome)||0)*sr/100))+"/yr"},
+    {l:"Return Rate",v:rr,set:setRr,min:2,max:20,step:1,sub:"% p.a. on investments"},
+    {l:"Time Horizon",v:yrs,set:setYrs,min:3,max:30,step:1,sub:"To "+(new Date().getFullYear()+yrs)}
   ];
-  const hasFinancialData=(profile.annualIncome&&parseFloat(profile.annualIncome)>0)||(profile.netWorth&&parseFloat(profile.netWorth)>0);
-  return (
+
+  const hasData=(profile.annualIncome&&parseFloat(profile.annualIncome)>0)||(profile.netWorth&&parseFloat(profile.netWorth)>0);
+
+  return(
     <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Planning</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Wealth Forecast</div>
-      {!hasFinancialData&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44",textAlign:"center",padding:32}}>
-          <div style={{fontSize:32,marginBottom:12}}>F</div>
-          <div style={{fontSize:16,color:t.TEXT,marginBottom:8}}>No financial data yet</div>
-          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7,marginBottom:16}}>Add your income and net worth in your profile to see a personalised wealth projection across bull, base and bear scenarios.</div>
-          <Btn onClick={()=>{}}>Go to Profile</Btn>
+      <div style={{fontSize:26,color:t.TEXT,marginBottom:20}}>Wealth Forecast</div>
+
+      {!hasData&&(
+        <Card style={{marginBottom:14,textAlign:"center",padding:32}}>
+          <div style={{fontSize:32,marginBottom:12}}>📈</div>
+          <div style={{fontSize:16,color:t.TEXT,marginBottom:8}}>Add your financial data first</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7}}>Add your income and current net worth in Profile to see a personalised forecast.</div>
         </Card>
       )}
-      <Card style={{marginBottom:14}}>
-        {controls.map(ctrl=>(
-          <div key={ctrl.l} style={{marginBottom:14}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-              <span style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{ctrl.l}</span>
-              <span style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>
-                {ctrl.v+(ctrl.l!=="Years"?"%":"")}
-                <span style={{fontSize:10,color:t.MUTED}}>{" "+ctrl.sub}</span>
-              </span>
-            </div>
-            <input type="range" min={ctrl.min} max={ctrl.max} step={ctrl.step} value={ctrl.v} onChange={e=>ctrl.set(Number(e.target.value))} style={{width:"100%",accentColor:t.GOLD}}/>
-          </div>
+
+      {/* Outcome cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[
+          {l:"Base Case",v:fmt(pj),c:t.GOLD,sub:"in "+yrs+" yrs"},
+          {l:"Bull Case",v:fmt(bull[bull.length-1]),c:t.GREEN,sub:"+"+Math.round((bull[bull.length-1]-currentNW)/currentNW*100||0)+"%"},
+          {l:"Bear Case",v:fmt(bear[bear.length-1]),c:t.RED,sub:"+"+Math.round((bear[bear.length-1]-currentNW)/currentNW*100||0)+"%"},
+        ].map(s=>(
+          <Card key={s.l} style={{textAlign:"center",padding:"12px 8px"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4,letterSpacing:1}}>{s.l.toUpperCase()}</div>
+            <div style={{fontSize:16,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{s.sub}</div>
+          </Card>
         ))}
-      </Card>
+      </div>
+
+      {/* Target callout */}
+      {targetNW>0&&(
+        <Card style={{marginBottom:14,background:willHitTarget?t.GREEN+"0A":t.RED+"0A",border:"1px solid "+(willHitTarget?t.GREEN:t.RED)+"33"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:willHitTarget?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600,marginBottom:3}}>
+                {willHitTarget?"✓ On track to hit target":"✗ Won't hit target in this period"}
+              </div>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>
+                {willHitTarget
+                  ?`You'll reach ${fmt(targetNW)} in approximately ${yearsToTarget} year${yearsToTarget!==1?"s":""}`
+                  :`Increase savings rate or extend the time horizon to reach ${fmt(targetNW)}`
+                }
+              </div>
+            </div>
+            <div style={{fontSize:28,marginLeft:12}}>{willHitTarget?"🎯":"📍"}</div>
+          </div>
+        </Card>
+      )}
+
+      {/* Chart */}
       <Card style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <SectionLabel>Projection</SectionLabel>
-          <div style={{display:"flex",gap:10}}>
+          <div style={{display:"flex",gap:12}}>
             {[{c:t.GREEN,l:"Bull"},{c:t.GOLD,l:"Base"},{c:t.RED,l:"Bear"}].map(x=>(
               <div key={x.l} style={{display:"flex",alignItems:"center",gap:4}}>
-                <div style={{width:14,height:2,background:x.c}}/>
+                <div style={{width:16,height:2,background:x.c}}/>
                 <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{x.l}</span>
               </div>
             ))}
           </div>
         </div>
-        <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H}}>
-          {targetNW<maxV&&(
+        <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H+30,overflow:"visible"}}
+          onMouseLeave={()=>setHovYear(null)}>
+          {/* Target line */}
+          {targetNW<maxV&&targetNW>minV&&(
             <>
-              <line x1={p} y1={py(targetNW)} x2={W-p} y2={py(targetNW)} stroke={t.GOLD} strokeWidth="1" strokeDasharray="3,3" opacity=".35"/>
-              <text x={W-p-2} y={py(targetNW)-3} fill={t.GOLD} fontSize="7" textAnchor="end" fontFamily="sans-serif" opacity=".7">Target</text>
+              <line x1={p} y1={py(targetNW)} x2={W-p} y2={py(targetNW)} stroke={t.GOLD} strokeWidth="1" strokeDasharray="3,3" opacity=".4"/>
+              <text x={W-p} y={py(targetNW)-3} fill={t.GOLD} fontSize="7" textAnchor="end" fontFamily="sans-serif" opacity=".7">Target {fmt(targetNW)}</text>
             </>
           )}
-          <path d={mk(bear)} fill="none" stroke={t.RED} strokeWidth="1.5" strokeDasharray="3,3" opacity=".7"/>
-          <path d={mk(bull)} fill="none" stroke={t.GREEN} strokeWidth="1.5" strokeDasharray="3,3" opacity=".7"/>
+          {/* Paths */}
+          <path d={mk(bear)} fill="none" stroke={t.RED} strokeWidth="1.5" strokeDasharray="4,3" opacity=".6"/>
+          <path d={mk(bull)} fill="none" stroke={t.GREEN} strokeWidth="1.5" strokeDasharray="4,3" opacity=".7"/>
           <path d={mk(base)} fill="none" stroke={t.GOLD} strokeWidth="2.5"/>
-          <circle cx={px(yrs)} cy={py(pj)} r="4" fill={t.GOLD}/>
+          {/* Year labels */}
+          {[0,Math.floor(yrs/2),yrs].map(i=>(
+            <text key={i} x={px(i)} y={H+14} fill={t.MUTED} fontSize="8" textAnchor="middle" fontFamily="sans-serif">
+              {new Date().getFullYear()+i}
+            </text>
+          ))}
+          {/* Hover zones */}
+          {base.map((_,i)=>(
+            <rect key={i} x={px(i)-8} y={0} width={16} height={H} fill="transparent" style={{cursor:"pointer"}}
+              onMouseEnter={()=>setHovYear(i)}/>
+          ))}
+          {/* Hover tooltip */}
+          {hovYear!==null&&(
+            <>
+              <line x1={px(hovYear)} y1={p} x2={px(hovYear)} y2={H} stroke={t.BORDER} strokeWidth="1" strokeDasharray="3,2"/>
+              <circle cx={px(hovYear)} cy={py(base[hovYear])} r="4" fill={t.GOLD}/>
+              <circle cx={px(hovYear)} cy={py(bull[hovYear])} r="3" fill={t.GREEN} opacity=".8"/>
+              <circle cx={px(hovYear)} cy={py(bear[hovYear])} r="3" fill={t.RED} opacity=".8"/>
+              <rect x={Math.min(px(hovYear)+6,W-90)} y={py(base[hovYear])-32} width={84} height={30} rx="4" fill={t.CARD} stroke={t.BORDER}/>
+              <text x={Math.min(px(hovYear)+14,W-82)} y={py(base[hovYear])-19} fill={t.GOLD} fontSize="8" fontFamily="sans-serif" fontWeight="600">{new Date().getFullYear()+hovYear}</text>
+              <text x={Math.min(px(hovYear)+14,W-82)} y={py(base[hovYear])-9} fill={t.MUTED} fontSize="7" fontFamily="sans-serif">{fmt(base[hovYear])}</text>
+            </>
+          )}
+          {/* End dot */}
+          <circle cx={px(yrs)} cy={py(pj)} r="5" fill={t.GOLD}/>
         </svg>
       </Card>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-        <StatCard label="Projected NW" value={fmt(pj)} color={t.GOLD} sub={"in "+yrs+" years"}/>
-        <StatCard label="Growth" value={"+"+fmt(pj-(profile.netWorth||958900))} color={t.GREEN}/>
-      </div>
+
+      {/* Sliders */}
+      <Card style={{marginBottom:14}}>
+        {controls.map(ctrl=>(
+          <div key={ctrl.l} style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>{ctrl.l}</span>
+              <span style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>
+                {ctrl.v+(ctrl.l!=="Time Horizon"?"%":"")}
+                <span style={{fontSize:10,color:t.MUTED}}>{" "+ctrl.sub}</span>
+              </span>
+            </div>
+            <input type="range" min={ctrl.min} max={ctrl.max} step={ctrl.step} value={ctrl.v}
+              onChange={e=>ctrl.set(Number(e.target.value))}
+              style={{width:"100%",accentColor:t.GOLD}}/>
+          </div>
+        ))}
+      </Card>
     </div>
   );
 }
@@ -8736,7 +8826,7 @@ function App(){
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
-          {page==="projectorDISABLED"&&<ProjectorPage profile={liveProfile}/>}
+          {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
