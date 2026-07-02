@@ -1274,13 +1274,23 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           <div style={{display:"flex",flexDirection:"column",gap:0}}>
             {(habits||[]).slice(0,8).map(h=>{
               const done=!!habitLog[h.id+"_"+todayStr()];
+              // Calculate per-habit streak
+              let streak=0;
+              for(let i=0;i<365;i++){
+                const d=new Date(Date.now()-i*864e5).toISOString().split("T")[0];
+                if(habitLog[h.id+"_"+d])streak++;
+                else if(i>0)break;
+              }
               return (
                 <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
-                  <div style={{width:24,height:24,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .2s"}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .2s"}} className={done?"tick-pop":""}>
                     {h.icon}
                   </div>
                   <span style={{flex:1,fontSize:11,color:done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
-                  {done&&<span style={{fontSize:9,color:h.color,fontFamily:"sans-serif",fontWeight:600}}>done</span>}
+                  {streak>0&&<div style={{display:"flex",alignItems:"center",gap:2,background:h.color+"22",borderRadius:8,padding:"1px 6px",flexShrink:0}}>
+                    <span style={{fontSize:9}}>🔥</span>
+                    <span style={{fontSize:9,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</span>
+                  </div>}
                 </div>
               );
             })}
@@ -1677,20 +1687,64 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                   )}
                   {isExpanded&&(
                     <div style={{borderTop:"1px solid "+t.BORDER,marginTop:8,paddingTop:8}}>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>30-Day History</div>
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:3,marginBottom:8}}>
-                        {last30.map((d,i)=>{
-                          const done=!!habitLog[h.id+"_"+d];
-                          const isT=d===todayStr();
-                          return (
-                            <div key={d} onClick={()=>tog(h.id,d)} title={d} style={{aspectRatio:"1",borderRadius:3,background:done?h.color+"88":t.CARD2,border:"1px solid "+(isT?h.color:done?h.color+"44":t.BORDER),cursor:"pointer"}}/>
-                          );
-                        })}
-                      </div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>90-Day History</div>
+                      {/* GitHub-style heatmap */}
+                      {(()=>{
+                        const days90=Array.from({length:90},(_,i)=>{
+                          const d=new Date();d.setDate(d.getDate()-(89-i));
+                          return d.toISOString().split("T")[0];
+                        });
+                        // Group by week
+                        const firstDay=new Date(days90[0]);
+                        const startPad=firstDay.getDay();
+                        const cells=[...Array(startPad).fill(null),...days90];
+                        const weeks=[];
+                        for(let i=0;i<cells.length;i+=7)weeks.push(cells.slice(i,i+7));
+                        // Month labels
+                        const monthLabels=[];
+                        let lastMonth=-1;
+                        weeks.forEach((week,wi)=>{
+                          const firstReal=week.find(d=>d);
+                          if(firstReal){
+                            const m=new Date(firstReal).getMonth();
+                            if(m!==lastMonth){monthLabels.push({wi,label:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]});lastMonth=m;}
+                          }
+                        });
+                        return(
+                          <div style={{marginBottom:10}}>
+                            {/* Month labels */}
+                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",1fr)",marginBottom:2,gap:2}}>
+                              {weeks.map((_,wi)=>{
+                                const ml=monthLabels.find(m=>m.wi===wi);
+                                return <div key={wi} style={{fontSize:7,color:t.MUTED,fontFamily:"sans-serif"}}>{ml?ml.label:""}</div>;
+                              })}
+                            </div>
+                            {/* Grid */}
+                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",1fr)",gap:2}}>
+                              {weeks.map((week,wi)=>
+                                week.map((d,di)=>{
+                                  if(!d)return<div key={wi+"-"+di}/>;
+                                  const done=!!habitLog[h.id+"_"+d];
+                                  const isT=d===todayStr();
+                                  return(
+                                    <div key={d} onClick={()=>tog(h.id,d)} title={d+(done?" ✓":"")}
+                                      style={{aspectRatio:"1",borderRadius:2,background:done?h.color:t.CARD2,border:"1px solid "+(isT?h.color:done?h.color+"55":t.BORDER+"66"),cursor:"pointer",transition:"background .1s",opacity:d>todayStr()?.3:1}}/>
+                                  );
+                                })
+                              )}
+                            </div>
+                            <div style={{display:"flex",alignItems:"center",gap:4,marginTop:6,justifyContent:"flex-end"}}>
+                              <span style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>Less</span>
+                              {[t.CARD2,h.color+"44",h.color+"88",h.color].map((c,i)=><div key={i} style={{width:9,height:9,borderRadius:2,background:c}}/>)}
+                              <span style={{fontSize:8,color:t.MUTED,fontFamily:"sans-serif"}}>More</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
                         <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
                           <div style={{fontSize:16,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{streak}</div>
-                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>Streak</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>🔥 Streak</div>
                         </div>
                         <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
                           <div style={{fontSize:16,color:h.color,fontFamily:"sans-serif",fontWeight:700}}>{last30.filter(d=>!!habitLog[h.id+"_"+d]).length}</div>
