@@ -124,7 +124,7 @@ const NAV=[
   ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
-  ["invest","💵","Invest"],["projector","📈","Forecast"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
+  ["invest","💵","Invest"],["projector","📈","Forecast"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
   ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
@@ -719,7 +719,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   const groups=[
     ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","projector","news"]],
+    ["Wealth",["wealth","cashflow","bills","budget","debt","invest","projector","tax","news"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
@@ -7121,6 +7121,214 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
+function TaxPage({profile,transactions}){
+  const t=T();
+  const[deductions,setDeductions]=useState([]);
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
+  const income=parseFloat(profile.annualIncome)||0;
+  const fyYear=new Date().getMonth()>=6?new Date().getFullYear()+1:new Date().getFullYear();
+
+  // AU tax brackets 2024-25
+  const calcTax=inc=>{
+    if(inc<=18200)return 0;
+    if(inc<=45000)return(inc-18200)*0.19;
+    if(inc<=120000)return5092+(inc-45000)*0.325;
+    if(inc<=180000)return29467+(inc-120000)*0.37;
+    return51667+(inc-180000)*0.45;
+  };
+  const medicareLevy=inc=>inc>26000?inc*0.02:0;
+
+  const totalDeductions=deductions.reduce((s,d)=>s+parseFloat(d.amount||0),0);
+  const taxableIncome=Math.max(0,income-totalDeductions);
+  const taxWithout=calcTax(income)+medicareLevy(income);
+  const taxWith=calcTax(taxableIncome)+medicareLevy(taxableIncome);
+  const taxSaving=taxWithout-taxWith;
+  const effectiveRate=income>0?Math.round(taxWith/income*100):0;
+
+  const CATS=["Work from Home","Vehicle & Travel","Education & Training","Tools & Equipment","Clothing & Laundry","Phone & Internet","Investment Expenses","Donations","Other"];
+  const CAT_ICONS={"Work from Home":"🏠","Vehicle & Travel":"🚗","Education & Training":"🎓","Tools & Equipment":"🔧","Clothing & Laundry":"👔","Phone & Internet":"📱","Investment Expenses":"📈","Donations":"❤️","Other":"📋"};
+
+  const byCategory=CATS.map(cat=>({
+    cat,
+    icon:CAT_ICONS[cat],
+    total:deductions.filter(d=>d.category===cat).reduce((s,d)=>s+parseFloat(d.amount||0),0),
+    count:deductions.filter(d=>d.category===cat).length
+  })).filter(c=>c.total>0);
+
+  const addDeduction=()=>{
+    if(!form.description||!form.amount)return;
+    setDeductions(ds=>[...ds,{...form,id:Date.now(),amount:parseFloat(form.amount)}]);
+    setForm({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
+    setShowAdd(false);
+  };
+
+  return(
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
+      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Financial Planning</div>
+      <div style={{fontSize:26,color:t.TEXT,marginBottom:4}}>Tax Planner</div>
+      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:20}}>FY{fyYear-1}/{String(fyYear).slice(2)} · Australian Tax Brackets</div>
+
+      {/* Summary cards */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[
+          {l:"Gross Income",v:fmt(income),c:t.TEXT},
+          {l:"Total Deductions",v:"-"+fmt(totalDeductions),c:totalDeductions>0?t.GREEN:t.MUTED},
+          {l:"Taxable Income",v:fmt(taxableIncome),c:t.GOLD},
+        ].map(s=>(
+          <Card key={s.l} style={{textAlign:"center",padding:"12px 8px"}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4,letterSpacing:1}}>{s.l.toUpperCase()}</div>
+            <div style={{fontSize:15,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Tax estimate */}
+      <Card style={{marginBottom:14}}>
+        <SectionLabel>Estimated Tax</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+          {[
+            {l:"Est. Tax Payable",v:fmt(Math.round(taxWith)),c:t.RED},
+            {l:"Tax Saved",v:totalDeductions>0?fmt(Math.round(taxSaving)):"—",c:t.GREEN},
+            {l:"Effective Rate",v:effectiveRate+"%",c:t.MUTED},
+          ].map(s=>(
+            <div key={s.l} style={{textAlign:"center",background:t.CARD2,borderRadius:8,padding:"10px 8px"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{s.l}</div>
+              <div style={{fontSize:16,color:s.c,fontFamily:"sans-serif",fontWeight:700}}>{s.v}</div>
+            </div>
+          ))}
+        </div>
+        {/* Tax bracket visualisation */}
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>2024–25 Brackets</div>
+        {[
+          {l:"Tax free",min:0,max:18200,rate:"0%",c:"#555"},
+          {l:"19%",min:18201,max:45000,rate:"19%",c:"#7EB8C9"},
+          {l:"32.5%",min:45001,max:120000,rate:"32.5%",c:t.GOLD},
+          {l:"37%",min:120001,max:180000,rate:"37%",c:"#C9844C"},
+          {l:"45%",min:180001,max:999999,rate:"45%",c:t.RED},
+        ].map(b=>{
+          const inBracket=taxableIncome>b.min;
+          return(
+            <div key={b.l} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+              <div style={{width:7,height:7,borderRadius:2,background:b.c,flexShrink:0,opacity:inBracket?1:.3}}/>
+              <div style={{fontSize:10,color:inBracket?t.TEXT:t.MUTED,fontFamily:"sans-serif",width:40}}>{b.rate}</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flex:1}}>{fmt(b.min)}{b.max<999999?" – "+fmt(b.max):"+"}
+              </div>
+              {inBracket&&taxableIncome>=b.min&&<div style={{fontSize:9,color:b.c,fontFamily:"sans-serif"}}>✓</div>}
+            </div>
+          );
+        })}
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,fontStyle:"italic"}}>Includes 2% Medicare Levy. Estimate only — consult your accountant.</div>
+      </Card>
+
+      {/* Deductions */}
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <SectionLabel>Deductions</SectionLabel>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:11,color:t.GOLD,fontFamily:"sans-serif",fontWeight:600}}>{deductions.length} items · {fmt(totalDeductions)}</span>
+            <Btn onClick={()=>setShowAdd(s=>!s)} style={{fontSize:10,padding:"5px 10px"}}>+ Add</Btn>
+          </div>
+        </div>
+
+        {showAdd&&(
+          <div style={{background:t.CARD2,borderRadius:9,padding:14,marginBottom:14,border:"1px solid "+t.GOLD+"33"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Description</div>
+                <Inp value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="e.g. Home office equipment"/>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Amount ($)</div>
+                <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Category</div>
+                <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                  {CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                </Sel>
+              </div>
+              <div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:3}}>Date</div>
+                <Inp type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <Btn onClick={addDeduction} disabled={!form.description||!form.amount}>Add Deduction</Btn>
+              <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:t.MUTED,fontFamily:"sans-serif",cursor:"pointer"}}>
+                <input type="checkbox" checked={form.receipt} onChange={e=>setForm(f=>({...f,receipt:e.target.checked}))} style={{accentColor:t.GOLD}}/>
+                Receipt saved
+              </label>
+              <button onClick={()=>setShowAdd(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,marginLeft:"auto"}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* Category summary */}
+        {byCategory.length>0&&(
+          <div style={{marginBottom:12}}>
+            {byCategory.map(c=>(
+              <div key={c.cat} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
+                <div style={{display:"flex",alignItems:"center",gap:7}}>
+                  <span style={{fontSize:14}}>{c.icon}</span>
+                  <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{c.cat}</span>
+                  <span style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>({c.count})</span>
+                </div>
+                <span style={{fontSize:12,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>{fmt(c.total)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Individual deductions */}
+        {deductions.length===0&&!showAdd&&(
+          <div style={{textAlign:"center",padding:"20px 0",color:t.MUTED,fontFamily:"sans-serif",fontSize:12}}>
+            No deductions added yet — tap + Add to start tracking
+          </div>
+        )}
+        {deductions.map((d,i)=>(
+          <div key={d.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid "+t.BORDER}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{d.description}</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{d.category+" · "+fmtDateNum(d.date)+(d.receipt?" · 🧾":"")} </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:13,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>{fmt(parseFloat(d.amount))}</span>
+              <button onClick={()=>setDeductions(ds=>ds.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>✕</button>
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      {/* Tips */}
+      <Card style={{marginBottom:14}}>
+        <SectionLabel>Common Deductions Checklist</SectionLabel>
+        {[
+          {l:"Work from home expenses",d:"$0.67/hr or actual costs"},
+          {l:"Vehicle use for work",d:"Logbook or cents-per-km method"},
+          {l:"Self-education related to current job",d:"Courses, textbooks, seminars"},
+          {l:"Tools & equipment under $300",d:"Immediate deduction"},
+          {l:"Professional memberships & subscriptions",d:"Industry associations"},
+          {l:"Income protection insurance",d:"Premiums outside of super"},
+          {l:"Investment property expenses",d:"Interest, rates, repairs, depreciation"},
+          {l:"Charitable donations over $2",d:"To DGR-registered organisations"},
+        ].map((tip,i)=>(
+          <div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:i<7?"1px solid "+t.BORDER:"none"}}>
+            <span style={{fontSize:12,color:t.GOLD,flexShrink:0}}>→</span>
+            <div>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{tip.l}</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{tip.d}</div>
+            </div>
+          </div>
+        ))}
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:10,fontStyle:"italic"}}>Always consult a registered tax agent. This is a planning tool only.</div>
+      </Card>
+    </div>
+  );
+}
+
 function LearnPage({profile,goals,habits,learnData,setLearnData}){
   const t=T();
   const[tab,setTab]=useState("discover");
@@ -8833,6 +9041,7 @@ function App(){
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
+          {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
