@@ -6038,7 +6038,121 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
+function DangerZone({authUser,authToken,onReset,onSignOut}){
+  const t=T();
+  const[step,setStep]=useState(0); // 0=idle, 1=confirm, 2=type, 3=deleting, 4=done, 5=error
+  const[typed,setTyped]=useState("");
+  const[error,setError]=useState("");
+  const CONFIRM_WORD="DELETE";
+
+  const handleDelete=async()=>{
+    if(!authUser||!authToken){
+      // No account — just reset local data
+      onReset();return;
+    }
+    setStep(3);
+    try{
+      const r=await fetch("/api/delete-account",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}
+      });
+      const d=await r.json();
+      if(d.deleted){
+        setStep(4);
+        setTimeout(()=>{onReset();},2000);
+      } else {
+        setError(d.error||"Deletion failed");setStep(5);
+      }
+    }catch(e){setError(e.message);setStep(5);}
+  };
+
+  if(step===0) return(
+    <div style={{padding:"14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12}}>
+      <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif",fontWeight:600,marginBottom:4}}>Danger Zone</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button onClick={onReset} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"6px 12px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+          Reset App
+        </button>
+        {authUser&&<button onClick={()=>setStep(1)} style={{background:"none",border:"1px solid "+t.RED+"55",borderRadius:6,padding:"6px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
+          Delete Account
+        </button>}
+      </div>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:6}}>Reset App clears local data only. Delete Account permanently removes everything including your Supabase data and cancels your subscription.</div>
+    </div>
+  );
+
+  if(step===1) return(
+    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
+      <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600,marginBottom:8}}>Delete Account</div>
+      <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.75,marginBottom:14}}>
+        This will permanently delete:
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:16}}>
+        {["All your dashboard data (tasks, goals, journal, workouts, wealth)","Your Supabase account and login credentials","Your active subscription (cancelled immediately)"].map((item,i)=>(
+          <div key={i} style={{display:"flex",gap:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>
+            <span style={{color:t.RED,flexShrink:0}}>✕</span>{item}
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:14,fontStyle:"italic"}}>This cannot be undone. Download your data first if you want to keep it.</div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setStep(2)} style={{background:t.RED+"14",border:"1px solid "+t.RED+"55",borderRadius:6,padding:"8px 14px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:600}}>
+          I understand, continue
+        </button>
+        <button onClick={()=>setStep(0)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 14px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  if(step===2) return(
+    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"66",borderRadius:8,marginBottom:12}}>
+      <div style={{fontSize:13,color:t.RED,fontFamily:"sans-serif",fontWeight:600,marginBottom:8}}>Final Confirmation</div>
+      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>
+        Type <strong style={{color:t.TEXT,fontFamily:"monospace"}}>{CONFIRM_WORD}</strong> to confirm permanent deletion:
+      </div>
+      <input value={typed} onChange={e=>setTyped(e.target.value.toUpperCase())}
+        placeholder={"Type "+CONFIRM_WORD}
+        style={{width:"100%",background:t.CARD2,border:"1px solid "+(typed===CONFIRM_WORD?t.RED:t.BORDER),borderRadius:6,padding:"9px 12px",color:t.TEXT,fontFamily:"monospace",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:12,letterSpacing:2}}/>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={handleDelete} disabled={typed!==CONFIRM_WORD}
+          style={{background:typed===CONFIRM_WORD?t.RED:"#333",border:"none",borderRadius:6,padding:"9px 16px",color:typed===CONFIRM_WORD?"#fff":t.MUTED,cursor:typed===CONFIRM_WORD?"pointer":"default",fontFamily:"sans-serif",fontSize:12,fontWeight:700,transition:"all .2s"}}>
+          Delete Everything
+        </button>
+        <button onClick={()=>{setStep(0);setTyped("");}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"9px 14px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  if(step===3) return(
+    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12,textAlign:"center"}}>
+      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>Deleting your account...</div>
+    </div>
+  );
+
+  if(step===4) return(
+    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.GREEN+"44",borderRadius:8,marginBottom:12,textAlign:"center"}}>
+      <div style={{fontSize:13,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>Account deleted successfully</div>
+      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>Redirecting...</div>
+    </div>
+  );
+
+  return(
+    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
+      <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif",fontWeight:600,marginBottom:6}}>Deletion failed</div>
+      <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{error}</div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>{setStep(0);setTyped("");setError("");}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"6px 12px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Try Again</button>
+        <a href="mailto:hello@the-executive.vip" style={{background:"none",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"6px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textDecoration:"none"}}>Contact Support</a>
+      </div>
+    </div>
+  );
+}
+
+function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,authToken,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
   const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -6287,11 +6401,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
         <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>Sign in to sync your data across all devices.</div>
         <Btn onClick={()=>setShowAuth(true)}>Sign In / Create Account</Btn>
       </Card>}
-      <div style={{padding:"12px 14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:7}}>
-        <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif",marginBottom:5}}>Danger Zone</div>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:8}}>Clears all data and resets to demo mode.</div>
-        <button onClick={onReset} style={{background:"none",border:"1px solid "+t.RED+"55",borderRadius:6,padding:"5px 12px",color:t.RED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Reset App</button>
-      </div>
+      <DangerZone authUser={authUser} authToken={authToken} onReset={onReset} onSignOut={handleSignOut}/>
     </div>
   );
 }
@@ -9618,7 +9728,7 @@ function App(){
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
           {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} authToken={authToken} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
       </div>
