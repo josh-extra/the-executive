@@ -7370,16 +7370,17 @@ function TaxPage({profile,transactions}){
   const[deductions,setDeductions]=useState([]);
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
-  const income=parseFloat(profile.annualIncome)||0;
+  const safeProfile=profile||{};
+  const income=parseFloat(safeProfile.annualIncome)||0;
   const fyYear=new Date().getMonth()>=6?new Date().getFullYear()+1:new Date().getFullYear();
 
   // AU tax brackets 2024-25
   const calcTax=inc=>{
     if(inc<=18200)return 0;
-    if(inc<=45000)return(inc-18200)*0.19;
-    if(inc<=120000)return5092+(inc-45000)*0.325;
-    if(inc<=180000)return29467+(inc-120000)*0.37;
-    return51667+(inc-180000)*0.45;
+    if(inc<=45000)return (inc-18200)*0.19;
+    if(inc<=120000)return 5092+(inc-45000)*0.325;
+    if(inc<=180000)return 29467+(inc-120000)*0.37;
+    return 51667+(inc-180000)*0.45;
   };
   const medicareLevy=inc=>inc>26000?inc*0.02:0;
 
@@ -7445,23 +7446,24 @@ function TaxPage({profile,transactions}){
         {/* Tax bracket visualisation */}
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>2024–25 Brackets</div>
         {[
-          {l:"Tax free",min:0,max:18200,rate:"0%",c:"#555"},
-          {l:"19%",min:18201,max:45000,rate:"19%",c:"#7EB8C9"},
-          {l:"32.5%",min:45001,max:120000,rate:"32.5%",c:t.GOLD},
-          {l:"37%",min:120001,max:180000,rate:"37%",c:"#C9844C"},
-          {l:"45%",min:180001,max:999999,rate:"45%",c:t.RED},
+          {l:"Tax free",min:0,max:18200,rate:"0%",c:"#888"},
+          {l:"19c",min:18201,max:45000,rate:"19%",c:"#7EB8C9"},
+          {l:"32.5c",min:45001,max:120000,rate:"32.5%",c:t.GOLD},
+          {l:"37c",min:120001,max:180000,rate:"37%",c:"#C9844C"},
+          {l:"45c",min:180001,max:999999,rate:"45%",c:t.RED},
         ].map(b=>{
           const inBracket=taxableIncome>b.min;
+          const rangeLabel=b.max<999999?fmt(b.min)+" – "+fmt(b.max):fmt(b.min)+"+";
           return(
-            <div key={b.l} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+            <div key={b.rate} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
               <div style={{width:7,height:7,borderRadius:2,background:b.c,flexShrink:0,opacity:inBracket?1:.3}}/>
               <div style={{fontSize:10,color:inBracket?t.TEXT:t.MUTED,fontFamily:"sans-serif",width:40}}>{b.rate}</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flex:1}}>{fmt(b.min)}{b.max<999999?" – "+fmt(b.max):"+"}
-              </div>
-              {inBracket&&taxableIncome>=b.min&&<div style={{fontSize:9,color:b.c,fontFamily:"sans-serif"}}>✓</div>}
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flex:1}}>{rangeLabel}</div>
+              {inBracket&&<div style={{fontSize:9,color:b.c,fontFamily:"sans-serif"}}>✓</div>}
             </div>
           );
         })}
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,fontStyle:"italic"}}>Includes 2% Medicare Levy. Estimate only — consult your accountant.</div>
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,fontStyle:"italic"}}>Includes 2% Medicare Levy. Estimate only — consult your accountant.</div>
       </Card>
 
