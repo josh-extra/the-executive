@@ -5795,16 +5795,31 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
   const hDone=(habits||[]).filter(h=>!!habitLog?.[h.id+"_"+todayStr()]).length;
   const habitsDone=(habits||[]).filter(h=>!!habitLog[h.id+"_"+todayStr()]).map(h=>h.name);
   const habitsNotDone=(habits||[]).filter(h=>!habitLog[h.id+"_"+todayStr()]).map(h=>h.name);
+
+  // Find last user message date for memory indicator
+  const lastUserMsg=messages&&[...messages].reverse().find(m=>m.role==="user");
+  const lastMsgDate=lastUserMsg?.timestamp?new Date(lastUserMsg.timestamp):null;
+  const lastMsgLabel=lastMsgDate?(
+    lastMsgDate.toDateString()===new Date().toDateString()?"Today":
+    lastMsgDate.toDateString()===new Date(Date.now()-864e5).toDateString()?"Yesterday":
+    lastMsgDate.toLocaleDateString(_locale,{day:"numeric",month:"short"})
+  ):null;
+
   const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt(parseFloat(profile.propertyValue)||0)+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
+
   const send=async text=>{
     const q=text||input.trim();if(!q||loading)return;setInput("");
-    const updated=[...msgs,{role:"user",content:q}];setMessages(updated);setLoading(true);
+    const newMsg={role:"user",content:q,timestamp:Date.now()};
+    const updated=[...msgs,newMsg];
+    setMessages(updated);setLoading(true);
+    // Only send last 20 messages to Claude to manage token usage
+    const contextMsgs=updated.slice(-20).map(m=>({role:m.role,content:m.content}));
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:updated.map(m=>({role:m.role,content:m.content}))})});
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:contextMsgs})});
       const d=await r.json();
       const reply=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Try again.";
-      setMessages(m=>[...m,{role:"assistant",content:reply}]);
-    }catch{setMessages(m=>[...m,{role:"assistant",content:"Connection error."}]);}
+      setMessages(m=>[...m,{role:"assistant",content:reply,timestamp:Date.now()}]);
+    }catch{setMessages(m=>[...m,{role:"assistant",content:"Connection error.",timestamp:Date.now()}]);}
     setLoading(false);
   };
   const PROMPTS=["Review my dashboard","What should I prioritise?","ASX market update","Accelerate my net worth","Debt payoff strategy","Investment opportunities","Habits to add or swap","Morning briefing"];
@@ -5814,9 +5829,15 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:4}}>Private Intelligence</div>
           <div style={{fontSize:26,color:t.TEXT}}>AI Advisor</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Full dashboard context - Web search</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
+            Full dashboard context · Web search
+            {lastMsgLabel&&<span style={{color:t.GOLD}}> · Memory from {lastMsgLabel}</span>}
+          </div>
         </div>
-        {msgs.length>1&&<button onClick={()=>setMessages([])} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 9px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Clear</button>}
+        <div style={{display:"flex",gap:7,alignItems:"center"}}>
+          {msgs.length>1&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{msgs.length-1} messages</div>}
+          {msgs.length>1&&<button onClick={()=>setMessages([])} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 9px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:10}}>Clear</button>}
+        </div>
       </div>
       {msgs.length===1&&(
         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12,flexShrink:0}}>
