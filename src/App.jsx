@@ -1856,6 +1856,9 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
   const[editingGoalId,setEditingGoalId]=useState(null);
   const[editForm,setEditForm]=useState({});
   const[aiLoading,setAiLoading]=useState(null);
+  const[goalSuggestions,setGoalSuggestions]=useState([]);
+  const[suggestLoading,setSuggestLoading]=useState(false);
+  const[showSuggestions,setShowSuggestions]=useState(false);
   const[confirmDel,setConfirmDel]=useState(null);
   const[addCpGoalId,setAddCpGoalId]=useState(null);
   const[cpForm,setCpForm]=useState({text:"",dueDate:""});
@@ -1958,7 +1961,37 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
   const onTrack=allGoals.filter(g=>calcProgress(g)>=40).length;
   const behind=allGoals.filter(g=>calcProgress(g)<40).length;
 
-;
+  const getGoalSuggestions=async()=>{
+    if(!isPro(subscription)){setShowUpgrade(true);return;}
+    setSuggestLoading(true);setShowSuggestions(true);
+    try{
+      const currentGoalTitles=allGoals.map(g=>g.title).join(", ")||"none";
+      const completedTitles=(completed||[]).slice(0,5).map(g=>g.title).join(", ")||"none";
+      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        model:"claude-haiku-4-5",max_tokens:700,
+        system:"Return ONLY a JSON array, no markdown, no explanation.",
+        messages:[{role:"user",content:`Goal coach for ${profile?.firstName||"user"}, ${profile?.age||"?"} years old, ${profile?.occupation||""}, ${profile?.location||"Australia"}.
+Net worth: $${Math.round(parseFloat(profile?.netWorth||0)).toLocaleString()} of $${Math.round(parseFloat(profile?.netWorthTarget||3000000)).toLocaleString()} target.
+Health goals: ${(profile?.healthGoals||[]).join(", ")||"none"}.
+Current habits: ${(profile?.currentHabits||[]).join(", ")||"none"}.
+Active goals: ${currentGoalTitles}.
+Completed goals: ${completedTitles}.
+Suggest 4-6 specific, ambitious but achievable goals this person should consider. Mix of: financial, health, career, education, personal. Don't repeat existing goals.
+Return JSON: [{title, category (wealth/health/career/education/personal/mindset), period (week/month/year), reason}]. Be specific, not generic.`}]
+      })});
+      const d=await r.json();
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+      const s=text.indexOf("["),e=text.lastIndexOf("]");
+      if(s>-1&&e>-1)setGoalSuggestions(JSON.parse(text.slice(s,e+1)));
+    }catch(err){console.error(err);}
+    setSuggestLoading(false);
+  };
+
+  const addSuggestedGoal=sg=>{
+    const id=Date.now();
+    setGoals(gs=>[...gs,{id,title:sg.title,category:sg.category||"personal",period:sg.period||"year",progress:0,checkpoints:[],startDate:todayStr(),endDate:"",notes:sg.reason||""}]);
+    setGoalSuggestions(ss=>ss.filter(s=>s.title!==sg.title));
+  };
 
   const catStats=CATS.map(c=>{
     const cg=allGoals.filter(g=>g.category===c.id);
@@ -1979,6 +2012,55 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
           <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
         </div>
       </div>
+
+      {/* AI Goal Suggestions */}
+      <Card style={{marginBottom:14,border:"1px solid "+t.GOLD+"33"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showSuggestions?12:0}}>
+          <div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>✦ AI Goal Suggestions</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised to your profile, habits and patterns</div>
+          </div>
+          <button onClick={showSuggestions?()=>setShowSuggestions(false):getGoalSuggestions}
+            disabled={suggestLoading}
+            style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:suggestLoading?t.MUTED:t.GOLD,cursor:suggestLoading?"default":"pointer",fontFamily:"sans-serif",fontSize:11,whiteSpace:"nowrap"}}>
+            {suggestLoading?"Thinking...":(showSuggestions?"Hide":"Get Suggestions")}
+          </button>
+        </div>
+        {suggestLoading&&(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[85,70,90,75].map((w,i)=><Skeleton key={i} width={w+"%"} height={12}/>)}
+          </div>
+        )}
+        {showSuggestions&&!suggestLoading&&goalSuggestions.length>0&&(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {goalSuggestions.map((sg,i)=>{
+              const col=GOAL_CATS.find(c=>c.id===sg.category)?.color||t.GOLD;
+              return(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:t.CARD2,borderRadius:8,padding:"10px 12px",border:"1px solid "+t.BORDER}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                      <div style={{width:7,height:7,borderRadius:2,background:col,flexShrink:0}}/>
+                      <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{sg.title}</span>
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:sg.reason?4:0}}>
+                      <span style={{fontSize:9,color:col,fontFamily:"sans-serif",background:col+"18",padding:"1px 6px",borderRadius:4}}>{sg.category}</span>
+                      <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>{sg.period}</span>
+                    </div>
+                    {sg.reason&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>{sg.reason}</div>}
+                  </div>
+                  <button onClick={()=>addSuggestedGoal(sg)}
+                    style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"6px 12px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,flexShrink:0}}>
+                    + Add
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {showSuggestions&&!suggestLoading&&goalSuggestions.length===0&&(
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",fontStyle:"italic"}}>No suggestions — try again or add more goals first.</div>
+        )}
+      </Card>
 
       {/* Category rings */}
       {catStats.length>0&&(
