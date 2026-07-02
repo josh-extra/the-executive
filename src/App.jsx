@@ -1060,7 +1060,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0"}}>
                 <div>
                   <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{m.l}{m.isCrypto&&L().currency!=="USD"&&<span style={{color:t.GOLD,marginLeft:5,fontSize:9}}>{L().currency}</span>}</div>
-                  {m.d.loading?<Skeleton width={80} height={14}/>:(m.d.price?<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):(m.isCrypto&&L().currency!=="USD"?L().symbol:"")+m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>:<div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif"}}>No data — check symbol</div>)}
+                  {m.d.loading?<Skeleton width={80} height={14}/>:(m.d.price?<div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600}}>{m.fx?m.d.price?.toFixed(4):(m.isCrypto&&L().currency!=="USD"?L().symbol:"")+m.d.price?.toLocaleString(_locale,{maximumFractionDigits:0})}</div>:<div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>No data</div><button onClick={market.refresh} style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif",padding:0,textDecoration:"underline"}}>retry</button></div>)}
                 </div>
                 {!m.d.loading&&m.d.price&&<div style={{fontSize:11,color:m.d.pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(m.d.pct>=0?"+ ":"- ")+Math.abs(m.d.pct||0).toFixed(2)+"%"}</div>}
               </div>
@@ -4230,13 +4230,23 @@ function WatchlistItem({w,onRemove}){
   const[price,setPrice]=useState(null);
   const[pct,setPct]=useState(null);
   const[loading,setLoading]=useState(true);
-  useEffect(()=>{
+  const[error,setError]=useState(false);
+
+  const fetchPrice=()=>{
     if(!w.ticker)return;
+    setLoading(true);setError(false);
     fetch("/api/quote?symbol="+encodeURIComponent(w.ticker))
       .then(r=>r.json())
-      .then(d=>{if(d.price!=null){setPrice(d.price);setPct(d.pct);}setLoading(false);})
-      .catch(()=>setLoading(false));
-  },[w.ticker]);
+      .then(d=>{
+        if(d.price!=null){setPrice(d.price);setPct(d.pct);setError(false);}
+        else setError(true);
+        setLoading(false);
+      })
+      .catch(()=>{setError(true);setLoading(false);});
+  };
+
+  useEffect(()=>{fetchPrice();},[w.ticker]);
+
   return(
     <Card style={{marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -4249,7 +4259,12 @@ function WatchlistItem({w,onRemove}){
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:3}}>{"Added: "+w.addedDate}</div>
         </div>
         <div style={{textAlign:"right",marginLeft:12,flexShrink:0}}>
-          {loading?<Skeleton width={60} height={16}/>:price!=null?(
+          {loading?<Skeleton width={60} height={16}/>:error?(
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
+              <div style={{fontSize:11,color:t.RED,fontFamily:"sans-serif"}}>Failed to load</div>
+              <button onClick={fetchPrice} style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",background:"none",border:"none",cursor:"pointer",textDecoration:"underline",padding:0}}>↻ Retry</button>
+            </div>
+          ):price!=null?(
             <div>
               <div style={{fontSize:15,color:t.TEXT,fontFamily:"sans-serif",fontWeight:700}}>{price>1?price.toLocaleString(_locale,{maximumFractionDigits:2}):price.toFixed(4)}</div>
               {pct!=null&&<div style={{fontSize:11,color:pct>=0?t.GREEN:t.RED,fontFamily:"sans-serif",fontWeight:600}}>{(pct>=0?"▲ ":"▼ ")+Math.abs(pct).toFixed(2)+"%"}</div>}
