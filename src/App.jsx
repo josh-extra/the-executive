@@ -862,6 +862,24 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   );
 }
 
+function AnimatedScore({value,color,size=52}){
+  const[display,setDisplay]=useState(0);
+  useEffect(()=>{
+    if(value===0){setDisplay(0);return;}
+    let start=0;
+    const duration=800;
+    const step=16;
+    const inc=value/(duration/step);
+    const id=setInterval(()=>{
+      start+=inc;
+      if(start>=value){setDisplay(value);clearInterval(id);}
+      else setDisplay(Math.round(start));
+    },step);
+    return()=>clearInterval(id);
+  },[value]);
+  return <div className="score-up" style={{fontSize:size,color,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{display}</div>;
+}
+
 function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
@@ -969,7 +987,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           <div style={{flexShrink:0}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,marginBottom:4}}>TODAY'S SCORE</div>
             <div style={{display:"flex",alignItems:"baseline",gap:3}}>
-              <div style={{fontSize:isMobile?38:52,color:scoreColor,fontFamily:"sans-serif",fontWeight:700,lineHeight:1}}>{todayScore}</div>
+              <AnimatedScore value={todayScore} color={scoreColor} size={isMobile?38:52}/>
               <div style={{fontSize:16,color:t.MUTED,fontFamily:"sans-serif"}}>%</div>
             </div>
             <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{streak+" day streak"}</div>
@@ -1210,14 +1228,20 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
             <span>{(tasks.length?Math.round(tDone/tasks.length*100):0)+"%"}</span>
           </div>
           <div style={{marginBottom:10}}><PB value={tasks.length?Math.round(tDone/tasks.length*100):0} color={t.GREEN} height={3}/></div>
+          {todayT.length>0&&tDone===todayT.length&&(
+            <div style={{textAlign:"center",padding:"8px 0 4px",animation:"scoreUp .5s ease forwards"}}>
+              <div style={{fontSize:16,marginBottom:2}}>✦</div>
+              <div style={{fontSize:11,color:t.GREEN,fontFamily:"sans-serif",fontWeight:600}}>All tasks complete</div>
+            </div>
+          )}
           {todayT.slice(0,6).map((tk,i)=>(
             <div key={tk.id}>
               {i>0&&<Divider/>}
               <div onClick={()=>togTask(tk.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",cursor:"pointer"}}>
-                <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                <div className={tk.done?"tick-pop":""} style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"background .2s, border-color .2s",position:"relative"}}>
+                  {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700,lineHeight:1}}>✓</span>}
                 </div>
-                <span style={{flex:1,fontSize:12,color:tk.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:tk.done?"line-through":"none"}}>{tk.text}</span>
+                <span style={{flex:1,fontSize:12,color:tk.done?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:tk.done?"line-through":"none",transition:"color .2s"}}>{tk.text}</span>
                 {tk.priority==="high"&&!tk.done&&<div style={{width:6,height:6,borderRadius:"50%",background:t.RED,flexShrink:0}}/>}
               </div>
             </div>
@@ -1272,10 +1296,10 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
               <div key={s.id}>
                 {i>0&&<Divider/>}
                 <div onClick={()=>togSupp(s.id)} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",cursor:"pointer"}}>
-                  <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(s.taken?t.BLUE:t.BORDER2),background:s.taken?t.BLUE:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .15s"}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(s.taken?t.BLUE:t.BORDER2),background:s.taken?t.BLUE:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s",position:"relative"}} className={s.taken?"tick-pop":""}>
                     {s.taken&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span>}
                   </div>
-                  <span style={{flex:1,fontSize:12,color:s.taken?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:s.taken?"line-through":"none"}}>{s.name}</span>
+                  <span style={{flex:1,fontSize:12,color:s.taken?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:s.taken?"line-through":"none",transition:"color .2s"}}>{s.name}</span>
                 </div>
               </div>
             ))}
@@ -8007,6 +8031,22 @@ function App(){
     if(typeof window!=="undefined"&&window.matchMedia?.("(prefers-color-scheme: light)").matches)return "charcoal";
     return "obsidian";
   });
+  // Global micro-animation styles injected once
+  if(typeof document!=="undefined"&&!document.getElementById("exec-animations")){
+    const s=document.createElement("style");
+    s.id="exec-animations";
+    s.textContent=`
+      @keyframes tickPop{0%{transform:scale(1)}40%{transform:scale(1.35)}70%{transform:scale(.9)}100%{transform:scale(1)}}
+      @keyframes checkDraw{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}
+      @keyframes ripple{0%{transform:scale(0);opacity:.6}100%{transform:scale(2.5);opacity:0}}
+      @keyframes scoreUp{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+      @keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-60px) rotate(360deg);opacity:0}}
+      @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+      .tick-pop{animation:tickPop .35s cubic-bezier(.36,.07,.19,.97)}
+      .score-up{animation:scoreUp .6s ease forwards}
+    `;
+    document.head.appendChild(s);
+  }
   const[bgPhoto,setBgPhoto]=useState("none");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
