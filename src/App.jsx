@@ -5981,26 +5981,32 @@ function SetupPage({onComplete}){
   );
 
   if(cur==="welcome") return (
-    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center"}}>
-      <div style={{fontSize:9,letterSpacing:5,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:20}}>The Executive</div>
-      <div style={{width:40,height:1,background:t.GOLD,marginBottom:28,opacity:.5}}/>
-      <div style={{fontSize:30,color:t.TEXT,lineHeight:1.3,marginBottom:16}}>Your Personal Dashboard</div>
-      <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.8,maxWidth:300,marginBottom:40}}>
-        Wealth. Health. Performance.<br/>Everything in one private place.<br/><br/>
-        <span style={{fontSize:11,opacity:.7}}>Your data stays on your device. Nothing is shared.</span>
+    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",position:"relative",overflow:"hidden"}}>
+      <BgPhotoLayer photoId="bg6"/>
+      <div style={{position:"relative",zIndex:1}}>
+        <div style={{fontSize:9,letterSpacing:5,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:16}}>The Executive</div>
+        <div style={{width:40,height:1,background:"linear-gradient(90deg,transparent,"+t.GOLD+",transparent)",marginBottom:28,opacity:.6}}/>
+        <div style={{fontSize:32,color:"#fff",lineHeight:1.25,marginBottom:14,fontFamily:"Georgia,serif",fontWeight:300}}>Welcome.<br/>Let's set up your<br/>dashboard.</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif",lineHeight:1.85,maxWidth:300,marginBottom:12}}>This takes about 3 minutes. You'll set up your profile, finances, health goals, habits and more.</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:"sans-serif",marginBottom:40}}>Everything can be updated later.</div>
+        <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin Setup</button>
+        <br/>
+        <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textDecoration:"underline"}}>Skip for now — go straight to dashboard</button>
       </div>
-      <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:t.BG,cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin Setup</button>
-      <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textDecoration:"underline"}}>Skip — explore demo first</button>
     </div>
   );
 
   if(cur==="done") return (
-    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:20}}>V</div>
-      <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:12}}>You're all set</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:12}}>{"Welcome, "+(p.firstName||"Executive")}</div>
-      <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.8,maxWidth:300,marginBottom:40}}>Your dashboard is personalised and ready. You can fill in any skipped sections later from within each page.</div>
-      <button onClick={finish} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:t.BG,cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Enter The Executive</button>
+    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",position:"relative",overflow:"hidden"}}>
+      <BgPhotoLayer photoId="bg6"/>
+      <div style={{position:"relative",zIndex:1}}>
+        <div style={{fontSize:48,marginBottom:16}}>✦</div>
+        <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:12}}>You're all set</div>
+        <div style={{fontSize:28,color:"#fff",marginBottom:12,fontFamily:"Georgia,serif",fontWeight:300}}>{"Welcome, "+(p.firstName||"Executive")+"."}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",lineHeight:1.85,maxWidth:300,marginBottom:16}}>Your dashboard is personalised and ready. Every section you filled in is already populated.</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:"sans-serif",marginBottom:40}}>You can update anything later from within each page.</div>
+        <button onClick={finish} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Enter The Executive →</button>
+      </div>
     </div>
   );
 
@@ -8341,9 +8347,10 @@ function App(){
             if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
             if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
           } else {
-            // No cloud data — migrate from localStorage
+            // No cloud data — this is a brand new user, show setup wizard
             const localData = loadData();
-            if(localData){
+            if(localData?.profile){
+              // Has local data — migrate it
               const d = applyDailyReset(localData, todayStr());
               if(d.profile)setProfile(d.profile);
               if(d.tasks!==undefined)setTasks(d.tasks);
@@ -8371,8 +8378,11 @@ function App(){
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
               if(d.nwHistory)setNwHistory(d.nwHistory);
               if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
-            if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
+              if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
               await supabase.save(res.user.id, res.access_token, localData).catch(()=>{});
+            } else {
+              // Truly new user — no local data, no cloud data — launch setup wizard
+              setShowSetup(true);
             }
           }
         }catch(e){console.error("Data load error:",e);}
