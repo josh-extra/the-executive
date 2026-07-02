@@ -17,7 +17,13 @@ const BG_PHOTOS=[
   {id:"bg5",label:"Lake Como",url:"/bg/bg5.jpg",thumb:"/bg/bg5-thumb.jpg",anim:"kb-zoom"},
   {id:"bg6",label:"Castle Study",url:"/bg/bg6.jpg",thumb:"/bg/bg6-thumb.jpg",anim:"kb-drift"},
 ];
-let _themeKey="obsidian";
+let _themeKey=(()=>{
+  // Default to system preference on first load
+  if(typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches){
+    return "charcoal"; // closest dark-but-lighter theme for light mode users
+  }
+  return "obsidian";
+})();
 let _bgPhotoId="none";
 const hasPhoto=()=>_bgPhotoId&&_bgPhotoId!=="none";
 const T=()=>THEMES[_themeKey]||THEMES[THEME_ALIASES[_themeKey]]||THEMES.obsidian;
@@ -7941,7 +7947,16 @@ function App(){
   },[]);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
-  const[theme,setThemeState]=useState("obsidian");
+  const[theme,setThemeState]=useState(()=>{
+    // Use saved theme if exists in localStorage
+    try{
+      const saved=localStorage.getItem(SK);
+      if(saved){const d=JSON.parse(saved);if(d.theme)return d.theme;}
+    }catch{}
+    // Fall back to system preference
+    if(typeof window!=="undefined"&&window.matchMedia?.("(prefers-color-scheme: light)").matches)return "charcoal";
+    return "obsidian";
+  });
   const[bgPhoto,setBgPhoto]=useState("none");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
@@ -8158,6 +8173,21 @@ function App(){
   },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
+
+  // Listen for OS theme changes — only applies if user hasn't manually set a theme
+  useEffect(()=>{
+    const mq=window.matchMedia?.("(prefers-color-scheme: light)");
+    if(!mq)return;
+    const handler=e=>{
+      // Only auto-switch if user hasn't saved a manual theme preference
+      const saved=localStorage.getItem(SK);
+      if(saved){try{const d=JSON.parse(saved);if(d.theme)return;}catch{}}
+      const newTheme=e.matches?"charcoal":"obsidian";
+      _themeKey=newTheme;setThemeState(newTheme);
+    };
+    mq.addEventListener("change",handler);
+    return()=>mq.removeEventListener("change",handler);
+  },[]);
   const setBgPhotoId=id=>{_bgPhotoId=id;setBgPhoto(id);};
   const todayT=todayTasks(tasks);
   const tDone=todayT.filter(tk=>tk.done).length;
