@@ -5512,9 +5512,53 @@ function DayScoreChart({last7,scores,history,dayLetters}){
   const t=T();
   const[hovered,setHovered]=useState(null);
   const hovData=hovered!==null?history[last7[hovered]]:null;
+
+  // Build 8-week rolling average
+  const weekAvgs=Array.from({length:8},(_,i)=>{
+    const days=Array.from({length:7},(_,j)=>{
+      const d=new Date();d.setDate(d.getDate()-(7*(7-i))-(6-j));
+      return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    });
+    const active=days.map(d=>history[d]?.score||0).filter(s=>s>0);
+    return active.length?Math.round(active.reduce((a,b)=>a+b,0)/active.length):0;
+  });
+  const thisWeekAvg=weekAvgs[7];
+  const lastWeekAvg=weekAvgs[6];
+  const trend=thisWeekAvg-lastWeekAvg;
+  const trendColor=trend>0?t.GREEN:trend<0?t.RED:t.MUTED;
+
+  // Sparkline for trend
+  const validAvgs=weekAvgs.filter(v=>v>0);
+  const W=280,H=32,p=4;
+  const mn=Math.max(0,Math.min(...validAvgs)-10);
+  const mx=Math.min(100,Math.max(...validAvgs)+10);
+  const px=i=>p+(i/(weekAvgs.length-1))*(W-p*2);
+  const py=v=>H-p-((v-mn)/(mx-mn||1))*(H-p*2);
+  const pts=weekAvgs.map((v,i)=>v>0?px(i)+","+py(v):null).filter(Boolean);
+
   return(
     <Card style={{marginBottom:14}}>
-      <SectionLabel>Daily Scores</SectionLabel>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+        <SectionLabel>Daily Scores</SectionLabel>
+        {validAvgs.length>=2&&(
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>8-week avg</div>
+              <div style={{fontSize:11,color:trendColor,fontFamily:"sans-serif",fontWeight:600}}>
+                {trend>0?"+":""}{trend} vs last week
+              </div>
+            </div>
+            <svg width={W/2} height={H} style={{overflow:"visible"}}>
+              {pts.length>=2&&(
+                <>
+                  <polyline points={pts.join(" ")} fill="none" stroke={t.GOLD} strokeWidth="1.5" strokeLinejoin="round" opacity=".6"/>
+                  {weekAvgs.map((v,i)=>v>0?<circle key={i} cx={px(i)} cy={py(v)} r="2.5" fill={i===7?t.GOLD:t.GOLD+"66"}/>:null)}
+                </>
+              )}
+            </svg>
+          </div>
+        )}
+      </div>
       <div style={{display:"flex",gap:4,alignItems:"flex-end",height:72,marginBottom:6}}>
         {last7.map((d,i)=>{
           const sc=scores[i];
