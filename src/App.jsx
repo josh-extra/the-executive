@@ -6230,7 +6230,32 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Export Data</SectionLabel>
-        <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        {/* Full backup — most important */}
+        <button onClick={()=>{
+          const backup={
+            exportedAt:new Date().toISOString(),
+            version:"1.0",
+            profile,tasks,goals,completed,habits,habitLog,
+            supplements,workouts,journal,books,bodyLog,
+            transactions,bills,debts,notes,nwHistory,history,
+            weeklyReflections,holdings,cryptoHoldings,
+            commodityHoldings,altAssets,budgets,
+          };
+          const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+          const url=URL.createObjectURL(blob);
+          const a=document.createElement("a");a.href=url;
+          a.download="the-executive-backup-"+todayStr()+".json";
+          a.click();URL.revokeObjectURL(url);
+        }} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+"18,"+t.GOLD+"08)",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div>
+            <div style={{fontWeight:600,marginBottom:2}}>Download Full Backup</div>
+            <div style={{fontSize:10,color:t.MUTED}}>All data as JSON — restore any time</div>
+          </div>
+          <span style={{fontSize:11,fontWeight:700}}>JSON ↓</span>
+        </button>
+        {/* Individual CSVs */}
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Individual Exports</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
           {[
             {l:"Net Worth History",fn:()=>{const h=Object.entries(nwHistory||{});if(!h.length)return alert("No history yet.");exportCSV(h.map(([d,v])=>({date:d,value:v})),"networth-history.csv");}},
             {l:"Tasks",fn:()=>tasks.length?exportCSV(tasks.map(({id,...r})=>r),"tasks.csv"):alert("No tasks.")},
@@ -6238,9 +6263,11 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
             {l:"Workouts",fn:()=>workouts.length?exportCSV(workouts.map(w=>({date:w.date,type:w.type,duration:w.duration,exercises:w.sets?.length||0})),"workouts.csv"):alert("No workouts.")},
             {l:"Transactions",fn:()=>transactions.length?exportCSV(transactions.map(({id,...r})=>r),"transactions.csv"):alert("No transactions.")},
             {l:"Journal",fn:()=>journal.length?exportCSV(journal.map(({id,...r})=>r),"journal.csv"):alert("No journal entries.")},
+            {l:"Body Metrics",fn:()=>bodyLog.length?exportCSV(bodyLog.map(({id,...r})=>r),"body-metrics.csv"):alert("No body data.")},
+            {l:"Score History",fn:()=>{const h=Object.entries(history||{});if(!h.length)return alert("No history.");exportCSV(h.map(([d,v])=>({date:d,...v})),"score-history.csv");}},
           ].map(ex=>(
-            <button key={ex.l} onClick={ex.fn} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:12,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              {ex.l}<span style={{color:t.GOLD,fontSize:10}}>CSV</span>
+            <button key={ex.l} onClick={ex.fn} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"8px 10px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              {ex.l}<span style={{color:t.MUTED,fontSize:9}}>CSV</span>
             </button>
           ))}
         </div>
