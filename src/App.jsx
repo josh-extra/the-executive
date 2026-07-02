@@ -52,6 +52,18 @@ const supabase={
   async save(userId,token,data){await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});},
 };
 
+// Module-level auth token — set by App when user logs in
+let _activeToken = null;
+const setActiveToken = t => { _activeToken = t; };
+
+// Claude API helper — adds auth token for rate limiting and Pro verification
+const claudeFetch = async (body, token) => {
+  const tok = token || _activeToken;
+  const headers = {"Content-Type": "application/json"};
+  if (tok) headers["Authorization"] = "Bearer " + tok;
+  return fetch("/api/claude", {method: "POST", headers, body: JSON.stringify(body)});
+};
+
 // ── Stripe ────────────────────────────────────────────────────────────────────
 // Replace these with your actual Stripe Price IDs from the Stripe Dashboard
 const STRIPE_PRICES={
@@ -662,7 +674,7 @@ function MorningBriefing({profile,tasks,onClose}){
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
         const controller=new AbortController();
         const timeoutId=setTimeout(()=>controller.abort(),9000);
-        const r=await fetch("/api/claude",{method:"POST",signal:controller.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:550,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Today's date is "+dateLabel+". Fast briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". One search only: S&P 500 and ASX 200 current levels and % move today, plus the single most important financial news story from the last 24h. Sections: MARKETS (brief, just the numbers), NEWS (1 story, 2 sentences max), PRIORITIES (top 3 from tasks below, do not invent any), MINDSET (one sentence). Be extremely concise — this must be fast. Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]})});
+        const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:550,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Today's date is "+dateLabel+". Fast briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". One search only: S&P 500 and ASX 200 current levels and % move today, plus the single most important financial news story from the last 24h. Sections: MARKETS (brief, just the numbers), NEWS (1 story, 2 sentences max), PRIORITIES (top 3 from tasks below, do not invent any), MINDSET (one sentence). Be extremely concise — this must be fast. Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]});
         clearTimeout(timeoutId);
         const d=await r.json();
         if(!r.ok){setBrief("Briefing failed: "+(d.error?.message||d.error||"Server error "+r.status));setLoading(false);return;}
@@ -1938,11 +1950,11 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
     setAiLoading(g.id);
     const nw=parseFloat(profile?.netWorth||0);
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-haiku-4-5",max_tokens:600,
         system:"Return ONLY a JSON array, no markdown, no explanation.",
         messages:[{role:"user",content:"Goal: \""+g.title+"\" ("+g.period+" goal, "+catLabel(g.category)+"). User age: "+profile?.age+", net worth: $"+Math.round(nw).toLocaleString()+"."+(g.startDate?" Start: "+g.startDate+".":"")+(g.endDate?" End: "+g.endDate+".":"")+(g.notes?" Notes: "+g.notes+".":"")+" Suggest 3-5 specific checkpoints with realistic due dates. Return JSON: [{text, dueDate (YYYY-MM-DD)}]. Be specific, not generic."}]
-      })});
+      });
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const s=text.indexOf("["),e=text.lastIndexOf("]");
@@ -1967,7 +1979,7 @@ function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,s
     try{
       const currentGoalTitles=allGoals.map(g=>g.title).join(", ")||"none";
       const completedTitles=(completed||[]).slice(0,5).map(g=>g.title).join(", ")||"none";
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-haiku-4-5",max_tokens:700,
         system:"Return ONLY a JSON array, no markdown, no explanation.",
         messages:[{role:"user",content:`Goal coach for ${profile?.firstName||"user"}, ${profile?.age||"?"} years old, ${profile?.occupation||""}, ${profile?.location||"Australia"}.
@@ -1978,7 +1990,7 @@ Active goals: ${currentGoalTitles}.
 Completed goals: ${completedTitles}.
 Suggest 4-6 specific, ambitious but achievable goals this person should consider. Mix of: financial, health, career, education, personal. Don't repeat existing goals.
 Return JSON: [{title, category (wealth/health/career/education/personal/mindset), period (week/month/year), reason}]. Be specific, not generic.`}]
-      })});
+      });
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const s=text.indexOf("["),e=text.lastIndexOf("]");
@@ -3652,11 +3664,11 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
       return d.name+" - Balance: "+fmt(d.balance)+" - Rate: "+(d.rate||0)+"% - Min payment: "+fmt(payment)+" - Payoff: "+(months?"~"+months+" months":"unknown");
     }).join("\n");
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-sonnet-4-6",max_tokens:800,
         system:"You are a personal finance expert. Give direct, specific debt payoff advice. No fluff.",
         messages:[{role:"user",content:"My debts:\n"+debtSummary+"\n\nTotal debt: "+fmt(totalDebt)+"\nExtra monthly budget: "+fmt(extra)+"\nCurrent strategy: "+strategy+"\n\nGive me: 1) Which debt to attack first and why, 2) Specific monthly payment plan, 3) One quick win I can do this week to reduce debt faster. Be specific with numbers."}]
-      })});
+      });
       const d=await r.json();
       setAiAdvice((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate advice.");
     }catch{setAiAdvice("Connection error.");}
@@ -3997,7 +4009,7 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade}
     try{
       const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
       const catList=[...EXP_CATS.income,...EXP_CATS.expense].join(", ");
-      const resp=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]})});
+      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]});
       const d=await resp.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
       const parsed=JSON.parse(text);
@@ -4585,7 +4597,7 @@ function InvestPage({profile}){
   const getAi=async()=>{
     setLoading(true);
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile.shareValue)||0)+", Property "+fmt(parseFloat(profile.propertyValue)||0)+", Super "+fmt(parseFloat(profile.superBalance)||0)+", Crypto "+fmt(parseFloat(profile.cryptoValue)||0)+". AVAILABLE CASH TO DEPLOY: "+fmt(parseFloat(profile.cashSavings)||0)+". First briefly assess their current holdings - any concentration risk or opportunities to rebalance. Then give 3-4 specific new opportunities based on their available cash of "+fmt(parseFloat(profile.cashSavings)||0)+". Search for current ASX and global market data. For each opportunity: NAME, ASSET CLASS, WHY NOW (specific catalyst), SUGGESTED ALLOCATION from available cash, RISK. Be specific with dollar amounts based on their cash position.",messages:[{role:"user",content:"Assess my portfolio and suggest where to deploy my available cash based on current market conditions."}]})});
+      const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile.shareValue)||0)+", Property "+fmt(parseFloat(profile.propertyValue)||0)+", Super "+fmt(parseFloat(profile.superBalance)||0)+", Crypto "+fmt(parseFloat(profile.cryptoValue)||0)+". AVAILABLE CASH TO DEPLOY: "+fmt(parseFloat(profile.cashSavings)||0)+". First briefly assess their current holdings - any concentration risk or opportunities to rebalance. Then give 3-4 specific new opportunities based on their available cash of "+fmt(parseFloat(profile.cashSavings)||0)+". Search for current ASX and global market data. For each opportunity: NAME, ASSET CLASS, WHY NOW (specific catalyst), SUGGESTED ALLOCATION from available cash, RISK. Be specific with dollar amounts based on their cash position.",messages:[{role:"user",content:"Assess my portfolio and suggest where to deploy my available cash based on current market conditions."}]});
       const d=await r.json();
       const result=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
       setAiOpps(result);setAiOppsDate(new Date().toLocaleDateString());
@@ -4880,11 +4892,11 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
     setPlanLoading(true);setPlan(null);
     const goals=(profile?.healthGoals||["Build Muscle"]).join(", ");
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-haiku-4-5",max_tokens:1500,
         system:"You are an expert personal trainer. Return ONLY valid JSON, no markdown.",
         messages:[{role:"user",content:"Create a 4-day workout split for someone with goals: "+goals+". Return JSON: {split: string, days: [{name: string, focus: string, exercises: [{exercise: string, sets: number, reps: string, rest: string, note: string}]}]}"}]
-      })});
+      });
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const start=text.indexOf("{"),end=text.lastIndexOf("}");
@@ -5729,7 +5741,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       const avgMood=weekJournal.length?(weekJournal.reduce((a,e)=>a+(e.mood||3),0)/weekJournal.length).toFixed(1):"?";
       const goalsSummary=(goals||[]).map(g=>g.title+" "+g.progress+"% ("+g.period+")").join(", ")||"none";
       const habitDetails=habitPerf.map(h=>h.name+": "+h.done+"/"+h.target).join("\n")||"none";
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
+      const r=await claudeFetch({model:"claude-haiku-4-5",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]});
       const d=await r.json();
       const review=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
       setAiReview(review);
@@ -5928,7 +5940,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
     // Only send last 20 messages to Claude to manage token usage
     const contextMsgs=updated.slice(-20).map(m=>({role:m.role,content:m.content}));
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:contextMsgs})});
+      const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:contextMsgs});
       const d=await r.json();
       const reply=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Try again.";
       setMessages(m=>[...m,{role:"assistant",content:reply,timestamp:Date.now()}]);
@@ -6887,12 +6899,12 @@ function RecipesPage({profile,subscription,setShowUpgrade}){
     const dietStr=dietFilter==="all"?"no specific diet":dietFilter;
     const bodyStr=profile.weight?"Weight: "+profile.weight+"kg, Target: "+(profile.targetWeight||"?")+"kg":"";
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-haiku-4-5",
         max_tokens:2000,
         system:"You are a nutritionist and chef. You MUST return ONLY a valid JSON array with no markdown, no backticks, no explanation text before or after. Start your response with [ and end with ].",
         messages:[{role:"user",content:"Generate 2 DIFFERENT and VARIED recipes (never repeat the same dish) for health goals: "+goalStr+". "+bodyStr+". Meal type: "+mealStr+". Diet: "+dietStr+". Session ID: "+Math.random().toString(36).slice(2)+" - use this to ensure variety. Draw from diverse cuisines (Asian, Mediterranean, Mexican, Middle Eastern, etc) and cooking methods. Return a JSON array of 2 objects. Each object must have exactly these fields: title (string), mealType (string), prepTime (string), cookTime (string), difficulty (string), calories (number), protein (number), carbs (number), fat (number), whyItFits (string), ingredients (array of {item, amount, category} where category is one of: Produce, Meat and Fish, Dairy and Eggs, Pantry, Spices, Other), steps (array of strings)."}]
-      })});
+      });
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const start=text.indexOf("[");
@@ -7894,11 +7906,11 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
     const goalStr=(goals||[]).map(g=>g.title).join(", ")||"self improvement";
     const habitStr=(habits||[]).map(h=>h.name).join(", ")||"healthy habits";
     try{
-      const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      const r=await claudeFetch({
         model:"claude-haiku-4-5",max_tokens:2500,
         system:"Personal development expert. Return ONLY valid JSON array, no markdown, no backticks.",
         messages:[{role:"user",content:"Recommend 8 real, specific resources for someone with goals: "+goalStr+". Habits: "+habitStr+". Mix: 2 podcasts, 2 books, 2 YouTube channels, 2 courses. Return JSON array, each: {title, type (podcast/book/youtube/course), creator, description (why it fits their specific goals, 1-2 sentences), category, searchUrl (direct search URL for Spotify/Audible/YouTube/Coursera)}. Use real titles that exist."}]
-      })});
+      });
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const start=text.indexOf("["),end=text.lastIndexOf("]");
@@ -8692,7 +8704,9 @@ function App(){
   const[showSignInPrompt,setShowSignInPrompt]=useState(false);
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
-  const[authToken,setAuthToken]=useState(()=>{try{return localStorage.getItem("exec_token")||null;}catch{return null;}});
+  const[authToken,setAuthToken]=useState(()=>{try{const t=localStorage.getItem("exec_token")||null;setActiveToken(t);return t;}catch{return null;}});
+  // Keep module-level token in sync
+  useEffect(()=>{setActiveToken(authToken);},[authToken]);
   const[authUser,setAuthUser]=useState(null);
   const[showAuth,setShowAuth]=useState(false);
   const[authMode,setAuthMode]=useState("signin");
