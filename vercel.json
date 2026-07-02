@@ -4,6 +4,7 @@
   },
   "routes": [
     { "src": "/api/claude", "dest": "/api/claude.js" },
+    { "src": "/api/log-error", "dest": "/api/log-error.js" },
     { "src": "/api/quote", "dest": "/api/quote.js" },
     { "src": "/api/news", "dest": "/api/news.js" },
     { "src": "/api/stripe-create-checkout", "dest": "/api/stripe-create-checkout.js" },

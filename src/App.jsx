@@ -423,19 +423,57 @@ function useCrypto(holdings){
 }
 
 class ErrorBoundary extends Component{
-  constructor(p){super(p);this.state={error:null,info:null};}
+  constructor(p){super(p);this.state={error:null,info:null,errorId:null};}
   static getDerivedStateFromError(e){return{error:e};}
-  componentDidCatch(e,info){this.setState({info});}
+  componentDidCatch(e,info){
+    const errorId="err_"+Date.now().toString(36);
+    this.setState({info,errorId});
+    // Log to console in detail for Vercel log capture
+    console.error("[The Executive] Uncaught error:",{
+      errorId,
+      message:e?.message,
+      stack:e?.stack,
+      component:info?.componentStack?.split("\n")[1]?.trim(),
+      url:window.location.href,
+      time:new Date().toISOString()
+    });
+    // Send to Vercel via a simple beacon (no external service needed)
+    try{
+      fetch("/api/log-error",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({errorId,message:e?.message,component:info?.componentStack?.split("\n")[1]?.trim(),url:window.location.href})
+      }).catch(()=>{});
+    }catch{}
+  }
   render(){
     if(this.state.error){
       const t=THEMES.obsidian;
-      return (
-        <div style={{minHeight:"100vh",background:t.BG,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,padding:40,textAlign:"center"}}>
-          <div style={{fontSize:32,color:t.RED}}>!</div>
-          <div style={{fontSize:18,color:t.TEXT,fontFamily:"sans-serif"}}>Something went wrong</div>
-          <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",maxWidth:360,lineHeight:1.7}}>{this.state.error?.message}</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",maxWidth:480,lineHeight:1.6,whiteSpace:"pre-wrap",textAlign:"left",background:t.CARD,padding:12,borderRadius:8,overflowX:"auto"}}>{this.state.info?.componentStack?.slice(0,500)}</div>
-          <button onClick={()=>{localStorage.removeItem(SK);window.location.reload();}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"10px 24px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700}}>Reset and Reload</button>
+      const isChunkError=this.state.error?.message?.includes("Failed to fetch dynamically imported module")||this.state.error?.message?.includes("Loading chunk");
+      return(
+        <div style={{minHeight:"100vh",background:t.BG,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20,padding:40,textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:4}}>{isChunkError?"⟳":"⚠"}</div>
+          <div style={{fontSize:10,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif"}}>The Executive</div>
+          <div style={{fontSize:22,color:t.TEXT,fontFamily:"sans-serif",fontWeight:300}}>
+            {isChunkError?"Update available":"Something went wrong"}
+          </div>
+          <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",maxWidth:380,lineHeight:1.8}}>
+            {isChunkError
+              ?"A new version of the app was deployed. Reload to get the latest version."
+              :"An unexpected error occurred. Your data is safe — this is a display issue only."}
+          </div>
+          {this.state.errorId&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1}}>Error ID: {this.state.errorId}</div>}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",justifyContent:"center",marginTop:8}}>
+            <button onClick={()=>window.location.reload()} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"11px 24px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:12,fontWeight:700,letterSpacing:1}}>
+              {isChunkError?"Reload App":"Try Again"}
+            </button>
+            {!isChunkError&&<button onClick={()=>this.setState({error:null,info:null})} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:8,padding:"11px 24px",color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:12}}>
+              Go Back
+            </button>}
+          </div>
+          {!isChunkError&&<div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>
+            If this keeps happening, <span style={{color:t.GOLD,cursor:"pointer",textDecoration:"underline"}} onClick={()=>{localStorage.removeItem(SK);window.location.reload();}}>reset the app</span> or contact support.
+          </div>}
         </div>
       );
     }
