@@ -5527,35 +5527,29 @@ function DayScoreChart({last7,scores,history,dayLetters}){
   const trend=thisWeekAvg-lastWeekAvg;
   const trendColor=trend>0?t.GREEN:trend<0?t.RED:t.MUTED;
 
-  // Sparkline for trend
+  // Sparkline for trend — 120px wide
   const validAvgs=weekAvgs.filter(v=>v>0);
-  const W=280,H=32,p=4;
-  const mn=Math.max(0,Math.min(...validAvgs)-10);
-  const mx=Math.min(100,Math.max(...validAvgs)+10);
-  const px=i=>p+(i/(weekAvgs.length-1))*(W-p*2);
-  const py=v=>H-p-((v-mn)/(mx-mn||1))*(H-p*2);
-  const pts=weekAvgs.map((v,i)=>v>0?px(i)+","+py(v):null).filter(Boolean);
+  const SW=120,SH=32,sp=4;
+  const mn=validAvgs.length?Math.max(0,Math.min(...validAvgs)-10):0;
+  const mx=validAvgs.length?Math.min(100,Math.max(...validAvgs)+10):100;
+  const spx=i=>sp+(i/(weekAvgs.length-1))*(SW-sp*2);
+  const spy=v=>SH-sp-((v-mn)/(mx-mn||1))*(SH-sp*2);
+  const pts=weekAvgs.map((v,i)=>v>0?spx(i)+","+spy(v):null).filter(Boolean);
 
   return(
     <Card style={{marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
         <SectionLabel>Daily Scores</SectionLabel>
         {validAvgs.length>=2&&(
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>8-week avg</div>
-              <div style={{fontSize:11,color:trendColor,fontFamily:"sans-serif",fontWeight:600}}>
-                {trend>0?"+":""}{trend} vs last week
-              </div>
-            </div>
-            <svg width={W/2} height={H} style={{overflow:"visible"}}>
-              {pts.length>=2&&(
-                <>
-                  <polyline points={pts.join(" ")} fill="none" stroke={t.GOLD} strokeWidth="1.5" strokeLinejoin="round" opacity=".6"/>
-                  {weekAvgs.map((v,i)=>v>0?<circle key={i} cx={px(i)} cy={py(v)} r="2.5" fill={i===7?t.GOLD:t.GOLD+"66"}/>:null)}
-                </>
-              )}
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1}}>8-WEEK TREND</div>
+            <svg width={120} height={SH} style={{overflow:"visible"}}>
+              <polyline points={pts.join(" ")} fill="none" stroke={t.GOLD} strokeWidth="1.5" strokeLinejoin="round" opacity=".7"/>
+              {weekAvgs.map((v,i)=>v>0?<circle key={i} cx={spx(i)} cy={spy(v)} r={i===7?3:2} fill={i===7?t.GOLD:t.GOLD+"66"}/>:null)}
             </svg>
+            <div style={{fontSize:11,color:trendColor,fontFamily:"sans-serif",fontWeight:600}}>
+              {trend===0?"—":((trend>0?"+":"")+trend+" vs last week")}
+            </div>
           </div>
         )}
       </div>
