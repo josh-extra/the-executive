@@ -5618,6 +5618,12 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const weekStart=last7[0],weekEnd=last7[6];
   const weekKey="week_"+weekStart;
   const savedReflection=(weeklyReflections||{})[weekKey]||"";
+  const savedAiReview=(weeklyReflections||{})[weekKey+"_ai"]||"";
+  const isMonday=new Date().getDay()===1;
+
+  // Auto-load saved AI review
+  useEffect(()=>{if(savedAiReview)setAiReview(savedAiReview);},[weekKey]);
+
   const scores=last7.map(d=>history[d]?.score||0);
   const activeScores=scores.filter(s=>s>0);
   const avgScore=activeScores.length?Math.round(activeScores.reduce((a,b)=>a+b,0)/activeScores.length):0;
@@ -5630,8 +5636,10 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const latestBody=weekBody[weekBody.length-1];const earliestBody=weekBody[0];
   const weightChange=latestBody?.weight&&earliestBody?.weight?(parseFloat(latestBody.weight)-parseFloat(earliestBody.weight)).toFixed(1):null;
   const dayLetters=["S","M","T","W","T","F","S"];
-  const genReview=async()=>{
-    if(!isPro(subscription)){setShowUpgrade(true);return;}
+
+  const genReview=async(auto=false)=>{
+    if(!isPro(subscription)){if(!auto)setShowUpgrade(true);return;}
+    if(loading)return;
     setLoading(true);
     try{
       const wSummary=weekWorkouts.length?weekWorkouts.map(w=>w.type+" "+w.duration+"min").join(", "):"none";
@@ -5641,10 +5649,20 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       const habitDetails=habitPerf.map(h=>h.name+": "+h.done+"/"+h.target).join("\n")||"none";
       const r=await fetch("/api/claude",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-haiku-4-5",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]})});
       const d=await r.json();
-      setAiReview((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.");
+      const review=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
+      setAiReview(review);
+      // Persist to weeklyReflections so it survives page navigation
+      setWeeklyReflections(r=>({...(r||{}),[weekKey+"_ai"]:review}));
     }catch{setAiReview("Connection error.");}
     setLoading(false);
   };
+
+  // Auto-generate on Monday morning if Pro and no review yet for this week
+  useEffect(()=>{
+    if(isMonday&&isPro(subscription)&&!savedAiReview&&avgScore>0&&daysActive>=3){
+      genReview(true);
+    }
+  },[isMonday,weekKey]);
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Performance Review</div>
@@ -5763,20 +5781,33 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
       <Card style={{borderColor:t.GOLD+"33"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiReview?12:0}}>
           <div>
-            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>AI Weekly Review</div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Habits, workouts, body, mood, goals</div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>
+              AI Weekly Review{isMonday?" · Auto-generated":""}
+            </div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
+              {isMonday&&isPro(subscription)?"Automatically generated every Monday":"Habits, workouts, body, mood, goals"}
+            </div>
           </div>
-          <Btn onClick={genReview} disabled={loading}>{loading?"Generating...":"Generate Review"}</Btn>
+          <Btn onClick={()=>genReview(false)} disabled={loading}>
+            {loading?"Generating...":(aiReview?"Regenerate":"Generate Review")}
+          </Btn>
         </div>
         {loading&&(
           <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
             <Skeleton width="80%" height={12}/>
             <Skeleton width="70%" height={12}/>
             <Skeleton width="90%" height={12}/>
+            <Skeleton width="75%" height={12}/>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",marginTop:4}}>Analysing your week...</div>
           </div>
         )}
-        {aiReview&&!loading&&<div style={{marginTop:10,fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiReview}</div>}
-        {!aiReview&&!loading&&<div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>Generates an honest assessment of your week using all your logged data.</div>}
+        {aiReview&&!loading&&(
+          <div>
+            <div style={{fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap",marginTop:10}}>{aiReview}</div>
+            {savedAiReview&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,fontStyle:"italic"}}>Saved review for week of {fmtDateNum(weekStart)}</div>}
+          </div>
+        )}
+        {!aiReview&&!loading&&<div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>{isMonday&&isPro(subscription)?"Your weekly review is being prepared...":"Generates an honest assessment of your week — wins, gaps, patterns and priorities."}</div>}
       </Card>
       {!isPro(subscription)&&<UpgradeHint message="✦ Generate your AI Weekly Review with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
     </div>
