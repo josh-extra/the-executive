@@ -6351,7 +6351,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
             version:"1.0",
             profile,tasks,goals,completed,habits,habitLog,
             supplements,workouts,journal,books,bodyLog,
-            transactions,bills,debts,notes,nwHistory,history,
+            transactions,bills,debts,taxDeductions,notes,nwHistory,history,
             weeklyReflections,holdings,cryptoHoldings,
             commodityHoldings,altAssets,budgets,
           };
@@ -7790,9 +7790,8 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
   );
 }
 
-function TaxPage({profile,transactions}){
+function TaxPage({profile,transactions,deductions,setDeductions}){
   const t=T();
-  const[deductions,setDeductions]=useState([]);
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
   const safeProfile=profile||{};
@@ -8896,7 +8895,7 @@ function App(){
   // Sync pending saves when coming back online
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
-    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     (async()=>{
       try{
         setSyncing(true);
@@ -9072,6 +9071,7 @@ function App(){
   const[readingGoal,setReadingGoal]=useState(24);
   const[bills,setBills]=useState([]);
   const[debts,setDebts]=useState([]);
+  const[taxDeductions,setTaxDeductions]=useState([]);
   const[history,setHistory]=useState({});
   const[bodyLog,setBodyLog]=useState([]);
   const[habits,setHabits]=useState(D_HABITS);
@@ -9153,6 +9153,7 @@ function App(){
               if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
+            if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             if(d.history)setHistory(d.history);
             if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.habits!==undefined)setHabits(d.habits);
@@ -9226,7 +9227,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -9249,13 +9250,13 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -9283,7 +9284,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
@@ -9504,6 +9505,7 @@ function App(){
               if(d.superLog)setSuperLog(d.superLog);
             if(d.bills!==undefined)setBills(d.bills);
             if(d.debts!==undefined)setDebts(d.debts);
+            if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             if(d.notes!==undefined)setNotes(d.notes);
             if(d.services!==undefined)setServices(d.services);
               if(d.learnData)setLearnData(d.learnData);
@@ -9715,7 +9717,7 @@ function App(){
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
-          {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions}/>)}
+          {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
