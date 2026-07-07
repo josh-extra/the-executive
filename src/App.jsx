@@ -4950,7 +4950,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
   );
 }
 
-function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade}){
+function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,authToken}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[tab,setTab]=useState("log");
   const[wf,setWf]=useState({date:todayStr(),type:"Strength",duration:60,notes:"",sets:[]});
   const[sf,setSf]=useState({exercise:"Bench Press",sets:3,reps:8,weight:""});
@@ -5230,7 +5230,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
         model:"claude-haiku-4-5",max_tokens:1500,
         system:"You are an expert personal trainer. Return ONLY valid JSON, no markdown, no explanation.",
         messages:[{role:"user",content:"Create a 4-day workout split for: goals: "+goals+", fitness level: "+fitnessLevel+", age: "+age+". Use only real exercises. Return JSON exactly: {\"split\": \"string describing the split\", \"days\": [{\"name\": \"Day 1\", \"focus\": \"string\", \"exercises\": [{\"exercise\": \"string\", \"sets\": 3, \"reps\": \"8-10\", \"rest\": \"60s\", \"note\": \"string\"}]}]}"}]
-      });
+      }, authToken);
       if(!r.ok){
         const err=await r.json().catch(()=>({}));
         setPlanError(err.error||"Failed to generate plan. Try again.");
@@ -10136,7 +10136,7 @@ function App(){
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
-          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
