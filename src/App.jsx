@@ -9344,23 +9344,46 @@ function App(){
     };
     const onVisibility=()=>{
       if(document.visibilityState==="hidden") flush();
-      // Re-fetch from Supabase when tab becomes visible — picks up changes from other devices
+      // Re-fetch from Supabase when tab becomes visible — picks up ALL changes from other devices
       if(document.visibilityState==="visible"&&authToken&&authUser?.id){
         fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+authUser.id+"&select=data",{headers:sbH(authToken)})
           .then(r=>r.json()).then(rows=>{
             const d=rows?.[0]?.data;
             if(!d)return;
-            // Sync all data that could have changed on another device
+            // Theme / appearance
             if(d.theme&&d.theme!==theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
             if(d.bgPhoto&&d.bgPhoto!==bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
+            // Market
             if(d.marketTickers)setMarketTickers(d.marketTickers);
-            if(d.habits!==undefined)setHabits(d.habits);
-            if(d.habitLog)setHabitLog(d.habitLog);
-            if(d.tasks!==undefined)setTasks(d.tasks);
-            if(d.goals!==undefined)setGoals(d.goals);
-            if(d.supplements!==undefined)setSupplements(d.supplements);
+            // Profile & wealth (cash, income, assets etc)
             if(d.profile)setProfile(d.profile);
             if(d.nwHistory)setNwHistory(prev=>({...prev,...d.nwHistory}));
+            // Daily execution
+            if(d.tasks!==undefined)setTasks(d.tasks);
+            if(d.habits!==undefined)setHabits(d.habits);
+            if(d.habitLog)setHabitLog(d.habitLog);
+            if(d.supplements!==undefined)setSupplements(d.supplements);
+            if(d.goals!==undefined)setGoals(d.goals);
+            if(d.completed!==undefined)setCompleted(d.completed);
+            // Wealth
+            if(d.holdings!==undefined)setHoldings(d.holdings);
+            if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
+            if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
+            if(d.altAssets!==undefined)setAltAssets(d.altAssets);
+            // Finance
+            if(d.transactions!==undefined)setTransactions(d.transactions);
+            if(d.bills!==undefined)setBills(d.bills);
+            if(d.debts!==undefined)setDebts(d.debts);
+            if(d.budgets)setBudgets(d.budgets);
+            if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
+            // Health & body
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
+            if(d.workouts!==undefined)setWorkouts(d.workouts);
+            // Journal & reading
+            if(d.journal!==undefined)setJournal(d.journal);
+            if(d.books!==undefined)setBooks(d.books);
+            // Score history
+            if(d.history)setHistory(prev=>({...prev,...d.history}));
           }).catch(()=>{});
       }
     };
