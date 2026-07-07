@@ -4025,26 +4025,33 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
 
   const currentMonth=months[months.length-1];
   const prevMonth=months[months.length-2];
-  const mk=monthStr();
+
+  // Show current month if it has data, otherwise fall back to previous month
+  const hasCurrentMonthData=currentMonth.inc>0||currentMonth.exp>0;
+  const activeMonth=hasCurrentMonthData?currentMonth:prevMonth;
+  const mk=activeMonth.key;
   const tm=transactions.filter(tx=>tx.date.startsWith(mk));
   const income=tm.filter(tx=>tx.type==="income").reduce((s,tx)=>s+tx.amount,0);
   const expense=tm.filter(tx=>tx.type==="expense").reduce((s,tx)=>s+tx.amount,0);
+  const displayMonthLabel=activeMonth.label+" "+activeMonth.year;
 
   // All-time totals
   const totalIncome=transactions.filter(tx=>tx.type==="income").reduce((s,tx)=>s+tx.amount,0);
   const totalExpense=transactions.filter(tx=>tx.type==="expense").reduce((s,tx)=>s+tx.amount,0);
 
   // Category totals for selected period
-  const selectedMonthData=hoveredMonth||currentMonth;
+  const selectedMonthData=hoveredMonth||(hasCurrentMonthData?currentMonth:prevMonth);
   const byCatIncome=EXP_CATS.income.map(cat=>({cat,total:selectedMonthData.txs.filter(tx=>tx.type==="income"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0)})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
   const byCatExpense=EXP_CATS.expense.map(cat=>({cat,total:selectedMonthData.txs.filter(tx=>tx.type==="expense"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0)})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
   const catColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A","#7EC8A0","#C8A87E"];
 
   const maxBar=Math.max(...months.flatMap(m=>[m.inc,m.exp]),1);
 
-  // Month over month change
-  const incChange=prevMonth.inc>0?((income-prevMonth.inc)/prevMonth.inc*100):0;
-  const expChange=prevMonth.exp>0?((expense-prevMonth.exp)/prevMonth.exp*100):0;
+  // Month over month change — compare active month to the one before it
+  const activeMonthIdx=months.findIndex(m=>m.key===mk);
+  const priorMonth=activeMonthIdx>0?months[activeMonthIdx-1]:prevMonth;
+  const incChange=priorMonth.inc>0?((income-priorMonth.inc)/priorMonth.inc*100):0;
+  const expChange=priorMonth.exp>0?((expense-priorMonth.exp)/priorMonth.exp*100):0;
 
   const handlePdf=async file=>{
     if(!isPro(subscription)){setShowUpgrade(true);return;}
@@ -4090,7 +4097,7 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
       {/* Summary stats - this month + all time */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
         <Card style={{borderColor:t.GREEN+"33"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Income This Month</div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Income · {displayMonthLabel}</div>
           <div style={{fontSize:24,color:t.GREEN,fontWeight:700,marginBottom:3}}>{fmt(income)}</div>
           <div style={{fontSize:10,color:incChange>=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>
             {incChange>=0?"+ ":"- "}{Math.abs(incChange).toFixed(1)}{"% vs last month"}
@@ -4098,7 +4105,7 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"All time: "+fmt(totalIncome)}</div>
         </Card>
         <Card style={{borderColor:t.RED+"33"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Expenses This Month</div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Expenses · {displayMonthLabel}</div>
           <div style={{fontSize:24,color:t.RED,fontWeight:700,marginBottom:3}}>{fmt(expense)}</div>
           <div style={{fontSize:10,color:expChange<=0?t.GREEN:t.RED,fontFamily:"sans-serif"}}>
             {expChange>=0?"+ ":"- "}{Math.abs(expChange).toFixed(1)}{"% vs last month"}
@@ -4106,7 +4113,7 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"All time: "+fmt(totalExpense)}</div>
         </Card>
         <Card style={{borderColor:(income-expense>=0?t.GREEN:t.RED)+"33"}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Net This Month</div>
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Net · {displayMonthLabel}</div>
           <div style={{fontSize:24,color:income-expense>=0?t.GREEN:t.RED,fontWeight:700,marginBottom:3}}>{(income-expense>=0?"+":"-")+fmt(Math.abs(income-expense))}</div>
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>{income-expense>=0?"Surplus":"Deficit"}</div>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:4}}>{"All time: "+(totalIncome-totalExpense>=0?"+":"-")+fmt(Math.abs(totalIncome-totalExpense))}</div>
