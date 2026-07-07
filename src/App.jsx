@@ -83,7 +83,7 @@ const hexA=(hex,alpha)=>{
 const fmt=n=>{
   if(!n&&n!==0)return L().symbol+"0";
   const s=L().symbol,v=Math.abs(n);
-  const f=v>=1e6?s+(v/1e6).toFixed(2)+"M":v>=1e4?s+(v/1e3).toFixed(1)+"k":s+v.toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const f=v>=1e6?s+(v/1e6).toFixed(2)+"M":v>=1e4?s+(v/1e3).toFixed(1)+"k":s+v.toLocaleString("en-AU",{maximumFractionDigits:0});
   return n<0?"-"+f:f;
 };
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
