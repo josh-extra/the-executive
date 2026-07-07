@@ -2734,7 +2734,7 @@ function AllocationChart({assets,profile}){
   });
   const hovSeg=hov!==null?segments[hov]:null;
   return(
-    <div style={{display:"flex",alignItems:"center",gap:14}}>
+    <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
       <svg width={120} height={120} style={{flexShrink:0}}>
         <circle cx={cx} cy={cy} r={r} fill="none" stroke={t.BORDER} strokeWidth={stroke}/>
         {segments.map((seg,i)=>(
@@ -2823,7 +2823,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
   const nwLabels2=nwEntries2.map(e=>e[0]);
   return (
     <div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:10}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Wealth Overview</div>
           <div style={{display:"flex",alignItems:"baseline",gap:10}}>
@@ -2834,7 +2834,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
         </div>
         <button onClick={()=>setShowRecalibrate(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>Recalibrate</button>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:14}}>
         <Card>
           <SectionLabel>Net Worth History</SectionLabel>
           <SparkLine data={nwVals} color={t.GOLD} height={60} labels={nwLabels2}/>
@@ -2876,7 +2876,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               <span style={{fontSize:14,color:t.GOLD,fontFamily:"sans-serif",fontWeight:700}}>{fmt(nw)}</span>
             </div>
           </Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:8}}>
             <StatCard label="Annual Income" value={fmt(parseFloat(profile.annualIncome)||0)} color={t.GOLD}/>
             
           </div>
@@ -2892,7 +2892,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
         }>Share Portfolio - Live</SectionLabel>
         {showAdd&&(
           <div style={{padding:12,background:t.CARD2,borderRadius:7,border:"1px solid "+t.BORDER,marginBottom:12}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:7}}>
               {[["Ticker","ticker","BHP.AX"],["Shares","shares","100"],["Avg Cost","avgCost","45.20"],["Label","name","BHP Group"]].map(([l,k,ph])=>(
                 <div key={k}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
@@ -2912,7 +2912,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           </div>
         )}
         {safeH.length>0&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:8,marginBottom:10}}>
             {[
               {l:"Portfolio Value",v:fmt(sP.totalValue||0),c:t.GOLD},
               {l:"Total Gain",v:(sP.totalGain>=0?"+":"")+fmt(sP.totalGain||0),c:(sP.totalGain||0)>=0?t.GREEN:t.RED},
@@ -2945,7 +2945,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               {i>0&&<Divider/>}
               {editShareId===h.id?(
                 <div style={{padding:"10px 0"}}>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:7}}>
                     {[["Ticker","ticker",h.ticker],["Shares","shares",h.shares],["Avg Cost","avgCost",h.avgCost||""],["Label","name",h.name]].map(([l,k,def])=>(
                       <div key={k}>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
@@ -3034,7 +3034,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
                   </div>
                   <button onClick={()=>setCSelected(null)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11}}>Change</button>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:8}}>
                   <div>
                     <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Amount</div>
                     <Inp type="number" value={cAmount} onChange={e=>setCAmount(e.target.value)} placeholder="0.5" style={{fontSize:12,padding:"7px 9px"}}/>
@@ -3060,7 +3060,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           </div>
         )}
         {(cryptoHoldings||[]).length>0&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:8,marginBottom:10}}>
             {[
               {l:"Portfolio Value",v:fmt(cryptoPortfolio?.totalValue||0),c:t.PURPLE},
               {l:"Total Gain",v:(cryptoPortfolio?.totalGain>=0?"+":"")+fmt(cryptoPortfolio?.totalGain||0),c:(cryptoPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
@@ -3086,7 +3086,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               {i>0&&<Divider/>}
               {editCryptoIdx===i?(
                 <div style={{padding:"10px 0"}}>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:7,marginBottom:7}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:7}}>
                     {[["Coin ID","id",h.id],["Amount","amount",h.amount],["Avg Cost","avgCost",h.avgCost||""],["Label","name",h.name||h.id]].map(([l,k,def])=>(
                       <div key={k}>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
