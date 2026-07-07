@@ -1,16 +1,12 @@
-// In-memory rate limit store — resets on cold start
-// Key: userId or IP, Value: { count, windowStart }
 const rateLimitStore = new Map();
-const WINDOW_MS = 60 * 60 * 1000; // 1 hour
-const MAX_REQUESTS = 20; // per hour per user
+const WINDOW_MS = 60 * 60 * 1000;
+const MAX_REQUESTS = 20;
 const SUPABASE_URL = "https://vvnnzepagtrlvnqyqbdr.supabase.co";
 
 function getRateLimitKey(req) {
-  // Try to extract user ID from Authorization header
   const auth = req.headers["authorization"];
   if (auth?.startsWith("Bearer ")) return "user_" + auth.slice(7, 40);
-  // Fall back to IP
-  return "ip_" + (req.headers["x-forwarded-for"]?.split(",")[0] || req.socket?.remoteAddress || "unknown");
+  return "ip_" + (req.headers["x-forwarded-for"]?.split(",")[0] || "unknown");
 }
 
 function checkRateLimit(key) {
@@ -28,22 +24,52 @@ function checkRateLimit(key) {
   return { allowed: true, remaining: MAX_REQUESTS - entry.count };
 }
 
+// Decode user ID directly from JWT — no network call needed
+function getUserIdFromToken(token) {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return decoded.sub || decoded.user_id || null;
+  } catch { return null; }
+}
+
 async function verifySubscription(token) {
   if (!token) return false;
+  const serviceKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!serviceKey) {
+    console.warn("SUPABASE_SERVICE_KEY not set — allowing request");
+    return true;
+  }
   try {
-    // Get user ID from token
-    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { "apikey": process.env.SUPABASE_ANON_KEY, "Authorization": `Bearer ${token}` }
-    });
-    const user = await userRes.json();
-    if (!user?.id) return false;
-    // Check subscription
-    const subRes = await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${user.id}&select=status`, {
-      headers: { "apikey": process.env.SUPABASE_ANON_KEY, "Authorization": `Bearer ${token}` }
-    });
+    // Extract user ID directly from JWT — no auth API call needed
+    const userId = getUserIdFromToken(token);
+    if (!userId) {
+      console.error("Could not extract user ID from token");
+      return false;
+    }
+
+    // Check subscription using service key
+    const subRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${userId}&select=status`,
+      {
+        headers: {
+          "apikey": serviceKey,
+          "Authorization": `Bearer ${serviceKey}`
+        }
+      }
+    );
+    if (!subRes.ok) {
+      console.error("Subscription lookup failed:", subRes.status, await subRes.text());
+      return false;
+    }
     const subs = await subRes.json();
-    return subs?.[0]?.status === "active" || subs?.[0]?.status === "trialing";
-  } catch { return false; }
+    const status = subs?.[0]?.status;
+    console.log(`User ${userId} subscription: ${status}`);
+    return status === "active" || status === "trialing";
+  } catch(e) {
+    console.error("verifySubscription error:", e.message);
+    return false;
+  }
 }
 
 export default async function handler(req, res) {
@@ -53,17 +79,14 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") { res.status(200).end(); return; }
   if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
-  // Extract auth token
   const authHeader = req.headers["authorization"];
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  // Verify Pro subscription
   const isPro = await verifySubscription(token);
   if (!isPro) {
     return res.status(403).json({ error: "Executive subscription required", code: "NOT_PRO" });
   }
 
-  // Rate limit check
   const key = getRateLimitKey(req);
   const { allowed, remaining, resetIn } = checkRateLimit(key);
   res.setHeader("X-RateLimit-Limit", MAX_REQUESTS);
@@ -79,7 +102,6 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body;
-    // Safety: enforce max_tokens cap to prevent runaway costs
     if (body.max_tokens && body.max_tokens > 4000) body.max_tokens = 4000;
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -87,8 +109,7 @@ export default async function handler(req, res) {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "interleaved-thinking-2025-05-14"
+        "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify(body)
     });
