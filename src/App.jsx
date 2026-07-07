@@ -4014,7 +4014,7 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
   // Build last 12 months data
   const months=Array.from({length:12}).map((_,i)=>{
     const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(11-i));
-    const key=d.toISOString().slice(0,7);
+    const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); // local time, not UTC
     const label=d.toLocaleString("default",{month:"short"});
     const year=d.getFullYear();
     const txs=transactions.filter(tx=>tx.date.startsWith(key));
@@ -6793,7 +6793,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
   const[newCat,setNewCat]=useState("");
   const[editingCat,setEditingCat]=useState(null);
   const mk=monthStr();
-  const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7);})();
+  const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
 
   // All budget categories = defaults + custom ones stored in budgets
   const defaultCats=EXP_CATS.expense;
@@ -6810,7 +6810,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
   // 6-month trend per category
   const months6=Array.from({length:6}).map((_,i)=>{
     const d=new Date();d.setMonth(d.getMonth()-(5-i));
-    return{key:d.toISOString().slice(0,7),label:d.toLocaleString("default",{month:"short"})};
+    return{key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleString("default",{month:"short"})};
   });
 
   const setCatBudget=(cat,val)=>setBudgets(b=>({...b,[cat]:val}));
@@ -8429,7 +8429,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
 
   // Weekly hours
   const weekStart=new Date();weekStart.setDate(weekStart.getDate()-weekStart.getDay());
-  const weekKey=weekStart.toISOString().slice(0,10);
+  const weekKey=weekStart.getFullYear()+"-"+String(weekStart.getMonth()+1).padStart(2,"0")+"-"+String(weekStart.getDate()).padStart(2,"0");
   const weekMins=sessions.filter(s=>s.date>=weekKey).reduce((s,x)=>s+x.minutes,0);
   const weekHrs=(weekMins/60).toFixed(1);
   const weekPct=Math.min(Math.round(weekMins/60/weeklyGoal*100),100);
@@ -8437,9 +8437,9 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
   // 8-week history
   const weeklyHistory=Array.from({length:8}).map((_,i)=>{
     const d=new Date();d.setDate(d.getDate()-d.getDay()-(7-i)*7);
-    const wk=d.toISOString().slice(0,10);
+    const wk=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
     const nextWk=new Date(d);nextWk.setDate(nextWk.getDate()+7);
-    const nk=nextWk.toISOString().slice(0,10);
+    const nk=nextWk.getFullYear()+"-"+String(nextWk.getMonth()+1).padStart(2,"0")+"-"+String(nextWk.getDate()).padStart(2,"0");
     const mins=sessions.filter(s=>s.date>=wk&&s.date<nk).reduce((s,x)=>s+x.minutes,0);
     return{label:d.toLocaleString("default",{month:"short"}),mins,hrs:mins/60};
   });
