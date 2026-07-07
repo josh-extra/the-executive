@@ -4590,7 +4590,11 @@ function WatchlistItem({w,onRemove}){
       .catch(()=>{setError(true);setLoading(false);});
   };
 
-  useEffect(()=>{fetchPrice();},[w.ticker]);
+  useEffect(()=>{
+    fetchPrice();
+    const id=setInterval(fetchPrice,60000); // refresh every 60s
+    return()=>clearInterval(id);
+  },[w.ticker]);
 
   return(
     <Card style={{marginBottom:8}}>
@@ -4622,25 +4626,44 @@ function WatchlistItem({w,onRemove}){
   );
 }
 
-function InvestPage({profile}){
+function InvestPage({profile,subscription,setShowUpgrade}){
   const t=T();
   const[tab,setTab]=useState("ideas");
   const asOfDate=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
   const[aiOpps,setAiOpps]=useState(()=>{try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
   const[aiOppsDate,setAiOppsDate]=useState(()=>{try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
   const[loading,setLoading]=useState(false);
-  const[watchlist,setWatchlist]=useState([]);
+  const[aiError,setAiError]=useState("");
+  // Persist watchlist in localStorage so it survives navigation
+  const[watchlist,setWatchlist]=useState(()=>{try{const s=localStorage.getItem("invest_watchlist");return s?JSON.parse(s):[];}catch{return [];}});
   const[wForm,setWForm]=useState({ticker:"",name:"",notes:""});
   const[showWAdd,setShowWAdd]=useState(false);
+
+  // Save watchlist to localStorage whenever it changes
+  useEffect(()=>{try{localStorage.setItem("invest_watchlist",JSON.stringify(watchlist));}catch{}},[watchlist]);
+
   const getAi=async()=>{
-    setLoading(true);
+    setLoading(true);setAiError("");
     try{
-      const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:800,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Investment analyst for "+(profile.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile.shareValue)||0)+", Property "+fmt(parseFloat(profile.propertyValue)||0)+", Super "+fmt(parseFloat(profile.superBalance)||0)+", Crypto "+fmt(parseFloat(profile.cryptoValue)||0)+". AVAILABLE CASH TO DEPLOY: "+fmt(parseFloat(profile.cashSavings)||0)+". First briefly assess their current holdings - any concentration risk or opportunities to rebalance. Then give 3-4 specific new opportunities based on their available cash of "+fmt(parseFloat(profile.cashSavings)||0)+". Search for current ASX and global market data. For each opportunity: NAME, ASSET CLASS, WHY NOW (specific catalyst), SUGGESTED ALLOCATION from available cash, RISK. Be specific with dollar amounts based on their cash position.",messages:[{role:"user",content:"Assess my portfolio and suggest where to deploy my available cash based on current market conditions."}]});
+      const r=await claudeFetch({
+        model:"claude-sonnet-4-6",
+        max_tokens:800,
+        tools:[{type:"web_search_20250305",name:"web_search"}],
+        system:"Investment analyst for "+(profile?.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile?.shareValue)||0)+", Property "+fmt(parseFloat(profile?.propertyValue)||0)+", Super "+fmt(parseFloat(profile?.superBalance)||0)+", Crypto "+fmt(parseFloat(profile?.cryptoValue)||0)+". Available cash: "+fmt(parseFloat(profile?.cashSavings)||0)+". Search for current market conditions. Give 3-4 specific opportunities with: NAME, ASSET CLASS, WHY NOW (specific current catalyst), SUGGESTED ALLOCATION, RISK. Be specific.",
+        messages:[{role:"user",content:"What are the best opportunities right now given current market conditions? Search for latest data."}]
+      });
+      if(!r.ok){
+        const err=await r.json().catch(()=>({}));
+        if(r.status===403)setAiError("Executive subscription required to use Live AI Search.");
+        else if(r.status===429)setAiError(err.error||"Rate limit reached — try again in an hour.");
+        else setAiError("Server error ("+r.status+"). Try again shortly.");
+        setLoading(false);return;
+      }
       const d=await r.json();
       const result=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
-      setAiOpps(result);setAiOppsDate(new Date().toLocaleDateString());
-      try{localStorage.setItem("invest_ai_cache",result);localStorage.setItem("invest_ai_date",new Date().toLocaleDateString());}catch{}
-    }catch{setAiOpps("Connection error.");}
+      setAiOpps(result);setAiOppsDate(new Date().toLocaleDateString("en-AU"));
+      try{localStorage.setItem("invest_ai_cache",result);localStorage.setItem("invest_ai_date",new Date().toLocaleDateString("en-AU"));}catch{}
+    }catch(e){setAiError("Connection error — check your internet and try again.");}
     setLoading(false);
   };
   const ideas=[
@@ -4678,22 +4701,28 @@ function InvestPage({profile}){
       ))}
       {tab==="live"&&(
         <Card style={{borderColor:t.GOLD+"33"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiOpps?12:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiOpps||aiError?12:0}}>
             <div>
-              <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Live Market Intelligence</div>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised - web search enabled</div>
+              <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>✦ Live Market Intelligence</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
+                {aiOppsDate?"Last updated "+aiOppsDate:"Personalised · web search enabled"}
+              </div>
             </div>
-            <Btn onClick={getAi} disabled={loading}>{loading?"Searching...":"Search Now"}</Btn>
+            <Btn onClick={getAi} disabled={loading}>{loading?"Searching...":(aiOpps?"Refresh":"Search Now 🌐")}</Btn>
           </div>
           {loading&&(
             <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
-              <Skeleton width="90%" height={12}/>
-              <Skeleton width="75%" height={12}/>
-              <Skeleton width="85%" height={12}/>
+              {[90,75,85,70,80].map((w,i)=><Skeleton key={i} width={w+"%"} height={12}/>)}
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textAlign:"center",marginTop:4}}>Searching live markets...</div>
             </div>
           )}
-          {aiOpps&&!loading&&<div style={{marginTop:10,fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiOpps}</div>}
-          {!aiOpps&&!loading&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8}}>Click Search Now to get current opportunities tailored to your profile.</div>}
+          {aiError&&!loading&&(
+            <div style={{padding:"10px 12px",background:t.RED+"10",border:"1px solid "+t.RED+"33",borderRadius:7,marginTop:8}}>
+              <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif"}}>{aiError}</div>
+            </div>
+          )}
+          {aiOpps&&!loading&&!aiError&&<div style={{marginTop:10,fontSize:12,color:t.TEXT,lineHeight:1.85,fontFamily:"sans-serif",whiteSpace:"pre-wrap"}}>{aiOpps}</div>}
+          {!aiOpps&&!loading&&!aiError&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8}}>Tap Search Now to get current investment opportunities based on live market data, tailored to your portfolio and risk profile.</div>}
         </Card>
       )}
       {tab==="watchlist"&&(
@@ -9764,7 +9793,7 @@ function App(){
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
-          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile}/>)}
+          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
