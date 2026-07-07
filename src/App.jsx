@@ -54,11 +54,17 @@ const supabase={
 
 // Module-level auth token — set by App when user logs in
 let _activeToken = null;
-const setActiveToken = t => { _activeToken = t; };
+const setActiveToken = t => { 
+  _activeToken = t; 
+  // Also cache in sessionStorage as fallback for module re-initialisation
+  try{ if(t)sessionStorage.setItem("_et",t); else sessionStorage.removeItem("_et"); }catch{}
+};
 
 // Claude API helper — adds auth token for rate limiting and Pro verification
 const claudeFetch = async (body, token) => {
-  const tok = token || _activeToken;
+  // Use explicit token, then module var, then sessionStorage fallback, then localStorage
+  const tok = token || _activeToken || 
+    (()=>{try{return sessionStorage.getItem("_et")||localStorage.getItem("exec_token");}catch{return null;}})();
   const headers = {"Content-Type": "application/json"};
   if (tok) headers["Authorization"] = "Bearer " + tok;
   return fetch("/api/claude", {method: "POST", headers, body: JSON.stringify(body)});
@@ -1897,7 +1903,7 @@ function GoalForm({value,onChange,onSave,onCancel,saveLabel="Create Goal"}){
   );
 }
 
-function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,setShowUpgrade}){
+function GoalsPage({goals,setGoals,completed,setCompleted,profile,subscription,setShowUpgrade,authToken}){
   const t=T();
   const[filter,setFilter]=useState("all");
   const[showAdd,setShowAdd]=useState(false);
@@ -3994,7 +4000,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
   );
 }
 
-function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade}){
+function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,authToken}){
   const t=T();
   const[form,setForm]=useState({date:todayStr(),type:"income",category:"Salary",amount:"",note:""});
   const[showAdd,setShowAdd]=useState(false);
@@ -4047,14 +4053,24 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade}
     try{
       const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
       const catList=[...EXP_CATS.income,...EXP_CATS.expense].join(", ");
-      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]});
+      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown, no explanation. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]},authToken);
+      if(!resp.ok){
+        const err=await resp.json().catch(()=>({}));
+        setPdfState("error");
+        setPdfError(resp.status===403?"Executive subscription required.":resp.status===429?"Rate limit reached — try again in an hour.":err.error||"Server error ("+resp.status+").");
+        return;
+      }
       const d=await resp.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
       const parsed=JSON.parse(text);
-      if(!Array.isArray(parsed)||!parsed.length){setPdfState("error");setPdfError("No transactions found.");return;}
+      if(!Array.isArray(parsed)||!parsed.length){setPdfState("error");setPdfError("No transactions found in this PDF.");return;}
       const valid=parsed.filter(tx=>tx.date&&tx.amount).map((tx,i)=>({id:"pdf_"+i+"_"+Date.now(),date:tx.date,type:tx.type==="income"?"income":"expense",category:tx.category||"Other",amount:Math.abs(parseFloat(tx.amount)||0),note:tx.description||""})).filter(tx=>tx.amount>0);
+      if(!valid.length){setPdfState("error");setPdfError("Could not extract valid transactions. Make sure this is a bank statement PDF.");return;}
       setExtracted(valid);const sel={};valid.forEach(tx=>{sel[tx.id]=true;});setSelected(sel);setPdfState("review");
-    }catch(err){setPdfState("error");setPdfError(err.message?.includes("JSON")?"Could not parse the statement.":"Something went wrong.");}
+    }catch(err){
+      setPdfState("error");
+      setPdfError(err.message?.includes("JSON")?"Could not parse the statement — try a different PDF format.":"Something went wrong: "+err.message);
+    }
   };
   const confirmImport=()=>{setTransactions(ts=>[...extracted.filter(tx=>selected[tx.id]).map(tx=>({...tx,id:Date.now()+Math.random()})),...ts]);setExtracted([]);setSelected({});setPdfState("idle");};
   const add=()=>{if(!form.amount||isNaN(form.amount))return;setTransactions(ts=>[{...form,amount:parseFloat(form.amount),id:Date.now()},...ts]);setForm(f=>({...f,amount:"",note:""}));setShowAdd(false);};
@@ -4762,7 +4778,7 @@ function InvestPage({profile,subscription,setShowUpgrade}){
   );
 }
 
-function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade}){
+function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade,authToken}){
   const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
   const[editingSupp,setEditingSupp]=useState(null);
   const[editForm,setEditForm]=useState({});
@@ -6075,7 +6091,7 @@ function DayScoreChart({last7,scores,history,dayLetters}){
   );
 }
 
-function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade}){
+function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade,authToken}){
   const t=T();
   const[aiReview,setAiReview]=useState("");
   const[loading,setLoading]=useState(false);
@@ -7412,7 +7428,7 @@ function RecCard({r,actions}){
     </div>
   );
 }
-function RecipesPage({profile,subscription,setShowUpgrade}){
+function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
   const t=T();
   const[mealFilter,setMealFilter]=useState("all");
   const[goalFilter,setGoalFilter]=useState("all");
@@ -10119,12 +10135,12 @@ function App(){
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
-          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
           {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
-          {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
@@ -10133,13 +10149,13 @@ function App(){
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
-          {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/> }
-          {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/> }
+          {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
-          {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
