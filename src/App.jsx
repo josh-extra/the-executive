@@ -5218,21 +5218,38 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
     </svg>);
   }
 
+  const[planError,setPlanError]=useState("");
   const getWorkoutPlan=async()=>{
     if(!isPro(subscription)){setShowUpgrade(true);return;}
-    setPlanLoading(true);setPlan(null);
+    setPlanLoading(true);setPlan(null);setPlanError("");
     const goals=(profile?.healthGoals||["Build Muscle"]).join(", ");
+    const fitnessLevel=profile?.fitnessLevel||"Intermediate";
+    const age=profile?.dob?calcAge(profile.dob):(profile?.age||30);
     try{
       const r=await claudeFetch({
         model:"claude-haiku-4-5",max_tokens:1500,
-        system:"You are an expert personal trainer. Return ONLY valid JSON, no markdown.",
-        messages:[{role:"user",content:"Create a 4-day workout split for someone with goals: "+goals+". Return JSON: {split: string, days: [{name: string, focus: string, exercises: [{exercise: string, sets: number, reps: string, rest: string, note: string}]}]}"}]
+        system:"You are an expert personal trainer. Return ONLY valid JSON, no markdown, no explanation.",
+        messages:[{role:"user",content:"Create a 4-day workout split for: goals: "+goals+", fitness level: "+fitnessLevel+", age: "+age+". Use only real exercises. Return JSON exactly: {\"split\": \"string describing the split\", \"days\": [{\"name\": \"Day 1\", \"focus\": \"string\", \"exercises\": [{\"exercise\": \"string\", \"sets\": 3, \"reps\": \"8-10\", \"rest\": \"60s\", \"note\": \"string\"}]}]}"}]
       });
+      if(!r.ok){
+        const err=await r.json().catch(()=>({}));
+        setPlanError(err.error||"Failed to generate plan. Try again.");
+        setPlanLoading(false);return;
+      }
       const d=await r.json();
       const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
       const start=text.indexOf("{"),end=text.lastIndexOf("}");
-      if(start>-1)setPlan(JSON.parse(text.slice(start,end+1)));
-    }catch(e){console.error(e);}
+      if(start>-1){
+        const parsed=JSON.parse(text.slice(start,end+1));
+        if(parsed?.days?.length>0)setPlan(parsed);
+        else setPlanError("Received invalid plan format. Try again.");
+      } else {
+        setPlanError("No plan returned. Try again.");
+      }
+    }catch(e){
+      console.error("Plan error:",e);
+      setPlanError("Connection error. Check your internet and try again.");
+    }
     setPlanLoading(false);
   };
   return (
@@ -5381,6 +5398,11 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
               </button>
             </div>
             {planLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85,70,80].map((w,i)=><Skeleton key={i} width={w+"%"} height={11}/>)}</div>}
+            {planError&&!planLoading&&(
+              <div style={{padding:"10px 12px",background:t.RED+"10",border:"1px solid "+t.RED+"33",borderRadius:7,marginTop:8}}>
+                <div style={{fontSize:12,color:t.RED,fontFamily:"sans-serif"}}>{planError}</div>
+              </div>
+            )}
             {!plan&&!planLoading&&(
               <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,lineHeight:1.7}}>
                 Generate a personalised 4-day split based on your health goals. Tap any exercise in the plan to see form cues and animation.
