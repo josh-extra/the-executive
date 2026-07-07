@@ -4809,11 +4809,30 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
           </div>
         )}
         {(supplements||[]).map((s,i)=>(
-          <div key={s.id}>
+          <div key={s.id}
+            draggable
+            onDragStart={e=>{e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",String(i));e.currentTarget.style.opacity="0.4";}}
+            onDragEnd={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.background="transparent";}}
+            onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move";e.currentTarget.style.background=t.GOLD+"12";}}
+            onDragLeave={e=>{e.currentTarget.style.background="transparent";}}
+            onDrop={e=>{
+              e.preventDefault();
+              e.currentTarget.style.background="transparent";
+              const fromIdx=parseInt(e.dataTransfer.getData("text/plain"));
+              const toIdx=i;
+              if(fromIdx===toIdx)return;
+              setSupplements(ss=>{
+                const arr=[...(ss||[])];
+                const [moved]=arr.splice(fromIdx,1);
+                arr.splice(toIdx,0,moved);
+                return arr;
+              });
+            }}>
             {i>0&&<Divider/>}
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0"}}>
+              <div style={{color:t.BORDER2,cursor:"grab",fontSize:14,flexShrink:0,userSelect:"none",lineHeight:1}}>⠿</div>
               <div onClick={()=>setSupplements(ss=>(ss||[]).map(x=>x.id===s.id?{...x,taken:!x.taken}:x))} style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(s.taken?t.GOLD:t.BORDER2),background:s.taken?t.GOLD:"transparent",flexShrink:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {s.taken&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                {s.taken&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span>}
               </div>
               <div style={{flex:1}}>
                 <span style={{fontSize:12,color:s.taken?t.MUTED:t.TEXT,fontFamily:"sans-serif",textDecoration:s.taken?"line-through":"none"}}>{s.name}</span>
@@ -4822,7 +4841,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
                 {s.purpose&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{s.purpose}</div>}
               </div>
               <button onClick={()=>openEditSupp(s)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>Edit</button>
-              <button onClick={()=>setSupplements(ss=>(ss||[]).filter(x=>x.id!==s.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+              <button onClick={()=>setSupplements(ss=>(ss||[]).filter(x=>x.id!==s.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>✕</button>
             </div>
           </div>
         ))}
@@ -5746,15 +5765,22 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   const[loading,setLoading]=useState(false);
   const[reflection,setReflection]=useState("");
   const[showReflection,setShowReflection]=useState(false);
-  const last7=Array.from({length:7}).map((_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");});
+  const[weekOffset,setWeekOffset]=useState(0); // 0=this week, -1=last week, etc
+
+  const last7=Array.from({length:7}).map((_,i)=>{
+    const d=new Date();
+    d.setDate(d.getDate()-(6-i)+(weekOffset*7));
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  });
   const weekStart=last7[0],weekEnd=last7[6];
   const weekKey="week_"+weekStart;
+  const isCurrentWeek=weekOffset===0;
   const savedReflection=(weeklyReflections||{})[weekKey]||"";
   const savedAiReview=(weeklyReflections||{})[weekKey+"_ai"]||"";
   const isMonday=new Date().getDay()===1;
 
-  // Auto-load saved AI review
-  useEffect(()=>{if(savedAiReview)setAiReview(savedAiReview);},[weekKey]);
+  // Auto-load saved AI review when week changes
+  useEffect(()=>{setAiReview(savedAiReview||"");},[weekKey]);
 
   const scores=last7.map(d=>history[d]?.score||0);
   const activeScores=scores.filter(s=>s>0);
@@ -5789,16 +5815,38 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
     setLoading(false);
   };
 
-  // Auto-generate on Monday morning if Pro and no review yet for this week
+  // Auto-generate on Monday morning if Pro, current week, and no review yet
   useEffect(()=>{
-    if(isMonday&&isPro(subscription)&&!savedAiReview&&avgScore>0&&daysActive>=3){
+    if(isCurrentWeek&&isMonday&&isPro(subscription)&&!savedAiReview&&avgScore>0&&daysActive>=3){
       genReview(true);
     }
   },[isMonday,weekKey]);
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Performance Review</div>
-      <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Weekly Review</div>
+      {/* Week Navigator */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{fontSize:26,color:t.TEXT}}>Weekly Review</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>setWeekOffset(o=>o-1)}
+            style={{width:28,height:28,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ‹
+          </button>
+          <div style={{textAlign:"center",minWidth:120}}>
+            <div style={{fontSize:11,color:isCurrentWeek?t.GOLD:t.TEXT,fontFamily:"sans-serif",fontWeight:isCurrentWeek?600:400}}>
+              {isCurrentWeek?"This Week":weekOffset===-1?"Last Week":weekOffset+" weeks ago"}
+            </div>
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>
+              {fmtDateNum(weekStart)} – {fmtDateNum(weekEnd)}
+            </div>
+          </div>
+          <button onClick={()=>setWeekOffset(o=>Math.min(o+1,0))}
+            disabled={isCurrentWeek}
+            style={{width:28,height:28,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:isCurrentWeek?t.BORDER:t.MUTED,cursor:isCurrentWeek?"default":"pointer",fontFamily:"sans-serif",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ›
+          </button>
+        </div>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
         <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=75?t.GREEN:avgScore>=50?t.GOLD:t.RED}/>
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
@@ -5914,10 +5962,11 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiReview?12:0}}>
           <div>
             <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1}}>
-              AI Weekly Review{isMonday?" · Auto-generated":""}
+              AI Weekly Review{isCurrentWeek&&isMonday?" · Auto-generated":""}
+              {!isCurrentWeek&&<span style={{color:t.MUTED}}> · {fmtDateNum(weekStart)}</span>}
             </div>
             <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
-              {isMonday&&isPro(subscription)?"Automatically generated every Monday":"Habits, workouts, body, mood, goals"}
+              {isCurrentWeek&&isMonday&&isPro(subscription)?"Automatically generated every Monday":"Habits, workouts, body, mood, goals"}
             </div>
           </div>
           <Btn onClick={()=>genReview(false)} disabled={loading}>
