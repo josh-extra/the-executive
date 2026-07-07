@@ -9350,9 +9350,17 @@ function App(){
           .then(r=>r.json()).then(rows=>{
             const d=rows?.[0]?.data;
             if(!d)return;
+            // Sync all data that could have changed on another device
             if(d.theme&&d.theme!==theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
             if(d.bgPhoto&&d.bgPhoto!==bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
             if(d.marketTickers)setMarketTickers(d.marketTickers);
+            if(d.habits!==undefined)setHabits(d.habits);
+            if(d.habitLog)setHabitLog(d.habitLog);
+            if(d.tasks!==undefined)setTasks(d.tasks);
+            if(d.goals!==undefined)setGoals(d.goals);
+            if(d.supplements!==undefined)setSupplements(d.supplements);
+            if(d.profile)setProfile(d.profile);
+            if(d.nwHistory)setNwHistory(prev=>({...prev,...d.nwHistory}));
           }).catch(()=>{});
       }
     };
