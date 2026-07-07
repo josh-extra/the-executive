@@ -9357,7 +9357,7 @@ function App(){
             if(d.marketTickers)setMarketTickers(d.marketTickers);
             // Profile & wealth (cash, income, assets etc)
             if(d.profile)setProfile(d.profile);
-            if(d.nwHistory)setNwHistory(prev=>({...prev,...d.nwHistory}));
+            if(d.nwHistory)setNwHistory(d.nwHistory);
             // Daily execution
             if(d.tasks!==undefined)setTasks(d.tasks);
             if(d.habits!==undefined)setHabits(d.habits);
@@ -9382,8 +9382,26 @@ function App(){
             // Journal & reading
             if(d.journal!==undefined)setJournal(d.journal);
             if(d.books!==undefined)setBooks(d.books);
-            // Score history
-            if(d.history)setHistory(prev=>({...prev,...d.history}));
+            if(d.readingGoal)setReadingGoal(d.readingGoal);
+            // Notes, services, learn
+            if(d.notes!==undefined)setNotes(d.notes);
+            if(d.services!==undefined)setServices(d.services);
+            if(d.learnData)setLearnData(d.learnData);
+            // Weekly reflections & AI advisor
+            if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
+            if(d.advisorMessages)setAdvisorMessages(d.advisorMessages);
+            // Score history — cloud is source of truth, but preserve today's live score
+            if(d.history){
+              const today=todayStr();
+              setHistory(prev=>{
+                const merged={...d.history};
+                // Keep today's local score if it's higher (more up to date)
+                if(prev[today]?.score>=((d.history[today]||{}).score||0)){
+                  merged[today]=prev[today];
+                }
+                return merged;
+              });
+            }
           }).catch(()=>{});
       }
     };
