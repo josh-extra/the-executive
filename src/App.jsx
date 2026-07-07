@@ -4964,14 +4964,259 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
   }));
 
   const EXERCISE_GUIDE={
-    "Bench Press":{muscle:"Chest, Triceps, Shoulders",level:"Beginner",steps:["Lie flat on bench, feet on floor","Grip bar slightly wider than shoulder width","Lower bar to mid-chest with control","Press back up to full extension","Keep wrists straight throughout"],tips:"Keep shoulder blades retracted and lower back neutral. Don't bounce bar off chest."},
-    "Squat":{muscle:"Quads, Glutes, Hamstrings",level:"Beginner",steps:["Stand with feet shoulder-width apart, toes slightly out","Brace core and keep chest up","Descend until thighs are parallel or below","Drive through heels to stand","Keep knees tracking over toes"],tips:"Depth is key - aim for parallel. If heels rise, work on ankle mobility."},
-    "Deadlift":{muscle:"Hamstrings, Glutes, Back, Traps",level:"Intermediate",steps:["Stand with bar over mid-foot","Hip-hinge to grip bar, hands just outside shins","Take slack out of bar, engage lats","Drive floor away, keep bar close to body","Lock out hips and knees at top"],tips:"The bar should drag up your shins. Never round your lower back under load."},
-    "Overhead Press":{muscle:"Shoulders, Triceps, Upper Chest",level:"Intermediate",steps:["Stand with feet shoulder-width, bar at collarbone","Grip just outside shoulders","Press bar straight up, tuck chin to let bar pass","Lock out at top, squeeze shoulders","Lower under control to starting position"],tips:"Squeeze glutes and abs throughout. Don't lean back excessively."},
-    "Pull-ups":{muscle:"Lats, Biceps, Rear Delts",level:"Intermediate",steps:["Hang from bar with overhand grip, hands shoulder-width","Depress shoulder blades to initiate","Pull elbows down and back toward hips","Chin clears bar at top","Lower slowly with control"],tips:"Think about pulling elbows to your pockets, not pulling your hands down."},
-    "Romanian Deadlift":{muscle:"Hamstrings, Glutes, Lower Back",level:"Intermediate",steps:["Stand with bar at hips, slight knee bend","Hinge at hips pushing them back","Lower bar down legs keeping it close","Feel hamstring stretch at bottom","Drive hips forward to return to start"],tips:"This is a hinge not a squat. Feel the stretch in your hamstrings at the bottom."},
-    "Rows":{muscle:"Lats, Rhomboids, Biceps",level:"Beginner",steps:["Hinge forward at hips to 45 degrees","Grip barbell with overhand or neutral grip","Pull bar to lower chest/upper abdomen","Squeeze shoulder blades at top","Lower with control"],tips:"Lead with your elbows, not your hands. Avoid using momentum."},
+    "Bench Press":{muscle:"Chest, Triceps, Shoulders",level:"Beginner",category:"Push",
+      steps:["Lie flat on bench, feet on floor","Grip bar slightly wider than shoulder width","Lower bar to mid-chest with control","Press back up to full extension","Keep wrists straight throughout"],
+      tips:"Keep shoulder blades retracted and lower back neutral. Don't bounce bar off chest.",
+      animation:"push"},
+    "Squat":{muscle:"Quads, Glutes, Hamstrings",level:"Beginner",category:"Legs",
+      steps:["Stand with feet shoulder-width apart, toes slightly out","Brace core and keep chest up","Descend until thighs are parallel or below","Drive through heels to stand","Keep knees tracking over toes"],
+      tips:"Depth is key — aim for parallel. If heels rise, work on ankle mobility.",
+      animation:"squat"},
+    "Deadlift":{muscle:"Hamstrings, Glutes, Back, Traps",level:"Intermediate",category:"Pull",
+      steps:["Stand with bar over mid-foot","Hip-hinge to grip bar, hands just outside shins","Take slack out of bar, engage lats","Drive floor away, keep bar close to body","Lock out hips and knees at top"],
+      tips:"The bar should drag up your shins. Never round your lower back under load.",
+      animation:"hinge"},
+    "Overhead Press":{muscle:"Shoulders, Triceps, Upper Chest",level:"Intermediate",category:"Push",
+      steps:["Stand with feet shoulder-width, bar at collarbone","Grip just outside shoulders","Press bar straight up, tuck chin to let bar pass","Lock out at top, squeeze shoulders","Lower under control to starting position"],
+      tips:"Squeeze glutes and abs throughout. Don't lean back excessively.",
+      animation:"press"},
+    "Pull-ups":{muscle:"Lats, Biceps, Rear Delts",level:"Intermediate",category:"Pull",
+      steps:["Hang from bar with overhand grip, hands shoulder-width","Depress shoulder blades to initiate","Pull elbows down and back toward hips","Chin clears bar at top","Lower slowly with control"],
+      tips:"Think about pulling elbows to your pockets, not pulling your hands down.",
+      animation:"pullup"},
+    "Romanian Deadlift":{muscle:"Hamstrings, Glutes, Lower Back",level:"Intermediate",category:"Pull",
+      steps:["Stand with bar at hips, slight knee bend","Hinge at hips pushing them back","Lower bar down legs keeping it close","Feel hamstring stretch at bottom","Drive hips forward to return to start"],
+      tips:"This is a hinge not a squat. Feel the stretch in your hamstrings at the bottom.",
+      animation:"hinge"},
+    "Rows":{muscle:"Lats, Rhomboids, Biceps",level:"Beginner",category:"Pull",
+      steps:["Hinge forward at hips to 45 degrees","Grip barbell with overhand or neutral grip","Pull bar to lower chest/upper abdomen","Squeeze shoulder blades at top","Lower with control"],
+      tips:"Lead with your elbows, not your hands. Avoid using momentum.",
+      animation:"row"},
+    "Dips":{muscle:"Chest, Triceps, Shoulders",level:"Intermediate",category:"Push",
+      steps:["Grip parallel bars, arms straight","Lean slightly forward for chest emphasis","Lower body until upper arms are parallel","Press back up to full extension","Keep elbows close to body for tricep focus"],
+      tips:"Control the descent. Flaring elbows works more chest; keeping them in works triceps.",
+      animation:"push"},
+    "Lunges":{muscle:"Quads, Glutes, Hamstrings",level:"Beginner",category:"Legs",
+      steps:["Stand with feet hip-width apart","Step forward with one foot","Lower back knee toward floor","Front thigh parallel to floor at bottom","Push through front heel to return"],
+      tips:"Keep your torso upright and front knee over your ankle, not past your toes.",
+      animation:"squat"},
+    "Plank":{muscle:"Core, Shoulders, Glutes",level:"Beginner",category:"Core",
+      steps:["Forearms on floor, elbows under shoulders","Extend legs behind, toes on floor","Form straight line from head to heels","Brace abs and squeeze glutes","Breathe steadily, hold position"],
+      tips:"Don't let hips sag or pike up. Imagine you're trying to pull your elbows to your feet.",
+      animation:"hold"},
+    "Hip Thrust":{muscle:"Glutes, Hamstrings",level:"Beginner",category:"Legs",
+      steps:["Sit against bench, bar across hips","Feet flat on floor, knees bent 90°","Drive hips up until body is straight","Squeeze glutes hard at the top","Lower with control, don't rest at bottom"],
+      tips:"The movement comes from the hips, not the lower back. Chin tucked throughout.",
+      animation:"thrust"},
+    "Incline Bench Press":{muscle:"Upper Chest, Shoulders, Triceps",level:"Beginner",category:"Push",
+      steps:["Set bench to 30-45 degree incline","Lie back, feet flat on floor","Grip bar slightly wider than shoulder-width","Lower bar to upper chest with control","Press back to full extension"],
+      tips:"A higher incline shifts more work to the front deltoid. 30° is optimal for upper chest.",
+      animation:"push"},
+    "Lat Pulldown":{muscle:"Lats, Biceps, Rear Delts",level:"Beginner",category:"Pull",
+      steps:["Sit at cable station, thighs under pads","Grip bar wider than shoulder-width","Lean back slightly and depress shoulders","Pull bar to upper chest leading with elbows","Slowly return bar overhead with control"],
+      tips:"Don't use momentum. Think about driving your elbows into your back pockets.",
+      animation:"pullup"},
+    "Bulgarian Split Squat":{muscle:"Quads, Glutes, Hip Flexors",level:"Advanced",category:"Legs",
+      steps:["Rear foot elevated on bench","Front foot forward enough for 90° knee bend","Lower back knee toward floor","Keep torso upright throughout","Drive through front heel to stand"],
+      tips:"One of the best single-leg exercises. Go slow — balance takes time to develop.",
+      animation:"squat"},
+    "Tricep Pushdown":{muscle:"Triceps",level:"Beginner",category:"Push",
+      steps:["Stand at cable, rope or bar attachment","Elbows pinned to sides, upper arms vertical","Extend forearms down until arms straight","Squeeze triceps at full extension","Slowly return to starting position"],
+      tips:"Keep your upper arms completely still. Only your forearms should move.",
+      animation:"push"},
+    "Bicep Curl":{muscle:"Biceps, Forearms",level:"Beginner",category:"Pull",
+      steps:["Stand with dumbbells at sides, palms forward","Keep upper arms still at sides","Curl weights up to shoulder level","Squeeze biceps at the top","Lower slowly with full control"],
+      tips:"Don't swing your body. Go lighter and focus on the squeeze at the top.",
+      animation:"curl"},
   };
+
+  // SVG stick figure animations
+  function ExerciseAnimation({type,color}){
+    const t=T();
+    const [frame,setFrame]=useState(0);
+    useEffect(()=>{
+      const id=setInterval(()=>setFrame(f=>(f+1)%60),33); // ~30fps
+      return()=>clearInterval(id);
+    },[]);
+    const progress=(Math.sin(frame/60*Math.PI*2)+1)/2; // 0-1 oscillating
+
+    // Stick figure parts — centered at 60,80
+    const head=(x,y)=><circle cx={x} cy={y} r="8" fill="none" stroke={color||t.GOLD} strokeWidth="2"/>;
+    const body=(x1,y1,x2,y2)=><line x1={x1} y1={y1} x2={x2} y2={y2} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>;
+
+    if(type==="squat"){
+      const bend=progress*35; // 0=standing, 35=deep squat
+      const hipY=60+bend;
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {head(60,18)}
+        {body(60,26,60,50-bend*0.3)} {/* torso tilts */}
+        {/* left leg */}
+        <line x1={60} y1={50-bend*0.3} x2={45-bend*0.3} y2={hipY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={45-bend*0.3} y1={hipY} x2={40} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* right leg */}
+        <line x1={60} y1={50-bend*0.3} x2={75+bend*0.3} y2={hipY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={75+bend*0.3} y1={hipY} x2={80} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* arms */}
+        {body(60,32,44-bend*0.2,45+bend*0.3)}
+        {body(60,32,76+bend*0.2,45+bend*0.3)}
+        {/* ground */}
+        <line x1="20" y1="104" x2="100" y2="104" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="120" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Squat</text>
+      </svg>);
+    }
+
+    if(type==="push"){
+      const pushY=progress*20; // chest moves down/up
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {/* lying figure pushing */}
+        {head(30+pushY*0.5,55-pushY*0.3)}
+        {body(38+pushY*0.5,58-pushY*0.3,80,65)} {/* torso */}
+        {/* arms pushing */}
+        <line x1={38+pushY*0.5} y1={60-pushY*0.3} x2={30} y2={70+pushY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={30} y1={70+pushY} x2={20} y2={75+pushY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* legs */}
+        {body(80,65,95,68)}
+        {body(95,68,105,72)}
+        {/* bar */}
+        <line x1="15" y1={72+pushY} x2="35" y2={72+pushY} stroke={color||t.GOLD} strokeWidth="3" strokeLinecap="round"/>
+        <line x1="20" y1="72" x2="20" y2={72+pushY} stroke={t.MUTED} strokeWidth="1" strokeDasharray="2,2"/>
+        <text x="60" y="105" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Press</text>
+      </svg>);
+    }
+
+    if(type==="pullup"){
+      const pullY=progress*25; // body moves up
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {/* bar at top */}
+        <line x1="20" y1="15" x2="100" y2="15" stroke={color||t.GOLD} strokeWidth="3"/>
+        {head(60,35-pullY)}
+        {body(60,43-pullY,60,65-pullY)}
+        {/* arms up to bar */}
+        <line x1={60} y1={43-pullY} x2={40} y2={20} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60} y1={43-pullY} x2={80} y2={20} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* legs hanging */}
+        <line x1={60} y1={65-pullY} x2={55} y2={85-pullY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={55} y1={85-pullY} x2={52} y2={100-pullY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60} y1={65-pullY} x2={65} y2={85-pullY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={65} y1={85-pullY} x2={68} y2={100-pullY} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <text x="60" y="125" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Pull</text>
+      </svg>);
+    }
+
+    if(type==="hinge"){
+      const angle=progress*40; // hip hinge angle
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {/* standing hinge */}
+        <line x1="60" y1="85" x2="60" y2="105" stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="60" y1="105" x2="45" y2="120" stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="60" y1="105" x2="75" y2="120" stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* torso hinges */}
+        {head(60-angle*0.6,35+angle*0.4)}
+        <line x1={60-angle*0.6} y1={43+angle*0.4} x2={60} y2={85} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* arms hang down */}
+        <line x1={60-angle*0.6} y1={55+angle*0.3} x2={55-angle*0.4} y2={80+angle*0.3} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60-angle*0.6} y1={55+angle*0.3} x2={65-angle*0.4} y2={80+angle*0.3} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* bar */}
+        <line x1={45-angle*0.5} y1={82+angle*0.3} x2={70-angle*0.5} y2={82+angle*0.3} stroke={color||t.GOLD} strokeWidth="3" strokeLinecap="round"/>
+        <line x1="20" y1="123" x2="100" y2="123" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="135" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Hinge</text>
+      </svg>);
+    }
+
+    if(type==="row"){
+      const pull=progress*20;
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {head(35,30)}
+        {/* torso bent forward */}
+        <line x1={35} y1={38} x2={70} y2={65} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* legs */}
+        <line x1={70} y1={65} x2={65} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={70} y1={65} x2={80} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* pulling arm */}
+        <line x1={45} y1={48} x2={30+pull} y2={60} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={30+pull} y1={60} x2={20+pull} y2={68} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* bar */}
+        <line x1={15+pull} y1={68} x2={30+pull} y2={68} stroke={color||t.GOLD} strokeWidth="3" strokeLinecap="round"/>
+        <line x1="20" y1="104" x2="100" y2="104" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="118" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Row</text>
+      </svg>);
+    }
+
+    if(type==="press"){
+      const pressH=progress*25;
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {head(60,25)}
+        {body(60,33,60,70)}
+        {/* legs */}
+        <line x1={60} y1={70} x2={48} y2={105} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60} y1={70} x2={72} y2={105} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* arms pressing overhead */}
+        <line x1={60} y1={45} x2={40} y2={55-pressH*0.5} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={40} y1={55-pressH*0.5} x2={35} y2={40-pressH} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60} y1={45} x2={80} y2={55-pressH*0.5} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={80} y1={55-pressH*0.5} x2={85} y2={40-pressH} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* bar */}
+        <line x1="28" y1={40-pressH} x2="92" y2={40-pressH} stroke={color||t.GOLD} strokeWidth="3" strokeLinecap="round"/>
+        <line x1="20" y1="108" x2="100" y2="108" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="122" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Press</text>
+      </svg>);
+    }
+
+    if(type==="curl"){
+      const curl=progress*50; // forearm angle
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {head(60,18)}
+        {body(60,26,60,65)}
+        {/* legs */}
+        <line x1={60} y1={65} x2={48} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={60} y1={65} x2={72} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* curling arm */}
+        <line x1={60} y1={40} x2={40} y2={55} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={40} y1={55} x2={35+curl*0.2} y2={75-curl*0.3} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* other arm */}
+        <line x1={60} y1={40} x2={80} y2={55} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={80} y1={55} x2={85} y2={75} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1="20" y1="104" x2="100" y2="104" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="118" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Curl</text>
+      </svg>);
+    }
+
+    if(type==="thrust"){
+      const up=progress*25;
+      return(<svg width="120" height="140" viewBox="0 0 120 140">
+        {/* bench */}
+        <rect x="55" y={85-up} width="50" height="8" rx="2" fill={t.CARD2} stroke={t.BORDER}/>
+        {head(40,40+up*0.2)}
+        {/* torso rising */}
+        <line x1={40} y1={48+up*0.2} x2={70} y2={78-up} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* legs */}
+        <line x1={70} y1={78-up} x2={80} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        <line x1={70} y1={78-up} x2={90} y2={100} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+        {/* bar on hips */}
+        <line x1="50" y1={78-up} x2="90" y2={78-up} stroke={color||t.GOLD} strokeWidth="3" strokeLinecap="round"/>
+        <line x1="20" y1="104" x2="110" y2="104" stroke={t.BORDER} strokeWidth="1"/>
+        <text x="60" y="118" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Hip Thrust</text>
+      </svg>);
+    }
+
+    // Default hold/plank animation
+    const wobble=progress*4-2;
+    return(<svg width="120" height="140" viewBox="0 0 120 140">
+      {head(25+wobble*0.2,55)}
+      {/* plank body */}
+      <line x1={33} y1={60} x2={90} y2={65+wobble*0.2} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      {/* forearms */}
+      <line x1={33} y1={60} x2={25} y2={75} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      <line x1={25} y1={75} x2={15} y2={76} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      <line x1={50} y1={62} x2={45} y2={76} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      <line x1={45} y1={76} x2={35} y2={77} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      {/* legs */}
+      <line x1={90} y1={65} x2={100} y2={78} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      <line x1={100} y1={78} x2={105} y2={79} stroke={color||t.GOLD} strokeWidth="2" strokeLinecap="round"/>
+      <line x1="10" y1="80" x2="110" y2="80" stroke={t.BORDER} strokeWidth="1"/>
+      <text x="60" y="100" textAnchor="middle" fill={t.MUTED} fontSize="9" fontFamily="sans-serif">Hold</text>
+    </svg>);
+  }
 
   const getWorkoutPlan=async()=>{
     if(!isPro(subscription)){setShowUpgrade(true);return;}
@@ -5000,7 +5245,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Log</Btn>
       </div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {[["log","Log"],["progress","Progress"],["records","Records"],["exercises","Exercises"]].map(([id,label])=>(
+        {[["log","Log"],["progress","Progress"],["records","Records"],["exercises","Library"],["plan","AI Plan"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"7px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>
             {label}
           </button>
@@ -5120,49 +5365,68 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
         </div>
       )}
 
-      {/* ── EXERCISES TAB ── */}
-      {tab==="exercises"&&(
+      {/* ── PLAN TAB ── */}
+      {tab==="plan"&&(
         <div>
           <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:plan||planLoading?12:0}}>
               <div>
-                <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>AI Workout Plan</div>
-                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>Personalised to your health goals</div>
+                <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase"}}>✦ AI Workout Plan</div>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>
+                  {(profile?.healthGoals||[]).join(", ")||"Set health goals in Profile for a personalised plan"}
+                </div>
               </div>
               <button onClick={getWorkoutPlan} disabled={planLoading} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:t.GOLD,cursor:planLoading?"default":"pointer",fontFamily:"sans-serif",fontSize:11}}>
-                {planLoading?"Building...":"Generate Plan"}
+                {planLoading?"Building...":(plan?"Regenerate":"Generate Plan")}
               </button>
             </div>
-            {planLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85,70].map((w,i)=><Skeleton key={i} width={w+"%"} height={11}/>)}</div>}
+            {planLoading&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{[90,75,85,70,80].map((w,i)=><Skeleton key={i} width={w+"%"} height={11}/>)}</div>}
+            {!plan&&!planLoading&&(
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:8,lineHeight:1.7}}>
+                Generate a personalised 4-day split based on your health goals. Tap any exercise in the plan to see form cues and animation.
+              </div>
+            )}
             {plan&&!planLoading&&(
               <div>
-                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12}}>{plan.split}</div>
+                <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:12,fontStyle:"italic"}}>{plan.split}</div>
                 {(plan.days||[]).map((day,di)=>(
-                  <div key={di} style={{marginBottom:12}}>
-                    <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{day.name+" - "+day.focus}</div>
-                    {(day.exercises||[]).map((ex,ei)=>(
-                      <div key={ei} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>{ex.exercise}</div>
-                          {ex.note&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{ex.note}</div>}
-                        </div>
-                        <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:8}}>
-                          {[{v:ex.sets+"x",l:"sets"},{v:ex.reps,l:"reps"},{v:ex.rest,l:"rest"}].map(m=>(
-                            <div key={m.l} style={{textAlign:"center",background:t.CARD2,borderRadius:5,padding:"3px 7px"}}>
-                              <div style={{fontSize:11,color:t.GOLD,fontWeight:700}}>{m.v}</div>
-                              <div style={{fontSize:8,color:t.MUTED}}>{m.l}</div>
+                  <div key={di} style={{marginBottom:14}}>
+                    <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8,paddingBottom:4,borderBottom:"1px solid "+t.GOLD+"33"}}>{day.name+" — "+day.focus}</div>
+                    {(day.exercises||[]).map((ex,ei)=>{
+                      const hasGuide=!!EXERCISE_GUIDE[ex.exercise];
+                      return(
+                        <div key={ei} onClick={()=>{if(hasGuide){setSelectedEx(ex.exercise);setTab("exercises");}}}
+                          style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+t.BORDER,cursor:hasGuide?"pointer":"default"}}>
+                          <div style={{flex:1}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{fontSize:12,color:hasGuide?t.GOLD:t.TEXT,fontFamily:"sans-serif",fontWeight:500}}>{ex.exercise}</div>
+                              {hasGuide&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>▸ guide</span>}
                             </div>
-                          ))}
+                            {ex.note&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:1}}>{ex.note}</div>}
+                          </div>
+                          <div style={{display:"flex",gap:5,flexShrink:0,marginLeft:8}}>
+                            {[{v:ex.sets+"x",l:"sets"},{v:ex.reps,l:"reps"},{v:ex.rest,l:"rest"}].map(m=>(
+                              <div key={m.l} style={{textAlign:"center",background:t.CARD2,borderRadius:5,padding:"3px 6px"}}>
+                                <div style={{fontSize:11,color:t.GOLD,fontWeight:700}}>{m.v}</div>
+                                <div style={{fontSize:8,color:t.MUTED}}>{m.l}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ))}
               </div>
             )}
           </Card>
+          {!isPro(subscription)&&<UpgradeHint message="✦ Generate AI workout plans with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
+        </div>
+      )}
 
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Exercise Library</div>
+      {/* ── EXERCISES TAB ── */}
+      {tab==="exercises"&&(
+        <div>
           {selectedEx?(
             <Card style={{marginBottom:10}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -5172,14 +5436,8 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
                 </div>
                 <button onClick={()=>setSelectedEx(null)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"sans-serif"}}>Back</button>
               </div>
-              <div style={{background:t.CARD2,borderRadius:10,height:140,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
-                <style>{"@keyframes exBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}} @keyframes exPush{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.65)}}"}</style>
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:52,animation:selectedEx==="Squat"||selectedEx==="Deadlift"||selectedEx==="Romanian Deadlift"?"exBounce 2s ease-in-out infinite":"exPush 2s ease-in-out infinite"}}>
-                    {selectedEx==="Bench Press"?"P":selectedEx==="Squat"?"S":selectedEx==="Deadlift"?"D":selectedEx==="Overhead Press"?"O":selectedEx==="Pull-ups"?"U":selectedEx==="Rows"?"R":"F"}
-                  </div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:6}}>{selectedEx}</div>
-                </div>
+              <div style={{background:t.CARD2,borderRadius:10,height:160,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center",position:"relative",overflow:"hidden"}}>
+                <ExerciseAnimation type={EXERCISE_GUIDE[selectedEx]?.animation||"hold"} color={t.GOLD}/>
               </div>
               <div style={{marginBottom:12}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>How to perform</div>
@@ -5204,17 +5462,24 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade})
               )}
             </Card>
           ):(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {Object.keys(EXERCISE_GUIDE).map(ex=>(
-                <div key={ex} onClick={()=>setSelectedEx(ex)} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"12px 14px",cursor:"pointer"}}>
-                  <div style={{fontSize:13,color:t.TEXT,fontWeight:600,marginBottom:4}}>{ex}</div>
-                  <div style={{fontSize:10,color:t.GOLD,fontFamily:"sans-serif",marginBottom:4}}>{EXERCISE_GUIDE[ex].muscle}</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:4}}>{EXERCISE_GUIDE[ex].level}</div>
-                    {prs[ex]&&<div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>PR: {prs[ex].weight}kg</div>}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+              {Object.keys(EXERCISE_GUIDE).map(ex=>{
+                const g=EXERCISE_GUIDE[ex];
+                const catColors={Push:t.BLUE,Pull:t.GREEN,Legs:t.GOLD,Core:t.PURPLE};
+                return(
+                  <div key={ex} onClick={()=>setSelectedEx(ex)} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"12px",cursor:"pointer",transition:"border-color .15s"}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=t.GOLD+"66"}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor=t.BORDER}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                      <div style={{fontSize:9,color:catColors[g.category]||t.MUTED,fontFamily:"sans-serif",background:(catColors[g.category]||t.MUTED)+"18",padding:"2px 6px",borderRadius:4}}>{g.category}</div>
+                      {prs[ex]&&<div style={{fontSize:9,color:t.GREEN,fontFamily:"sans-serif"}}>PR</div>}
+                    </div>
+                    <div style={{fontSize:12,color:t.TEXT,fontWeight:600,marginBottom:3,lineHeight:1.3}}>{ex}</div>
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:4}}>{g.muscle}</div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:4,display:"inline-block"}}>{g.level}</div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
