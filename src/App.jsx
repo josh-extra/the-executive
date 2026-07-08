@@ -5837,36 +5837,45 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                     <>
                       <PB value={pct} color={col} height={4}/>
                       <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginTop:4,marginBottom:8}}>{b.cur+" / "+b.tot+" pages - "+pct+"%"}</div>
-                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                      <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
                         {[10,25,50].map(n=>(
                           <button key={n} onClick={()=>addPages(b.id,n)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 8px",color:t.TEXT,cursor:"pointer",fontFamily:"sans-serif",fontSize:11}}>{"+ "+n}</button>
                         ))}
-                        <div style={{display:"flex",gap:4,flex:1,alignItems:"center"}}>
+                        <div style={{display:"flex",gap:4,flex:1,minWidth:120,alignItems:"center"}}>
                           <input
                             type="number"
-                            placeholder="Set page"
+                            inputMode="numeric"
+                            enterKeyHint="go"
+                            placeholder="Page #"
                             min={0}
                             max={b.tot}
+                            id={"page-input-"+b.id}
                             onKeyDown={e=>{
                               if(e.key==="Enter"&&e.target.value){
                                 const p=Math.max(0,Math.min(parseInt(e.target.value)||0,b.tot));
                                 const fromPage=b.cur;
-                                if(p>=b.tot){
-                                  markFinished(b.id);
-                                } else if(p>fromPage){
-                                  setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));
-                                  setNotePrompt({bookId:b.id,fromPage,toPage:p,text:""});
-                                } else {
-                                  setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));
-                                }
+                                if(p>=b.tot){markFinished(b.id);}
+                                else if(p>fromPage){setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));setNotePrompt({bookId:b.id,fromPage,toPage:p,text:""});}
+                                else{setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));}
                                 e.target.value="";
                               }
                             }}
                             style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"5px 8px",color:t.TEXT,fontFamily:"sans-serif",fontSize:11,outline:"none",minWidth:0}}
                           />
-                          <span style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",flexShrink:0}}>set page</span>
+                          <button onClick={()=>{
+                            const inp=document.getElementById("page-input-"+b.id);
+                            if(!inp?.value)return;
+                            const p=Math.max(0,Math.min(parseInt(inp.value)||0,b.tot));
+                            const fromPage=b.cur;
+                            if(p>=b.tot){markFinished(b.id);}
+                            else if(p>fromPage){setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));setNotePrompt({bookId:b.id,fromPage,toPage:p,text:""});}
+                            else{setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:p}:x));}
+                            inp.value="";inp.blur();
+                          }} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:600,flexShrink:0}}>
+                            Save
+                          </button>
                         </div>
-                        <button onClick={()=>markFinished(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0}}>Done</button>
+                        <button onClick={()=>markFinished(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:6,padding:"5px 10px",color:t.GREEN,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,flexShrink:0}}>Finished</button>
                       </div>
                     </>
                   )}
