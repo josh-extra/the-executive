@@ -8975,25 +8975,55 @@ function ServicesPage({services,setServices}){
 }
 
 
-function PaywallPage({onUpgrade}){
+function PaywallPage({onUpgrade,feature}){
   const t=T();
-  const proFeatures=["AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Invest intelligence & market insights"];
+  const featureMap={
+    advisor:{icon:"🤖",title:"AI Advisor",desc:"Your private advisor with full dashboard visibility, web search, and honest assessments."},
+    invest:{icon:"📈",title:"Invest Intelligence",desc:"Live market prices, AI-powered opportunities, and a personalised watchlist."},
+    tax:{icon:"🧾",title:"Tax Planner",desc:"Australian tax bracket estimator, deduction tracker and refund calculator."},
+    learn:{icon:"🎓",title:"Learn",desc:"AI-curated education and courses tailored to your goals and career."},
+    services:{icon:"👔",title:"Services",desc:"Professional service recommendations based on your financial profile."},
+  };
+  const ctx=feature&&featureMap[feature]?featureMap[feature]:null;
+  const proFeatures=[
+    "AI Advisor — full dashboard visibility + web search",
+    "Morning Briefing with live market data",
+    "Live stock, crypto & commodity prices",
+    "AI goal suggestions & habit coaching",
+    "AI workout plan generator",
+    "AI supplement recommendations",
+    "Weekly AI performance review",
+    "Bank statement PDF import",
+    "Invest intelligence & opportunities",
+    "Tax planning — Australian brackets",
+  ];
   return(
     <div style={{maxWidth:440,margin:"0 auto",padding:"40px 20px",textAlign:"center"}}>
-      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:8}}>Executive Feature</div>
-      <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>This is an Executive feature</div>
-      <div style={{fontSize:12,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24,lineHeight:1.6}}>You're on the free plan — and you can stay here as long as you like. Upgrade when you're ready to unlock AI-powered intelligence.</div>
-      <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"44",borderRadius:12,padding:"16px",marginBottom:20,textAlign:"left"}}>
-        <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Unlocked with The Executive</div>
+      {ctx?(
+        <>
+          <div style={{fontSize:40,marginBottom:12}}>{ctx.icon}</div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:8}}>Executive Feature</div>
+          <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>{ctx.title}</div>
+          <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24,lineHeight:1.75}}>{ctx.desc}</div>
+        </>
+      ):(
+        <>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:8}}>Executive Feature</div>
+          <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>Unlock the full dashboard</div>
+          <div style={{fontSize:13,color:t.MUTED,fontFamily:"sans-serif",marginBottom:24,lineHeight:1.75}}>This feature is part of The Executive plan. Join founders, investors and high performers who use it daily.</div>
+        </>
+      )}
+      <div style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"33",borderRadius:12,padding:"16px",marginBottom:20,textAlign:"left"}}>
+        <div style={{fontSize:9,color:t.GOLD,fontFamily:"sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>What you unlock</div>
         {proFeatures.map((f,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<proFeatures.length-1?"1px solid "+t.BORDER+"66":"none"}}>
-            <span style={{color:t.GOLD,fontSize:11,flexShrink:0}}>✦</span>
-            <span style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:i<proFeatures.length-1?"1px solid "+t.BORDER+"44":"none"}}>
+            <span style={{color:t.GOLD,fontSize:10,flexShrink:0}}>✦</span>
+            <span style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif"}}>{f}</span>
           </div>
         ))}
       </div>
       <button onClick={onUpgrade} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:13,fontWeight:700,letterSpacing:.5,marginBottom:10}}>
-        Upgrade to The Executive
+        Upgrade to The Executive →
       </button>
       <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif"}}>$14/month or $139/year · Cancel anytime · Free plan always available</div>
     </div>
@@ -10152,9 +10182,9 @@ function App(){
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
-          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<InvestPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
+          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
-          {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
+          {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/> }
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
@@ -10163,10 +10193,10 @@ function App(){
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
           {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
-          {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
+          {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="learn"/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
-          {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<ServicesPage services={services} setServices={setServices}/>)}
-          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)}/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
+          {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="services"/>:<ServicesPage services={services} setServices={setServices}/>)}
+          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="advisor"/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
           {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} authToken={authToken} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
