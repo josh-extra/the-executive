@@ -9319,15 +9319,7 @@ function App(){
   const[isOnline,setIsOnline]=useState(()=>navigator.onLine);
   const[pendingSave,setPendingSave]=useState(false);
 
-  // Sync total debt from debts array back to profile whenever debts change
-  useEffect(()=>{
-    if(!debts?.length||!readyToSave||!profile)return;
-    const totalDebt=Math.round(debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0));
-    const currentTotalDebt=Math.round(parseFloat(profile?.totalDebt)||0);
-    if(Math.abs(totalDebt-currentTotalDebt)<1)return;
-    const totalAssets=parseFloat(profile?.totalAssets)||0;
-    setProfile(p=>p?({...p,totalDebt,netWorth:Math.round(totalAssets-totalDebt)}):p);
-  },[debts,readyToSave]);
+  // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
     const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
@@ -10122,7 +10114,7 @@ function App(){
   const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
   const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
   const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
-  const liveAssets=(parseFloat(activeProfile.propertyValue)||0)+(parseFloat(activeProfile.cashSavings)||0)+(parseFloat(activeProfile.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
+  const liveAssets=(parseFloat(activeProfile?.propertyValue)||0)+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
   const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0);
   const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
   const effectiveTotalDebt=liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0);
@@ -10130,7 +10122,7 @@ function App(){
     ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
     :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
   ):activeProfile;
-  const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile.netWorth||0};
+  const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
