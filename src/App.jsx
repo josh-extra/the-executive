@@ -6806,8 +6806,35 @@ function BudgetPage({transactions,budgets,setBudgets}){
   const[showAdd,setShowAdd]=useState(false);
   const[newCat,setNewCat]=useState("");
   const[editingCat,setEditingCat]=useState(null);
+  const[showAutoFill,setShowAutoFill]=useState(false);
+
+  // Use most recent month with data (same logic as CashFlow)
+  const recentMonths=Array.from({length:3}).map((_,i)=>{
+    const d=new Date();d.setMonth(d.getMonth()-(i+1));
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+  });
+  const hasRecentData=transactions.some(tx=>recentMonths.some(m=>tx.date.startsWith(m)));
+
   const mk=monthStr();
   const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
+
+  // Auto-fill budgets from 3-month average spend per category
+  const autoFillFromHistory=()=>{
+    const suggestions={};
+    const defaultCats=EXP_CATS.expense;
+    defaultCats.forEach(cat=>{
+      const monthlySpends=recentMonths.map(m=>
+        transactions.filter(tx=>tx.date.startsWith(m)&&tx.type==="expense"&&tx.category===cat)
+          .reduce((s,tx)=>s+tx.amount,0)
+      ).filter(v=>v>0);
+      if(monthlySpends.length>0){
+        const avg=Math.round(monthlySpends.reduce((a,b)=>a+b,0)/monthlySpends.length);
+        if(avg>0)suggestions[cat]=avg;
+      }
+    });
+    setBudgets(b=>({...b,...Object.fromEntries(Object.entries(suggestions).map(([k,v])=>[k,String(v)]))}));
+    setShowAutoFill(false);
+  };
 
   // All budget categories = defaults + custom ones stored in budgets
   const defaultCats=EXP_CATS.expense;
@@ -6831,14 +6858,69 @@ function BudgetPage({transactions,budgets,setBudgets}){
 
   return (
     <div data-page="true" style={{maxWidth:800,margin:"0 auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:10}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Financial Control</div>
           <div style={{fontSize:26,color:t.TEXT}}>Monthly Budget</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleString("default",{month:"long",year:"numeric"})}</div>
         </div>
-        <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Category</Btn>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {hasRecentData&&<button onClick={()=>setShowAutoFill(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"8px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:600}}>
+            ✦ Fill from Statements
+          </button>}
+          <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Category</Btn>
+        </div>
       </div>
+
+      {/* Auto-fill from statements card */}
+      {showAutoFill&&(
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44",background:t.GOLD+"06"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+            <div>
+              <div style={{fontSize:12,color:t.TEXT,fontFamily:"sans-serif",fontWeight:600,marginBottom:4}}>Auto-fill from transaction history</div>
+              <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7}}>
+                Sets each category budget to your 3-month average spend from imported statements.<br/>
+                <span style={{color:t.GOLD}}>Only categories with transaction history will be updated.</span>
+              </div>
+            </div>
+          </div>
+          {/* Preview of what will be set */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6,marginBottom:12}}>
+            {EXP_CATS.expense.map(cat=>{
+              const monthlySpends=recentMonths.map(m=>
+                transactions.filter(tx=>tx.date.startsWith(m)&&tx.type==="expense"&&tx.category===cat)
+                  .reduce((s,tx)=>s+tx.amount,0)
+              ).filter(v=>v>0);
+              if(!monthlySpends.length)return null;
+              const avg=Math.round(monthlySpends.reduce((a,b)=>a+b,0)/monthlySpends.length);
+              const current=parseFloat(budgets[cat])||0;
+              return(
+                <div key={cat} style={{background:t.CARD2,borderRadius:7,padding:"8px 10px",border:"1px solid "+t.BORDER}}>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"sans-serif",marginBottom:2}}>{cat}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    {current>0&&<span style={{fontSize:10,color:t.MUTED,textDecoration:"line-through"}}>{fmt(current)}</span>}
+                    <span style={{fontSize:13,color:t.GOLD,fontWeight:700}}>{fmt(avg)}</span>
+                  </div>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif"}}>avg/{recentMonths.length}mo</div>
+                </div>
+              );
+            }).filter(Boolean)}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={autoFillFromHistory}>Apply Suggestions</Btn>
+            <Btn onClick={()=>setShowAutoFill(false)} variant="ghost">Cancel</Btn>
+          </div>
+        </Card>
+      )}
+
+      {/* No transactions yet */}
+      {!transactions.length&&(
+        <Card style={{marginBottom:14,textAlign:"center",padding:"24px"}}>
+          <div style={{fontSize:24,marginBottom:8}}>📊</div>
+          <div style={{fontSize:13,color:t.TEXT,marginBottom:6}}>Import bank statements to auto-fill budgets</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.7,marginBottom:12}}>Go to Cash Flow → Import PDF to upload your bank statement. Once imported, come back here and tap <span style={{color:t.GOLD}}>Fill from Statements</span> to set budgets based on your actual spending.</div>
+        </Card>
+      )}
 
       {showAdd&&(
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
