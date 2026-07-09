@@ -6818,6 +6818,12 @@ function BudgetPage({transactions,budgets,setBudgets}){
   const mk=monthStr();
   const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
 
+  // Use most recent month with data — same as CashFlow page
+  const hasCurrentMonthTx=transactions.some(tx=>tx.date.startsWith(mk)&&tx.type==="expense");
+  const activeMk=hasCurrentMonthTx?mk:prevMk;
+  const activeMkLabel=(()=>{const d=new Date(activeMk+"-01T12:00:00");return d.toLocaleString("default",{month:"long",year:"numeric"});})();
+  const isShowingPrevMonth=activeMk===prevMk&&!hasCurrentMonthTx;
+
   // Auto-fill budgets from 3-month average spend per category
   const autoFillFromHistory=()=>{
     const suggestions={};
@@ -6844,7 +6850,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
   const totalBudget=budgetedCats.reduce((s,c)=>s+(parseFloat(budgets[c])||0),0);
 
   const getSpent=(cat,month)=>transactions.filter(tx=>tx.date.startsWith(month)&&tx.type==="expense"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0);
-  const totalSpent=budgetedCats.reduce((s,c)=>s+getSpent(c,mk),0);
+  const totalSpent=budgetedCats.reduce((s,c)=>s+getSpent(c,activeMk),0);
   const totalPct=totalBudget>0?Math.min(Math.round(totalSpent/totalBudget*100),100):0;
   const remaining=totalBudget-totalSpent;
 
@@ -6862,7 +6868,10 @@ function BudgetPage({transactions,budgets,setBudgets}){
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:5}}>Financial Control</div>
           <div style={{fontSize:26,color:t.TEXT}}>Monthly Budget</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginTop:2}}>{new Date().toLocaleString("default",{month:"long",year:"numeric"})}</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
+            <div style={{fontSize:11,color:isShowingPrevMonth?t.GOLD:t.MUTED,fontFamily:"sans-serif"}}>{activeMkLabel}</div>
+            {isShowingPrevMonth&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",background:t.GOLD+"14",padding:"2px 7px",borderRadius:4}}>Showing last month — no data yet for {new Date().toLocaleString("default",{month:"long"})}</div>}
+          </div>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {hasRecentData&&<button onClick={()=>setShowAutoFill(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"8px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:600}}>
@@ -6993,7 +7002,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {allCats.map(cat=>{
           const budget=parseFloat(budgets[cat])||0;
-          const spent=getSpent(cat,mk);
+          const spent=getSpent(cat,activeMk);
           const prevSpent=getSpent(cat,prevMk);
           const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
           const over=budget>0&&spent>budget;
@@ -7053,7 +7062,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Unbudgeted Categories</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {defaultCats.filter(c=>!budgets[c]||parseFloat(budgets[c])===0).map(cat=>{
-                const spent=getSpent(cat,mk);
+                const spent=getSpent(cat,activeMk);
                 return (
                   <button key={cat} onClick={()=>setEditingCat(cat)} style={{padding:"5px 11px",borderRadius:14,border:"1px solid "+t.BORDER,background:"transparent",color:spent>0?t.TEXT:t.MUTED,cursor:"pointer",fontFamily:"sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
                     {cat}
