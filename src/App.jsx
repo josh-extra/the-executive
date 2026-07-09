@@ -178,27 +178,25 @@ const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
 const applyDailyReset=(saved,today)=>{
-  if(!saved.lastSavedDate||saved.lastSavedDate!==today){
-    const dayOfWeek=new Date(today+"T12:00:00").getDay(); // 0=Sun,1=Mon...6=Sat
-    return{...saved,lastSavedDate:today,
-      tasks:(saved.tasks||[]).map(t=>{
-        // Always keep non-done tasks as-is (roll over)
-        if(!t.done)return t;
-        // Recurring daily — reset to undone
-        if(t.recurring&&!t.recurDays)return{...t,done:false};
-        // Recurring on specific days — only show/reset on matching day
-        if(t.recurring&&t.recurDays?.length){
-          if(t.recurDays.includes(dayOfWeek))return{...t,done:false};
-          // Not today's recurring day — keep as done/hidden
-          return t;
-        }
-        // One-off completed task — remove it (it's done, don't carry forward)
-        return null;
-      }).filter(Boolean),
-      supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))
-    };
-  }
-  return saved;
+  // lastSavedDate is always local date string YYYY-MM-DD
+  // If it matches today, no reset needed — preserve all state including taken supplements
+  if(saved.lastSavedDate&&saved.lastSavedDate===today)return saved;
+
+  // Different day — apply daily reset
+  const dayOfWeek=new Date(today+"T12:00:00").getDay();
+  return{...saved,lastSavedDate:today,
+    tasks:(saved.tasks||[]).map(t=>{
+      if(!t.done)return t;
+      if(t.recurring&&!t.recurDays)return{...t,done:false};
+      if(t.recurring&&t.recurDays?.length){
+        if(t.recurDays.includes(dayOfWeek))return{...t,done:false};
+        return t;
+      }
+      return null;
+    }).filter(Boolean),
+    // Only reset supplements if it's genuinely a new day
+    supplements:(saved.supplements||[]).map(s=>({...s,taken:false}))
+  };
 };
 const todayTasks=(tasks)=>{
   const day=new Date().getDay();
@@ -9561,7 +9559,7 @@ function App(){
         }catch{}
         try{
           const cloudData = await supabase.load(user.id, token);
-          const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length);
+          const hasCloudData = cloudData && Object.keys(cloudData).length > 0 && (cloudData.profile || cloudData.tasks || cloudData.habits || cloudData.supplements || cloudData.journal || cloudData.holdings || cloudData.history);
           if(hasCloudData){
             const d = applyDailyReset(cloudData, today);
             if(d.theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
@@ -9962,7 +9960,7 @@ function App(){
         // Load cloud data separately — don't let this affect sign in result
         try{
           const cloudData = await supabase.load(res.user.id, res.access_token);
-          const hasCloudData = cloudData && (cloudData.profile || cloudData.tasks?.length || cloudData.habits?.length || cloudData.holdings?.length);
+          const hasCloudData = cloudData && Object.keys(cloudData).length > 0 && (cloudData.profile || cloudData.tasks || cloudData.habits || cloudData.supplements || cloudData.journal || cloudData.holdings || cloudData.history);
           if(hasCloudData){
             const d = applyDailyReset(cloudData, todayStr());
             if(d.profile)setProfile(d.profile);
