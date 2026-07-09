@@ -49,7 +49,7 @@ const supabase={
   async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
   async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();return rows&&rows[0]?rows[0].data:null;},
-  async save(userId,token,data){await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});},
+  async save(userId,token,data){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error("Save failed: "+r.status+" "+JSON.stringify(err));}return r;},
 };
 
 // Module-level auth token — set by App when user logs in
@@ -9670,7 +9670,29 @@ function App(){
             setSyncing(true);
             await supabase.save(authUser.id, authToken, dataToSave);
             setPendingSave(false);
-          }catch{}
+          }catch(e){
+            console.error("[Save failed]",e?.message);
+            // If 401 — token expired, try to refresh
+            if(e?.message?.includes("401")){
+              const savedRefresh=localStorage.getItem("exec_refresh");
+              if(savedRefresh){
+                try{
+                  const refreshed=await supabase.refresh(savedRefresh);
+                  if(refreshed.access_token){
+                    const newToken=refreshed.access_token;
+                    localStorage.setItem("exec_token",newToken);
+                    if(refreshed.refresh_token)localStorage.setItem("exec_refresh",refreshed.refresh_token);
+                    setAuthToken(newToken);
+                    // Retry save with new token
+                    await supabase.save(authUser.id,newToken,dataToSave);
+                    setPendingSave(false);
+                  }
+                }catch(re){console.error("[Token refresh failed]",re?.message);setPendingSave(true);}
+              }
+            } else {
+              setPendingSave(true);
+            }
+          }
           finally{setSyncing(false);}
         }
         setLastSaved(Date.now());
