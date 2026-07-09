@@ -9596,9 +9596,11 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
+            // Update localStorage with cloud data so it's in sync
+            saveData({...d,lastSavedDate:today});
             setHydrated(true);
             setTimeout(()=>setReadyToSave(true),500);
-            return;
+            return; // Skip localStorage — cloud data is authoritative
           }
         }catch{}
       } else if(savedToken) {
@@ -9996,6 +9998,8 @@ function App(){
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             if(d.theme){_themeKey=THEME_ALIASES[d.theme]||d.theme;setThemeState(d.theme);}
             if(d.bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
+            // Update localStorage with cloud data so it's in sync
+            saveData({...d,lastSavedDate:todayStr()});
           } else {
             // No cloud data — this is a brand new user, show setup wizard
             const localData = loadData();
