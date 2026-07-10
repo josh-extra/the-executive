@@ -126,8 +126,14 @@ const ASSET_COLORS={shares:"#C9A84C",property:"#7A9E7E",cash:"#7EB8C9",crypto:"#
 const ASSET_LABELS={shares:"Equities",property:"Property",cash:"Cash",crypto:"Digital Assets",super:"Super/Pension"};
 const CAT_COLORS={financial:"#C9A84C",career:"#7EB8C9",health:"#7A9E7E",education:"#B07EC9",personal:"#C97E7E"};
 const EXP_CATS={
-  income:["Salary","Business Revenue","Investment Income","Rental Income","Side Income","Other"],
-  expense:["Housing","Food & Dining","Transport","Health & Fitness","Education","Entertainment","Subscriptions","Travel","Tax","Other"]
+  income:["Salary","Business Revenue","Investment Income","Rental Income","Side Income","Dividends","Government Payments","Other Income"],
+  expense:[
+    "Rent & Mortgage","Utilities","Phone & Internet","Internet","Groceries","Dining Out & Takeaway",
+    "Transport","Fuel","Car Repayment","Insurance","Health & Medical","Gym & Fitness",
+    "Clothing & Personal Care","Entertainment","Subscriptions","Education & Courses",
+    "Home & Garden","Kids & Family","Pets","Travel & Holidays","Gifts & Donations",
+    "Tax & Accounting","Investments & Savings","Other"
+  ]
 };
 const NW_MILESTONES=[250000,500000,750000,1000000,1500000,2000000,2500000,3000000,5000000,10000000];
 const MOODS=[{v:1,l:"Rough",c:"#C97E7E"},{v:2,l:"Low",c:"#D4956A"},{v:3,l:"OK",c:"#7A7060"},{v:4,l:"Good",c:"#7EB8C9"},{v:5,l:"Great",c:"#7A9E7E"}];
@@ -4058,7 +4064,34 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
     try{
       const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
       const catList=[...EXP_CATS.income,...EXP_CATS.expense].join(", ");
-      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[{type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},{type:"text",text:"Extract all transactions from this bank statement. Return ONLY a JSON array, no markdown, no explanation. Each item: {\"date\":\"YYYY-MM-DD\",\"description\":\"merchant max 40 chars\",\"amount\":number,\"type\":\"income or expense\",\"category\":\"one of: "+catList+"\"} Skip transfers and fees under $1. Amount always positive."}]}]},authToken);
+      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[
+        {type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},
+        {type:"text",text:`Extract ALL transactions from this bank statement. Return ONLY a valid JSON array, no markdown, no explanation, no extra text.
+
+Each transaction must be:
+{"date":"YYYY-MM-DD","description":"merchant or payee name max 40 chars","amount":number,"type":"income or expense","category":"exact category from list"}
+
+Categories to use (pick the MOST SPECIFIC match):
+Income: Salary, Business Revenue, Investment Income, Rental Income, Side Income, Dividends, Government Payments, Other Income
+Expense: Rent & Mortgage, Utilities, Phone & Internet, Groceries, Dining Out & Takeaway, Transport, Fuel, Car Repayment, Insurance, Health & Medical, Gym & Fitness, Clothing & Personal Care, Entertainment, Subscriptions, Education & Courses, Home & Garden, Kids & Family, Pets, Travel & Holidays, Gifts & Donations, Tax & Accounting, Investments & Savings, Other
+
+Categorisation rules:
+- Rent/lease payments → "Rent & Mortgage"
+- Power, gas, water → "Utilities"  
+- Telstra, Optus, phone bills → "Phone & Internet"
+- Woolworths, Coles, IGA, Aldi → "Groceries"
+- Restaurants, UberEats, DoorDash, cafes → "Dining Out & Takeaway"
+- Petrol stations → "Fuel"
+- Car loan payments → "Car Repayment"
+- Netflix, Spotify, Adobe, software → "Subscriptions"
+- Gym, fitness studios → "Gym & Fitness"
+- Medicare, doctors, pharmacy → "Health & Medical"
+- Salary, payroll credits → "Salary"
+- Centrelink, government → "Government Payments"
+- Skip: internal transfers between own accounts, balance carry-forwards
+- Amount: always positive number regardless of debit/credit
+- Type: income for money in, expense for money out`}
+      ]}]},authToken);
       if(!resp.ok){
         const err=await resp.json().catch(()=>({}));
         setPdfState("error");
