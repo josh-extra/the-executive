@@ -998,7 +998,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
   const goalPeriods=["year","month","week"];
   const periodLabels={year:"Annual",month:"Monthly",week:"This Week"};
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+    <div style={{display:"flex",flexDirection:"column",gap:14,position:"relative"}}>
       {/* ── HEADER ── */}
       <div style={{...rowStyle(0),background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12}}>
         {/* Top row — greeting + sync */}
@@ -1034,7 +1034,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
         </div>
       </div>
       {/* ── ROW 1: Score + Rings + Net Worth ── */}
-      <div style={{...rowStyle(1),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(1),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,order:isMobile?1:0}}>
         {/* Score */}
         <Card style={{background:t.CARD2,border:"1px solid "+scoreColor+"44",display:"flex",alignItems:"center",gap:14}}>
           <div style={{flexShrink:0}}>
@@ -1091,7 +1091,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       </div>
 
       {/* ── ALERTS ── */}
-      <div style={rowStyle(2)}>
+      <div style={{...rowStyle(2),order:isMobile?3:0}}>
       {(()=>{
         const alerts=[];
         const dueToday=(bills||[]).filter(b=>b.nextDue===todayStr());
@@ -1114,7 +1114,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       </div>
 
       {/* ── ROW 2: Markets + Holdings/Pulse + Bills ── */}
-      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12}}>
+      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,order:isMobile?4:0}}>
         {/* Markets */}
         <Card>
           <SectionLabel action={
@@ -1273,7 +1273,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr 1fr",gap:12,alignItems:"start"}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr 1fr",gap:12,alignItems:"start",order:isMobile?2:0}}>
         {/* Tasks */}
         <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
@@ -1383,7 +1383,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       </div>
 
       {/* ── AI ADVISOR BANNER ── */}
-      <div style={rowStyle(5)}>
+      <div style={{...rowStyle(5),order:isMobile?5:0}}>
       <div onClick={()=>setPage("advisor")} style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:10,padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
           <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"sans-serif",marginBottom:3}}>AI Advisor - Full Dashboard Context - Web Search</div>
@@ -5386,7 +5386,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
         const totalSetsAll=(workouts||[]).reduce((s,w)=>s+(w.sets?.length||0),0);
         const avgPerWeek=last8weeks.length?Math.round(last8weeks.reduce((s,w)=>s+w.sessions,0)/last8weeks.length*10)/10:0;
         return (
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{display:"flex",flexDirection:"column",gap:14,position:"relative"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
               <StatCard label="Total Sessions" value={totalWorkouts} color={t.GOLD}/>
               <StatCard label="Total Exercises" value={totalSetsAll} color={t.BLUE}/>
