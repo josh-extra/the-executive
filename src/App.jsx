@@ -1025,18 +1025,11 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
             )}
           </div>
         </div>
-        {/* Quote row */}
-        <div style={{padding:"0 16px 12px",borderBottom:"1px solid "+t.BORDER}}>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.65}}>"{quote}"</div>
-        </div>
-        {/* Briefing bar */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 16px",background:t.GOLD+"06"}}>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",lineHeight:1.5}}>
-            <span style={{color:t.GOLD,fontWeight:600}}>{new Date().getHours()<12?"Morning":new Date().getHours()<17?"Afternoon":"Evening"} Briefing</span>
-            {" — markets, your priorities & today's insights"}
-          </div>
-          <button onClick={()=>isPro(subscription)?setShowBriefing(true):setShowUpgrade(true)} style={{background:`linear-gradient(135deg,${t.GOLD},${t.GL})`,border:"none",borderRadius:8,padding:"8px 16px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0,marginLeft:14}}>
-            Open Briefing →
+        {/* Quote + Briefing */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 12px",borderBottom:"1px solid "+t.BORDER,gap:16}}>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.6,flex:1}}>"{quote}"</div>
+          <button onClick={()=>isPro(subscription)?setShowBriefing(true):setShowUpgrade(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"7px 14px",color:"#080808",cursor:"pointer",fontFamily:"sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0}}>
+            Open Briefing
           </button>
         </div>
       </div>
@@ -1093,6 +1086,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif",marginBottom:10}}>{"Target: "+fmt(nwT)+" - "+nwPct+"%"}</div>
           <SparkLine data={[...nwVals,nw]} color={t.GOLD} height={48} labels={nwLabels}/>
           <div style={{marginTop:8}}><PB value={nwPct} color={t.GOLD} height={3}/></div>
+          {nwVals.length>=2&&(()=>{const prev=nwVals[nwVals.length-1];const delta=nw-prev;const pct=prev>0?((delta/prev)*100).toFixed(1):0;return delta!==0&&<div style={{fontSize:10,color:delta>0?t.GREEN:t.RED,fontFamily:"sans-serif",marginTop:6,fontWeight:600}}>{delta>0?"+ ":"- "}{fmt(Math.abs(delta))} this month ({delta>0?"+":""}{pct}%)</div>;})()}
         </Card>
       </div>
 
@@ -1314,6 +1308,9 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           {goals.length===0?<div style={{fontSize:11,color:t.MUTED,fontFamily:"sans-serif"}}>No goals set yet</div>:
           goals.slice(0,5).map(g=>{
             const col=CAT_COLORS[g.category]||t.GOLD;
+            const daysLeft=g.endDate?Math.ceil((new Date(g.endDate+"T12:00:00")-new Date())/864e5):null;
+            const isOverdue=daysLeft!==null&&daysLeft<0;
+            const isUrgent=daysLeft!==null&&daysLeft>=0&&daysLeft<=7;
             return (
               <div key={g.id} style={{marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
@@ -1321,9 +1318,12 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
                     <div style={{fontSize:8,color:col,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:1}}>{g.category}</div>
                     <div style={{fontSize:11,color:t.TEXT,fontFamily:"sans-serif",lineHeight:1.3}}>{g.title}</div>
                   </div>
-                  <span style={{fontSize:13,color:col,fontFamily:"sans-serif",fontWeight:700,flexShrink:0}}>{g.progress+"%"}</span>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:13,color:isOverdue?t.RED:col,fontFamily:"sans-serif",fontWeight:700}}>{g.progress+"%"}</div>
+                    {daysLeft!==null&&<div style={{fontSize:8,color:isOverdue?t.RED:isUrgent?t.GOLD:t.MUTED,fontFamily:"sans-serif",fontWeight:isOverdue||isUrgent?600:400}}>{isOverdue?"Overdue "+Math.abs(daysLeft)+"d":daysLeft+"d left"}</div>}
+                  </div>
                 </div>
-                <PB value={g.progress} color={col} height={3}/>
+                <PB value={g.progress} color={isOverdue?t.RED:col} height={3}/>
               </div>
             );
           })}
