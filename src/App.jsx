@@ -9823,7 +9823,7 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
@@ -9906,7 +9906,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
