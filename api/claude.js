@@ -1,28 +1,41 @@
-const rateLimitStore = new Map();
-const WINDOW_MS = 60 * 60 * 1000;
+const WINDOW_SECONDS = 60 * 60;
 const MAX_REQUESTS = 20;
 const SUPABASE_URL = "https://vvnnzepagtrlvnqyqbdr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_yh1Srs_fsONIuZQ7flIksg_f53KPcVn";
 
-function getRateLimitKey(req) {
-  const auth = req.headers["authorization"];
-  if (auth?.startsWith("Bearer ")) return "user_" + auth.slice(7, 40);
-  return "ip_" + (req.headers["x-forwarded-for"]?.split(",")[0] || "unknown");
-}
-
-function checkRateLimit(key) {
-  const now = Date.now();
-  const entry = rateLimitStore.get(key);
-  if (!entry || now - entry.windowStart > WINDOW_MS) {
-    rateLimitStore.set(key, { count: 1, windowStart: now });
-    return { allowed: true, remaining: MAX_REQUESTS - 1 };
+// Atomic, persistent rate limit check via Supabase RPC — safe across
+// Vercel's multiple/cold-started instances, unlike an in-memory Map.
+async function checkRateLimit(userId, serviceKey) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/check_and_increment_rate_limit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": serviceKey,
+        "Authorization": `Bearer ${serviceKey}`
+      },
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_max_requests: MAX_REQUESTS,
+        p_window_seconds: WINDOW_SECONDS
+      })
+    });
+    if (!res.ok) {
+      console.error("Rate limit RPC failed:", res.status, await res.text());
+      // Fail closed: if we can't verify the limit, don't allow the request.
+      return { allowed: false, remaining: 0, resetIn: 60 };
+    }
+    const rows = await res.json();
+    const row = rows?.[0];
+    return {
+      allowed: row?.allowed ?? false,
+      remaining: row?.remaining ?? 0,
+      resetIn: Math.ceil((row?.reset_in_seconds ?? 3600) / 60)
+    };
+  } catch(e) {
+    console.error("Rate limit check error:", e.message);
+    return { allowed: false, remaining: 0, resetIn: 60 };
   }
-  if (entry.count >= MAX_REQUESTS) {
-    const resetIn = Math.ceil((WINDOW_MS - (now - entry.windowStart)) / 60000);
-    return { allowed: false, remaining: 0, resetIn };
-  }
-  entry.count++;
-  return { allowed: true, remaining: MAX_REQUESTS - entry.count };
 }
 
 // Verify the token's signature with Supabase (NOT just decoding the payload —
@@ -46,19 +59,19 @@ async function getVerifiedUserId(token) {
 }
 
 async function verifySubscription(token) {
-  if (!token) return false;
+  if (!token) return { isPro: false, userId: null };
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
   if (!serviceKey) {
     // Fail CLOSED, not open — a missing env var should never grant Pro access.
     console.error("SUPABASE_SERVICE_KEY not set — denying request");
-    return false;
+    return { isPro: false, userId: null };
   }
   try {
     // Verify the token's signature via Supabase auth, don't just decode it
     const userId = await getVerifiedUserId(token);
     if (!userId) {
       console.error("Token failed verification");
-      return false;
+      return { isPro: false, userId: null };
     }
 
     // Check subscription using service key
@@ -73,17 +86,18 @@ async function verifySubscription(token) {
     );
     if (!subRes.ok) {
       console.error("Subscription lookup failed:", subRes.status, await subRes.text());
-      return false;
+      return { isPro: false, userId };
     }
     const subs = await subRes.json();
     const status = subs?.[0]?.status;
     console.log(`User ${userId} subscription: ${status}`);
-    return status === "active" || status === "trialing";
+    return { isPro: status === "active" || status === "trialing", userId };
   } catch(e) {
     console.error("verifySubscription error:", e.message);
-    return false;
+    return { isPro: false, userId: null };
   }
 }
+
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -95,13 +109,12 @@ export default async function handler(req, res) {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  const isPro = await verifySubscription(token);
+  const { isPro, userId } = await verifySubscription(token);
   if (!isPro) {
     return res.status(403).json({ error: "Executive subscription required", code: "NOT_PRO" });
   }
 
-  const key = getRateLimitKey(req);
-  const { allowed, remaining, resetIn } = checkRateLimit(key);
+  const { allowed, remaining, resetIn } = await checkRateLimit(userId, process.env.SUPABASE_SERVICE_KEY);
   res.setHeader("X-RateLimit-Limit", MAX_REQUESTS);
   res.setHeader("X-RateLimit-Remaining", remaining);
 
