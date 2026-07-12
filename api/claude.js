@@ -2,6 +2,7 @@ const rateLimitStore = new Map();
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS = 20;
 const SUPABASE_URL = "https://vvnnzepagtrlvnqyqbdr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_yh1Srs_fsONIuZQ7flIksg_f53KPcVn";
 
 function getRateLimitKey(req) {
   const auth = req.headers["authorization"];
@@ -24,27 +25,39 @@ function checkRateLimit(key) {
   return { allowed: true, remaining: MAX_REQUESTS - entry.count };
 }
 
-// Decode user ID directly from JWT — no network call needed
-function getUserIdFromToken(token) {
+// Verify the token's signature with Supabase (NOT just decoding the payload —
+// an unsigned decode lets anyone forge a token with any user_id).
+// Returns the verified user id, or null if the token is invalid/expired.
+async function getVerifiedUserId(token) {
   try {
-    const payload = token.split(".")[1];
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
-    return decoded.sub || decoded.user_id || null;
-  } catch { return null; }
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    if (!res.ok) return null;
+    const user = await res.json();
+    return user?.id || null;
+  } catch(e) {
+    console.error("Token verification error:", e.message);
+    return null;
+  }
 }
 
 async function verifySubscription(token) {
   if (!token) return false;
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
   if (!serviceKey) {
-    console.warn("SUPABASE_SERVICE_KEY not set — allowing request");
-    return true;
+    // Fail CLOSED, not open — a missing env var should never grant Pro access.
+    console.error("SUPABASE_SERVICE_KEY not set — denying request");
+    return false;
   }
   try {
-    // Extract user ID directly from JWT — no auth API call needed
-    const userId = getUserIdFromToken(token);
+    // Verify the token's signature via Supabase auth, don't just decode it
+    const userId = await getVerifiedUserId(token);
     if (!userId) {
-      console.error("Could not extract user ID from token");
+      console.error("Token failed verification");
       return false;
     }
 
