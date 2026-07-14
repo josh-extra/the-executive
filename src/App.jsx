@@ -9849,8 +9849,13 @@ function App(){
       if(document.visibilityState==="visible"&&authToken&&authUser?.id){
         fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+authUser.id+"&select=data",{headers:sbH(authToken)})
           .then(r=>r.json()).then(rows=>{
-            const d=rows?.[0]?.data;
+            let d=rows?.[0]?.data;
             if(!d)return;
+            // This tab may have been asleep/backgrounded across midnight -
+            // apply the same daily reset logic used on fresh page loads,
+            // so a long-lived tab doesn't carry yesterday's completions
+            // into a new day.
+            d=applyDailyReset(d,todayStr());
             // Theme / appearance
             if(d.theme&&d.theme!==theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
             if(d.bgPhoto&&d.bgPhoto!==bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
@@ -9891,14 +9896,19 @@ function App(){
             // Weekly reflections & AI advisor
             if(d.weeklyReflections)setWeeklyReflections(d.weeklyReflections);
             if(d.advisorMessages)setAdvisorMessages(d.advisorMessages);
-            // Score history — cloud is source of truth, but preserve today's live score
+            // Score history — merge per-date, keeping whichever side has the
+            // higher score for each individual date. Only special-casing
+            // "today" meant that once the calendar rolled over, yesterday's
+            // entry lost this protection entirely and a stale, late-arriving
+            // save from a device that slept through midnight could silently
+            // overwrite a more complete day from another device.
             if(d.history){
-              const today=todayStr();
               setHistory(prev=>{
                 const merged={...d.history};
-                // Keep today's local score if it's higher (more up to date)
-                if(prev[today]?.score>=((d.history[today]||{}).score||0)){
-                  merged[today]=prev[today];
+                for(const dateKey of Object.keys(prev)){
+                  const localScore=prev[dateKey]?.score||0;
+                  const cloudScore=d.history[dateKey]?.score||0;
+                  if(localScore>=cloudScore)merged[dateKey]=prev[dateKey];
                 }
                 return merged;
               });
