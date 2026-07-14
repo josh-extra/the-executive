@@ -120,7 +120,9 @@ const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMo
 const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
 const fmtDateNum=d=>{if(!d)return d;const[y,m,day]=d.split("-");return y&&m&&day?day+"/"+m+"/"+y:d;};
-const AU_TAX=[[18200,0,0],[45000,.19,0],[120000,.325,5092],[180000,.37,29467],[Infinity,.45,51667]];
+// AU tax brackets, FY2026-27 (from 1 July 2026) - second bracket reduced to 15%.
+// Legislated to reduce again to 14% from 1 July 2027 - revisit then.
+const AU_TAX=[[18200,0,0],[45000,.15,0],[135000,.30,4020],[190000,.37,31020],[Infinity,.45,51370]];
 const calcTax=inc=>{for(let i=AU_TAX.length-1;i>=0;i--)if(inc>AU_TAX[i][0])return AU_TAX[i][2]+AU_TAX[i][1]*(inc-AU_TAX[i][0]);return 0;};
 const ASSET_COLORS={shares:"#C9A84C",property:"#7A9E7E",cash:"#7EB8C9",crypto:"#B07EC9",super:"#C97E7E"};
 const ASSET_LABELS={shares:"Equities",property:"Property",cash:"Cash",crypto:"Digital Assets",super:"Super/Pension"};
@@ -8317,13 +8319,14 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
   const income=parseFloat(safeProfile.annualIncome)||0;
   const fyYear=new Date().getMonth()>=6?new Date().getFullYear()+1:new Date().getFullYear();
 
-  // AU tax brackets 2024-25
+  // AU tax brackets, FY2026-27 (from 1 July 2026) - second bracket reduced to 15%.
+  // Legislated to reduce again to 14% from 1 July 2027 - revisit then.
   const calcTax=inc=>{
     if(inc<=18200)return 0;
-    if(inc<=45000)return (inc-18200)*0.19;
-    if(inc<=120000)return 5092+(inc-45000)*0.325;
-    if(inc<=180000)return 29467+(inc-120000)*0.37;
-    return 51667+(inc-180000)*0.45;
+    if(inc<=45000)return (inc-18200)*0.15;
+    if(inc<=135000)return 4020+(inc-45000)*0.30;
+    if(inc<=190000)return 31020+(inc-135000)*0.37;
+    return 51370+(inc-190000)*0.45;
   };
   const medicareLevy=inc=>inc>26000?inc*0.02:0;
 
@@ -8371,7 +8374,10 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
         ))}
       </div>
 
-      {/* Tax estimate */}
+      {/* Tax estimate - Australia only. Non-AU users still get the
+          summary cards above and the deduction/receipt tracker below,
+          just not an AU-specific bracket estimate. */}
+      {(LOCALES[safeProfile.locale||"en-AU"]?.taxPage)&&(
       <Card style={{marginBottom:14}}>
         <SectionLabel>Estimated Tax</SectionLabel>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
@@ -8387,13 +8393,13 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
           ))}
         </div>
         {/* Tax bracket visualisation */}
-        <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>2024–25 Brackets</div>
+        <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>2026–27 Brackets</div>
         {[
           {l:"Tax free",min:0,max:18200,rate:"0%",c:"#888"},
-          {l:"19c",min:18201,max:45000,rate:"19%",c:"#7EB8C9"},
-          {l:"32.5c",min:45001,max:120000,rate:"32.5%",c:t.GOLD},
-          {l:"37c",min:120001,max:180000,rate:"37%",c:"#C9844C"},
-          {l:"45c",min:180001,max:999999,rate:"45%",c:t.RED},
+          {l:"15c",min:18201,max:45000,rate:"15%",c:"#7EB8C9"},
+          {l:"30c",min:45001,max:135000,rate:"30%",c:t.GOLD},
+          {l:"37c",min:135001,max:190000,rate:"37%",c:"#C9844C"},
+          {l:"45c",min:190001,max:999999,rate:"45%",c:t.RED},
         ].map(b=>{
           const inBracket=taxableIncome>b.min;
           const rangeLabel=b.max<999999?fmt(b.min)+" – "+fmt(b.max):fmt(b.min)+"+";
@@ -8407,8 +8413,8 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
           );
         })}
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8,fontStyle:"italic"}}>Includes 2% Medicare Levy. Estimate only — consult your accountant.</div>
-        <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8,fontStyle:"italic"}}>Includes 2% Medicare Levy. Estimate only — consult your accountant.</div>
       </Card>
+      )}
 
       {/* Deductions */}
       <Card style={{marginBottom:14}}>
