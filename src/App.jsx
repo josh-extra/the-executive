@@ -10228,7 +10228,7 @@ function App(){
     if(!authUser){setShowAuth(true);return;}
     setUpgradeLoading(true);
     try{
-      const r=await fetch("/api/stripe-create-checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({priceId,email:authUser.email,userId:authUser.id,mode:"subscription"})});
+      const r=await fetch("/api/stripe-create-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},body:JSON.stringify({priceId,mode:"subscription"})});
       const d=await r.json();
       if(d.url)window.location.href=d.url;
     }catch(e){console.error("Checkout error:",e);}
@@ -10238,7 +10238,7 @@ function App(){
   const handlePortal=async()=>{
     if(!subscription?.stripe_customer_id)return;
     try{
-      const r=await fetch("/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId:subscription.stripe_customer_id})});
+      const r=await fetch("/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}});
       const d=await r.json();
       if(d.url)window.location.href=d.url;
     }catch(e){console.error("Portal error:",e);}

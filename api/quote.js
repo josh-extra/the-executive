@@ -25,9 +25,13 @@ export default async function handler(req, res) {
   const cleaned=rawSymbol.toUpperCase().trim();
   const symbol = CRYPTO_MAP[cleaned] || INDEX_MAP[cleaned] || rawSymbol;
 
-  const FH_KEY = "d8cmivhr01qidic8koq0d8cmivhr01qidic8koqg";
+  const FH_KEY = process.env.FINNHUB_API_KEY;
+  if (!FH_KEY) {
+    console.error("FINNHUB_API_KEY not set - skipping Finnhub, falling through to Yahoo");
+  }
 
   // Finnhub - works great for US stocks, crypto, forex, indices
+  if (FH_KEY) {
   try {
     const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FH_KEY}`, {
       headers: { "X-Finnhub-Token": FH_KEY }
@@ -37,6 +41,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ price: j.c, change: j.d, pct: j.dp, prev: j.pc, source: "finnhub" });
     }
   } catch(e) {}
+  }
 
   // Yahoo fallback - covers indices (^GSPC, ^AXJO) and forex (AUDUSD=X) that Finnhub doesn't support on free tier
   try {
