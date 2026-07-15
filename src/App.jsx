@@ -1,4 +1,5 @@
 import{useState,useEffect,useRef,useCallback,Component}from"react";
+import{Capacitor}from"@capacitor/core";
 
 const THEMES={
   obsidian:{BG:"#080808",CARD:"#111111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
@@ -754,8 +755,13 @@ function MorningBriefing({profile,tasks,onClose}){
 }
 
 function useIsMobile(){
-  const[mobile,setMobile]=useState(window.innerWidth<768);
+  // Inside the native iOS/Android app it's always a phone screen - no need
+  // to guess from window.innerWidth, which can read a stale/incorrect
+  // value on cold launch before the WKWebView finishes its initial layout,
+  // with no later resize event to correct it.
+  const[mobile,setMobile]=useState(Capacitor.isNativePlatform()||window.innerWidth<768);
   useEffect(()=>{
+    if(Capacitor.isNativePlatform())return;
     const h=()=>setMobile(window.innerWidth<768);
     window.addEventListener('resize',h);
     return()=>window.removeEventListener('resize',h);
