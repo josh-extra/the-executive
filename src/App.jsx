@@ -5950,11 +5950,14 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
 function MonthlyHeatmap({history}){
   const t=T();
   const[hovered,setHovered]=useState(null);
+  const[monthOffset,setMonthOffset]=useState(0); // 0=this month, -1=last month, etc
   const now=new Date();
-  const year=now.getFullYear(),month=now.getMonth();
+  const viewDate=new Date(now.getFullYear(),now.getMonth()+monthOffset,1);
+  const year=viewDate.getFullYear(),month=viewDate.getMonth();
+  const isCurrentMonth=monthOffset===0;
   const daysInMonth=new Date(year,month+1,0).getDate();
   const firstDay=new Date(year,month,1).getDay();
-  const monthLabel=now.toLocaleDateString(_locale,{month:"long",year:"numeric"});
+  const monthLabel=viewDate.toLocaleDateString(_locale,{month:"long",year:"numeric"});
   const today=todayStr();
   const DAY_LABELS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   const getColor=score=>{
@@ -5962,7 +5965,7 @@ function MonthlyHeatmap({history}){
     if(score>=80)return t.GREEN;
     if(score>=60)return t.GOLD;
     if(score>=40)return t.BLUE;
-    return"#C97E7E";
+    return t.RED;
   };
   const cells=[];
   for(let i=0;i<firstDay;i++)cells.push(null);
@@ -5975,9 +5978,20 @@ function MonthlyHeatmap({history}){
   return(
     <Card style={{marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <SectionLabel>{monthLabel}</SectionLabel>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>{setMonthOffset(o=>o-1);setHovered(null);}}
+            style={{width:24,height:24,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ‹
+          </button>
+          <SectionLabel>{monthLabel}</SectionLabel>
+          <button onClick={()=>{setMonthOffset(o=>Math.min(o+1,0));setHovered(null);}}
+            disabled={isCurrentMonth}
+            style={{width:24,height:24,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:isCurrentMonth?t.BORDER:t.MUTED,cursor:isCurrentMonth?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ›
+          </button>
+        </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:"#C97E7E",l:"<40"}].map(k=>(
+          {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:t.RED,l:"<40"}].map(k=>(
             <div key={k.l} style={{display:"flex",alignItems:"center",gap:3}}>
               <div style={{width:8,height:8,borderRadius:2,background:k.c+"88"}}/>
               <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{k.l}</span>
@@ -6088,7 +6102,7 @@ function DayScoreChart({last7,scores,history,dayLetters}){
       <div style={{display:"flex",gap:4,alignItems:"flex-end",height:72,marginBottom:6}}>
         {last7.map((d,i)=>{
           const sc=scores[i];
-          const col=sc>=75?t.GREEN:sc>=50?t.GOLD:sc>0?t.BLUE:t.BORDER;
+          const col=sc>=80?t.GREEN:sc>=60?t.GOLD:sc>=40?t.BLUE:sc>0?t.RED:t.BORDER;
           const isHov=hovered===i;
           return(
             <div key={d} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer"}}
@@ -6103,12 +6117,12 @@ function DayScoreChart({last7,scores,history,dayLetters}){
         })}
       </div>
       {hovered!==null?(
-        <div style={{background:t.CARD2,border:"1px solid "+(hovData?.score>=75?t.GREEN+"66":hovData?.score>=50?t.GOLD+"66":t.BORDER),borderRadius:8,padding:"10px 14px",animation:"fadeIn .15s ease"}}>
+        <div style={{background:t.CARD2,border:"1px solid "+(hovData?.score>=80?t.GREEN+"66":hovData?.score>=60?t.GOLD+"66":hovData?.score>=40?t.BLUE+"66":hovData?.score>0?t.RED+"66":t.BORDER),borderRadius:8,padding:"10px 14px",animation:"fadeIn .15s ease"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>
               {new Date(last7[hovered]+"T12:00:00").toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"short"})}
             </div>
-            <div style={{fontSize:18,color:hovData?.score>=75?t.GREEN:hovData?.score>=50?t.GOLD:hovData?.score>0?t.BLUE:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1}}>
+            <div style={{fontSize:18,color:hovData?.score>=80?t.GREEN:hovData?.score>=60?t.GOLD:hovData?.score>=40?t.BLUE:hovData?.score>0?t.RED:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1}}>
               {hovData?.score||0}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>/100</span>
             </div>
           </div>
@@ -6229,7 +6243,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-        <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=75?t.GREEN:avgScore>=50?t.GOLD:t.RED}/>
+        <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=80?t.GREEN:avgScore>=60?t.GOLD:avgScore>=40?t.BLUE:t.RED}/>
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
         <StatCard label="Habit Avg" value={habitAvg+"%"} color={t.GOLD}/>
       </div>
