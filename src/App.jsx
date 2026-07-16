@@ -1,5 +1,12 @@
 import{useState,useEffect,useRef,useCallback,Component}from"react";
 import{Capacitor}from"@capacitor/core";
+import{Purchases}from"@revenuecat/purchases-capacitor";
+
+// RevenueCat public API key (iOS) - safe to expose client-side, same as
+// the Supabase publishable key above. Get this from RevenueCat dashboard
+// > Project Settings > API Keys.
+const RC_API_KEY_IOS="appl_TqnMtYLrPgzKlbQFhCBfXByVjOf";
+const RC_ENTITLEMENT_ID="pro";
 
 const THEMES={
   obsidian:{BG:"#080808",CARD:"#111111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
@@ -9188,11 +9195,11 @@ function PaywallPage({onUpgrade,feature}){
 }
 
 
-function UpgradeModal({onClose,onCheckout,loading}){
+function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,loading}){
   const t=T();
   const plans=[
-    {id:"monthly",label:"Monthly",price:"$14",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly},
-    {id:"annual",label:"Annual",price:"$139",period:"/year",note:"Save $29 — 2 months free",priceId:STRIPE_PRICES.annual,popular:true},
+    {id:"monthly",label:"Monthly",price:"$14",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly,packageId:"$rc_monthly"},
+    {id:"annual",label:"Annual",price:"$139",period:"/year",note:"Save $29 — 2 months free",priceId:STRIPE_PRICES.annual,packageId:"$rc_annual",popular:true},
   ];
   const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
   const PRO_FEATURES=["Everything in Free","AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
@@ -9244,7 +9251,7 @@ function UpgradeModal({onClose,onCheckout,loading}){
           {/* Pricing buttons */}
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
             {plans.map(p=>(
-              <button key={p.id} onClick={()=>onCheckout(p.priceId)} disabled={loading} style={{background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:9,padding:"12px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,fontWeight:700,position:"relative"}}>
+              <button key={p.id} onClick={()=>Capacitor.isNativePlatform()?onNativePurchase(p.packageId):onCheckout(p.priceId)} disabled={loading} style={{background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:9,padding:"12px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,fontWeight:700,position:"relative"}}>
                 {p.popular&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:"#7A9E7E",color:"#fff",fontSize:8,fontFamily:"'Montserrat',sans-serif",fontWeight:700,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap"}}>BEST VALUE</div>}
                 <div>{loading?"Loading...":(p.price+" "+p.period)}</div>
                 <div style={{fontSize:9,color:p.popular?"#08080888":t.MUTED,marginTop:2}}>{p.note}</div>
@@ -9252,6 +9259,11 @@ function UpgradeModal({onClose,onCheckout,loading}){
             ))}
           </div>
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center"}}>Cancel anytime · Founding member pricing locked in forever</div>
+          {Capacitor.isNativePlatform()&&(
+            <div style={{textAlign:"center",marginTop:10}}>
+              <button onClick={onRestorePurchases} disabled={loading} style={{background:"none",border:"none",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:11,textDecoration:"underline",cursor:loading?"default":"pointer"}}>Restore Purchases</button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -9466,6 +9478,17 @@ function App(){
   const[syncing,setSyncing]=useState(false);
   const[isOnline,setIsOnline]=useState(()=>navigator.onLine);
   const[pendingSave,setPendingSave]=useState(false);
+
+  // Configure RevenueCat once we know who's logged in, native app only.
+  // appUserID is set to our own Supabase user id so purchases tie back to
+  // the correct account, and so the webhook can update the right row in
+  // the subscriptions table without any extra mapping step.
+  useEffect(()=>{
+    if(!Capacitor.isNativePlatform()||!authUser?.id)return;
+    Purchases.configure({apiKey:RC_API_KEY_IOS,appUserID:authUser.id}).catch(e=>{
+      console.error("RevenueCat configure error:",e);
+    });
+  },[authUser?.id]);
 
   // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
@@ -10271,7 +10294,55 @@ function App(){
     setUpgradeLoading(false);
   };
 
+  // Native iOS purchase via Apple In-App Purchase (RevenueCat). packageId
+  // is a RevenueCat package identifier - "$rc_monthly" or "$rc_annual".
+  const handleNativePurchase=async(packageId)=>{
+    if(!authUser){setShowAuth(true);return;}
+    setUpgradeLoading(true);
+    try{
+      const offerings=await Purchases.getOfferings();
+      const pkg=offerings?.current?.availablePackages?.find(p=>p.identifier===packageId);
+      if(!pkg){
+        console.error("RevenueCat package not found:",packageId);
+        setUpgradeLoading(false);
+        return;
+      }
+      const{customerInfo}=await Purchases.purchasePackage({aPackage:pkg});
+      if(customerInfo?.entitlements?.active?.[RC_ENTITLEMENT_ID]){
+        // Unlock immediately in this session rather than waiting on the
+        // webhook round-trip to Supabase (which still happens in the
+        // background and is what persists status for future sessions and
+        // server-side checks like api/claude.js).
+        setSubscription(s=>({...(s||{}),status:"active",provider:"revenuecat"}));
+        setShowUpgrade(false);
+      }
+    }catch(e){
+      // User cancelling the purchase sheet also lands here - not a real error
+      if(!e?.userCancelled)console.error("Native purchase error:",e);
+    }
+    setUpgradeLoading(false);
+  };
+
+  const handleRestorePurchases=async()=>{
+    setUpgradeLoading(true);
+    try{
+      const{customerInfo}=await Purchases.restorePurchases();
+      if(customerInfo?.entitlements?.active?.[RC_ENTITLEMENT_ID]){
+        setSubscription(s=>({...(s||{}),status:"active",provider:"revenuecat"}));
+        setShowUpgrade(false);
+      }
+    }catch(e){console.error("Restore purchases error:",e);}
+    setUpgradeLoading(false);
+  };
+
   const handlePortal=async()=>{
+    // Apple IAP subscribers manage their subscription through iOS Settings,
+    // not our Stripe billing portal - there's no RevenueCat equivalent API
+    // for this, so we open Apple's own subscription management screen.
+    if(Capacitor.isNativePlatform()&&subscription?.provider==="revenuecat"){
+      window.open("https://apps.apple.com/account/subscriptions","_blank");
+      return;
+    }
     if(!subscription?.stripe_customer_id)return;
     try{
       const r=await fetch("/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}});
@@ -10315,7 +10386,7 @@ function App(){
       <BgPhotoLayer photoId={bgPhoto}/>
       <style>{`@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}`}</style>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
-      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} loading={upgradeLoading}/>}
+      {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} onNativePurchase={handleNativePurchase} onRestorePurchases={handleRestorePurchases} loading={upgradeLoading}/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>Session expired - changes saved locally but not syncing</div>
