@@ -839,7 +839,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                   <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{profile.occupation||"The Executive"}</div>
                 </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:5}}>
                 {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
                   <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"6px 4px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
                     {th.l}
@@ -1239,7 +1239,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
             </div>
           )}
           {/* Financial Pulse strip */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))"}}>
             {[
               {l:"Net Worth",v:fmt(nw),c:t.GOLD,sub:Math.round(nw/nwT*100)+"% to target",pct:Math.round(nw/nwT*100),pc:t.GOLD},
               {l:"Bills/mo",v:fmt((bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
@@ -1582,7 +1582,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:5,marginBottom:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:5,marginBottom:8}}>
         {last7.map((d,i)=>{
           const isT=d===todayStr();
           // For each habit, count it as "on track" for this day if:
@@ -1628,7 +1628,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                 {form.icon}
               </button>
               {showEmojiPicker&&(
-                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(8,1fr)",gap:3,width:280,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
+                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(8,minmax(0,1fr))",gap:3,width:280,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
                   {EMOJIS.map((e,ei)=>(
                     <button key={ei} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",padding:4,borderRadius:5,textAlign:"center"}}>
                       {e}
@@ -1788,14 +1788,14 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         return(
                           <div style={{marginBottom:10}}>
                             {/* Month labels */}
-                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",1fr)",marginBottom:2,gap:2}}>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",minmax(0,1fr))",marginBottom:2,gap:2}}>
                               {weeks.map((_,wi)=>{
                                 const ml=monthLabels.find(m=>m.wi===wi);
                                 return <div key={wi} style={{fontSize:7,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{ml?ml.label:""}</div>;
                               })}
                             </div>
                             {/* Grid */}
-                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",1fr)",gap:2}}>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat("+weeks.length+",minmax(0,1fr))",gap:2}}>
                               {weeks.map((week,wi)=>
                                 week.map((d,di)=>{
                                   if(!d)return<div key={wi+"-"+di}/>;
@@ -1816,7 +1816,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                           </div>
                         );
                       })()}
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
                         <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
                           <div style={{fontSize:16,color:h.color,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{streak}</div>
                           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>🔥 Streak</div>
@@ -3036,7 +3036,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               <>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Select Coin</div>
                 <Inp value={cSearch} onChange={e=>setCSearch(e.target.value)} placeholder="Filter coins..." style={{marginBottom:8,fontSize:12}}/>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,maxHeight:200,overflowY:"auto"}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:5,maxHeight:200,overflowY:"auto"}}>
                   {POPULAR_COINS.filter(c=>!cSearch||c.name.toLowerCase().includes(cSearch.toLowerCase())||c.ticker.toLowerCase().includes(cSearch.toLowerCase())).map(coin=>(
                     <div key={coin.ticker} onClick={()=>setCSelected(coin)} style={{display:"flex",alignItems:"center",gap:7,padding:"7px 9px",background:t.CARD,borderRadius:6,border:"1px solid "+t.BORDER,cursor:"pointer"}}>
                       <div style={{width:28,height:28,borderRadius:"50%",background:t.PURPLE+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:t.PURPLE,fontWeight:700,flexShrink:0}}>{coin.ticker.slice(0,3)}</div>
@@ -3160,7 +3160,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           );
         })}
       </Card>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:14}}>
         <Card>
           <SectionLabel>Asset Allocation</SectionLabel>
           <AllocationChart assets={assets} profile={profile}/>
@@ -3177,7 +3177,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
 
           {/* Summary row */}
           {(commodityHoldings||[]).length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
               {[
                 {l:"Total Value",v:fmt(commodityPortfolio?.totalValue||0),c:t.GOLD},
                 {l:"Total Gain",v:(commodityPortfolio?.totalGain>=0?"+":"")+fmt(commodityPortfolio?.totalGain||0),c:(commodityPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
@@ -3300,7 +3300,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           </div>
 
           {/* Current balance */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
             {[
               {l:"Current Balance",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE},
               {l:"Total Contributed",v:fmt(superLog.reduce((s,e)=>s+(e.type==="contribution"?e.amount:0),0)),c:t.GOLD},
@@ -3486,7 +3486,7 @@ function ProjectorPage({profile}){
       )}
 
       {/* Outcome cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Base Case",v:fmt(pj),c:t.GOLD,sub:"in "+yrs+" yrs"},
           {l:"Bull Case",v:fmt(bull[bull.length-1]),c:t.GREEN,sub:"+"+Math.round((bull[bull.length-1]-currentNW)/currentNW*100||0)+"%"},
@@ -3751,7 +3751,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
       </div>
 
       {/* Summary stats */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <StatCard label="Total Debt" value={fmt(totalDebt)} color={t.RED}/>
         <StatCard label="Min Payments" value={fmt(totalMinPayment)+"/mo"} color={t.MUTED} sub="Combined"/>
         <StatCard label="Debts" value={allDebts.length} color={t.GOLD} sub="Active"/>
@@ -3828,7 +3828,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 </Sel>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Original Balance ($)</div>
                 <Inp type="number" value={form.originalBalance} onChange={e=>setForm(f=>({...f,originalBalance:e.target.value}))} placeholder="e.g. 600000"/>
@@ -3840,7 +3840,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>Where it sits right now</div>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Interest Rate (%)</div>
                 <Inp type="number" value={form.rate} onChange={e=>setForm(f=>({...f,rate:e.target.value}))} placeholder="6.2"/>
@@ -3854,7 +3854,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <Inp value={form.lender} onChange={e=>setForm(f=>({...f,lender:e.target.value}))} placeholder="ANZ, Westpac..."/>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Payment Frequency</div>
                 <Sel value={form.frequency||"monthly"} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))}>
@@ -3866,7 +3866,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <Inp type="date" value={form.nextPaymentDate} onChange={e=>setForm(f=>({...f,nextPaymentDate:e.target.value}))}/>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Start Date</div>
                 <Inp type="date" value={form.startDate} onChange={e=>setForm(f=>({...f,startDate:e.target.value}))}/>
@@ -3934,7 +3934,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
             )}
 
             {/* Key metrics row */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:7,marginBottom:8}}>
               {[
                 {l:"Balance",v:fmt(bal),c:t.RED},
                 {l:"Rate",v:(d.rate||0)+"%",c:t.MUTED},
@@ -3951,7 +3951,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
             {/* Expanded detail */}
             {isExpanded&&(
               <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:10,marginBottom:8}}>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:10}}>
                   {d.startDate&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:2}}>Start Date</div><div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{d.startDate}</div></div>}
                   {d.endDate&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:2}}>End Date</div><div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{d.endDate}</div></div>}
                   {months&&<div><div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:2}}>Payoff Date (est.)</div><div style={{fontSize:12,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{payoffDate(months)+" ("+months+" months)"}</div></div>}
@@ -4141,7 +4141,7 @@ Categorisation rules:
       </div>
 
       {/* Summary stats - this month + all time */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <Card style={{borderColor:t.GREEN+"33"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Income · {displayMonthLabel}</div>
           <div style={{fontSize:24,color:t.GREEN,fontWeight:700,marginBottom:3}}>{fmt(income)}</div>
@@ -4259,7 +4259,7 @@ Categorisation rules:
         <div>
           <Card>
             <SectionLabel>Month by Month</SectionLabel>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,auto) 1fr 1fr 1fr",gap:"6px 10px",alignItems:"center",marginBottom:6}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,auto) repeat(3,minmax(0,1fr))",gap:"6px 10px",alignItems:"center",marginBottom:6}}>
               {["Month","","Income","Expenses","Net","Savings%"].map((h,i)=>(
                 <div key={i} style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,textAlign:i>=3?"right":"left",paddingBottom:6,borderBottom:"1px solid "+t.BORDER}}>{h}</div>
               ))}
@@ -4268,7 +4268,7 @@ Categorisation rules:
               const savingsRate=m.inc>0?Math.round((m.net/m.inc)*100):0;
               const isCurrentMonth=m.key===mk;
               return (
-                <div key={m.key} style={{display:"grid",gridTemplateColumns:"repeat(3,auto) 1fr 1fr 1fr",gap:"6px 10px",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+t.BORDER+(isCurrentMonth?"":"66"),background:isCurrentMonth?t.GOLD+"08":"transparent",borderRadius:isCurrentMonth?4:0}}>
+                <div key={m.key} style={{display:"grid",gridTemplateColumns:"repeat(3,auto) repeat(3,minmax(0,1fr))",gap:"6px 10px",alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+t.BORDER+(isCurrentMonth?"":"66"),background:isCurrentMonth?t.GOLD+"08":"transparent",borderRadius:isCurrentMonth?4:0}}>
                   <div style={{fontSize:12,color:isCurrentMonth?t.GOLD:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:isCurrentMonth?600:400}}>{m.label}</div>
                   <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{m.year}</div>
                   {isCurrentMonth&&<div style={{fontSize:8,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",background:t.GOLD+"18",padding:"1px 5px",borderRadius:4}}>Now</div>}
@@ -4280,7 +4280,7 @@ Categorisation rules:
               );
             })}
             {/* Totals row */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,auto) 1fr 1fr 1fr",gap:"6px 10px",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid "+t.BORDER}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,auto) repeat(3,minmax(0,1fr))",gap:"6px 10px",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid "+t.BORDER}}>
               <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>Total</div>
               <div/><div/>
               <div style={{fontSize:12,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:700,textAlign:"right"}}>{fmt(totalIncome)}</div>
@@ -4306,7 +4306,7 @@ Categorisation rules:
           <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>
             {(hoveredMonth||currentMonth).label+" "+(hoveredMonth||currentMonth).year}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
             {/* Income categories */}
             <Card>
               <div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Income by Category</div>
@@ -4463,7 +4463,7 @@ function BillsPage({bills,setBills}){
       </div>
 
       {/* Summary */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <Card style={{textAlign:"center",padding:"12px 8px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Monthly Total</div>
           <div style={{fontSize:22,color:t.RED,fontWeight:700}}>{fmtAmt(totalMonthly)}</div>
@@ -4850,7 +4850,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Physical Capital</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Health and Vitals</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {vitals.map(v=><StatCard key={v.l} label={v.l} value={v.v} sub={v.sub}/>)}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -4969,7 +4969,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Metrics History</div>
       <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
         <SectionLabel>Log Today</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {[["weight","kg"],["bodyFat","BF%"],["sleep","hrs"],["hrv","HRV"]].map(([k,ph])=>(
             <Inp key={k} type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{fontSize:12}}/>
           ))}
@@ -5402,7 +5402,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
         const avgPerWeek=last8weeks.length?Math.round(last8weeks.reduce((s,w)=>s+w.sessions,0)/last8weeks.length*10)/10:0;
         return (
           <div style={{display:"flex",flexDirection:"column",gap:14,position:"relative"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
               <StatCard label="Total Sessions" value={totalWorkouts} color={t.GOLD}/>
               <StatCard label="Total Exercises" value={totalSetsAll} color={t.BLUE}/>
               <StatCard label="Avg per Week" value={avgPerWeek} color={t.GREEN}/>
@@ -5640,7 +5640,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
         </div>
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
         {[{l:"Reading",v:cats.reading.length,c:t.GOLD},{l:"Up Next",v:cats.next.length,c:t.BLUE},{l:"Done",v:cats.done.length,c:t.GREEN},{l:"Total",v:(books||[]).length,c:t.MUTED}].map(s=>(
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
         ))}
@@ -6012,10 +6012,10 @@ function MonthlyHeatmap({history}){
           ))}
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:3,marginBottom:4}}>
         {DAY_LABELS.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center"}}>{l}</div>)}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:hovCell?10:0}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:3,marginBottom:hovCell?10:0}}>
         {cells.map((cell,i)=>{
           if(!cell)return<div key={"pad"+i}/>;
           const c=getColor(cell.isFuture?0:cell.score);
@@ -6255,7 +6255,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
           </button>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=80?t.GREEN:avgScore>=60?t.GOLD:avgScore>=40?t.BLUE:t.RED}/>
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
         <StatCard label="Habit Avg" value={habitAvg+"%"} color={t.GOLD}/>
@@ -6314,7 +6314,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
         return(
           <Card style={{marginBottom:14}}>
             <SectionLabel>Personal Records</SectionLabel>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
               {records.map(r=>(
                 <div key={r.label} style={{background:t.CARD2,borderRadius:8,padding:"12px",border:"1px solid "+r.color+"22"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}>
@@ -6649,7 +6649,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
       })()}
       <Card style={{marginBottom:12}}>
         <SectionLabel>Appearance</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:7,marginBottom:14}}>
           {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
             <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"10px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":t.CARD2,color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12}}>
               {th.l}
@@ -6657,7 +6657,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
           ))}
         </div>
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Background Photo</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {BG_PHOTOS.map(p=>{
             const active=(bgPhoto||"none")===p.id;
             return(
@@ -6678,7 +6678,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Country and Currency</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:7}}>
           {Object.entries(LOCALES).map(([key,loc])=>{
             const active=(form.locale||"en-AU")===key;
             return (
@@ -6826,7 +6826,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
         </button>
         {/* Individual CSVs */}
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Individual Exports</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:6}}>
           {[
             {l:"Net Worth History",fn:()=>{const h=Object.entries(nwHistory||{});if(!h.length)return alert("No history yet.");exportCSV(h.map(([d,v])=>({date:d,value:v})),"networth-history.csv");}},
             {l:"Tasks",fn:()=>tasks.length?exportCSV(tasks.map(({id,...r})=>r),"tasks.csv"):alert("No tasks.")},
@@ -7006,7 +7006,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
 
       {totalBudget>0&&(
         <Card style={{marginBottom:14,background:t.CARD2,border:"1px solid "+(totalSpent>totalBudget?t.RED:t.GOLD)+"44"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>TOTAL BUDGET</div>
               <div style={{fontSize:20,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(totalBudget)}</div>
@@ -7510,7 +7510,7 @@ function SetupPage({onComplete}){
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Appearance</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose your theme</div>
             <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Pick the look that suits you. You can change this anytime in Profile.</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
               {[
                 {id:"obsidian",label:"Obsidian",sub:"Dark - gold accents",bg:"#0D0D0D",card:"#141414",border:"#2A2A2A",accent:"#C9A84C",text:"#E8E0D0",muted:"#7A7060"},
                 {id:"charcoal",label:"Charcoal",sub:"Dark - grey tones",bg:"#141414",card:"#1E1E1E",border:"#2E2E2E",accent:"#AFAFAF",text:"#E0E0E0",muted:"#666"},
@@ -8015,7 +8015,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
           {/* Recipe cards */}
           {!loading&&recipes.length>0&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
               {recipes.map((r,i)=>(
                 <Card key={i} style={{cursor:"pointer",padding:0,overflow:"hidden"}} onClick={()=>setSelected(r)}>
                   {(()=>{
@@ -8035,7 +8035,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
                     <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:8}}>{r.prepTime}</span>
                     <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:8}}>{r.difficulty}</span>
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:10}}>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:4,marginBottom:10}}>
                     {[{l:"Cal",v:r.calories,c:t.GOLD},{l:"Protein",v:r.protein+"g",c:t.GREEN},{l:"Carbs",v:r.carbs+"g",c:t.BLUE},{l:"Fat",v:r.fat+"g",c:t.PURPLE}].map(m=>(
                       <div key={m.l} style={{background:m.c+"18",borderRadius:5,padding:"3px 6px",textAlign:"center"}}>
                         <div style={{fontSize:11,color:m.c,fontWeight:700}}>{m.v}</div>
@@ -8133,7 +8133,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
       {!query&&(
         <div>
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Search across</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
             {[{l:"Tasks",c:t.GREEN,pg:"tasks"},{l:"Goals",c:t.GOLD,pg:"goals"},{l:"Journal",c:t.PURPLE,pg:"journal"},{l:"Books",c:t.BLUE,pg:"reading"},{l:"Workouts",c:"#D4956A",pg:"workout"},{l:"Recipes",c:t.RED,pg:"recipes"}].map(x=>(
               <div key={x.l} onClick={()=>setPage(x.pg)} style={{background:x.c+"18",border:"1px solid "+x.c+"33",borderRadius:8,padding:"12px 10px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,color:x.c,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{x.l}</div>
@@ -8205,7 +8205,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
       <div style={{fontSize:26,color:t.TEXT,marginBottom:20}}>Dividend Tracker</div>
 
       {/* Summary */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Annual Income",v:fmt(totalAnnual),c:t.GREEN},
           {l:"Monthly Income",v:fmt(Math.round(totalMonthly)),c:t.GOLD},
@@ -8222,7 +8222,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
       {divs.length>0&&(
         <Card style={{marginBottom:14}}>
           <SectionLabel>Payment Calendar</SectionLabel>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
             {calMonths.map(({year,month,label})=>{
               const payments=paymentsInMonth(year,month);
               const monthTotal=payments.reduce((s,d)=>s+annualIncome(d)/(FREQS[d.frequency]||4),0);
@@ -8254,7 +8254,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
 
         {showAdd&&(
           <div style={{background:t.CARD2,borderRadius:9,padding:14,marginBottom:14,border:"1px solid "+t.GOLD+"33"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Ticker</div>
                 <div style={{position:"relative"}}>
@@ -8278,7 +8278,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
                 <Inp type="number" value={form.amountPerShare} onChange={e=>setForm(f=>({...f,amountPerShare:e.target.value}))} placeholder="0.00"/>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:12}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Frequency</div>
                 <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))}>
@@ -8388,7 +8388,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
       <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>FY{fyYear-1}/{String(fyYear).slice(2)} · Australian Tax Brackets</div>
 
       {/* Summary cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Gross Income",v:fmt(income),c:t.TEXT},
           {l:"Total Deductions",v:"-"+fmt(totalDeductions),c:totalDeductions>0?t.GREEN:t.MUTED},
@@ -8407,7 +8407,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
       {(LOCALES[safeProfile.locale||"en-AU"]?.taxPage)&&(
       <Card style={{marginBottom:14}}>
         <SectionLabel>Estimated Tax</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:12}}>
           {[
             {l:"Est. Tax Payable",v:fmt(Math.round(taxWith)),c:t.RED},
             {l:"Tax Saved",v:totalDeductions>0?fmt(Math.round(taxSaving)):"—",c:t.GREEN},
@@ -8455,7 +8455,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
 
         {showAdd&&(
           <div style={{background:t.CARD2,borderRadius:9,padding:14,marginBottom:14,border:"1px solid "+t.GOLD+"33"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Description</div>
                 <Inp value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="e.g. Home office equipment"/>
@@ -8465,7 +8465,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
                 <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0.00"/>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:12}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Category</div>
                 <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
@@ -8804,7 +8804,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
       {tab==="progress"&&(
         <div>
           {/* Stats */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
             {[
               {v:weekHrs+"h",l:"This week",c:t.GOLD},
               {v:streak+"d",l:"Streak",c:t.GREEN},
@@ -8983,7 +8983,7 @@ function NotesPage({notes,setNotes}){
 
       {shown.length===0&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>N</div><div style={{fontSize:14,marginBottom:8}}>No notes yet</div><div style={{fontSize:12}}>Tap + New Note to start capturing ideas</div></div>}
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
         {shown.map(n=>(
           <div key={n.id} onClick={()=>setViewing(n.id)} style={{background:t.CARD,border:"1px solid "+(n.pinned?t.GOLD:t.BORDER),borderRadius:10,padding:14,cursor:"pointer",borderTop:"3px solid "+(CAT_COLORS_N[n.category]||t.GOLD),transition:"border-color .2s"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
@@ -9218,7 +9218,7 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
           <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Use the free version forever, or upgrade for AI-powered intelligence.</div>
 
           {/* Free vs Pro columns */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:20}}>
             {/* Free column */}
             <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:12,padding:"16px 14px"}}>
               <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Free</div>
@@ -9249,7 +9249,7 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
           </div>
 
           {/* Pricing buttons */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:12}}>
             {plans.map(p=>(
               <button key={p.id} onClick={()=>Capacitor.isNativePlatform()?onNativePurchase(p.packageId):onCheckout(p.priceId)} disabled={loading} style={{background:p.popular?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.CARD2,border:"1px solid "+(p.popular?t.GOLD:t.BORDER),borderRadius:9,padding:"12px",color:p.popular?"#080808":t.TEXT,cursor:loading?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,fontWeight:700,position:"relative"}}>
                 {p.popular&&<div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",background:"#7A9E7E",color:"#fff",fontSize:8,fontFamily:"'Montserrat',sans-serif",fontWeight:700,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap"}}>BEST VALUE</div>}
@@ -10120,7 +10120,7 @@ function App(){
           {[100,80,90,70,85,75,90,80,70,85].map((w,i)=><Skeleton key={i} width={w+"%"} height={9}/>)}
         </div>
         <div style={{flex:1,padding:24,maxWidth:900,margin:"0 auto"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:16}}>
             {[1,2,3].map(i=><div key={i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16}}>
               <Skeleton width="60%" height={9} style={{marginBottom:8}}/>
               <Skeleton width="80%" height={22}/>
@@ -10135,7 +10135,7 @@ function App(){
               </div>)}
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
             {[1,2,3,4].map(i=><div key={i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:16}}>
               <Skeleton width="50%" height={9} style={{marginBottom:12}}/>
               {[90,75,85,70].map((w,j)=><Skeleton key={j} width={w+"%"} height={10} style={{marginBottom:8}}/>)}
