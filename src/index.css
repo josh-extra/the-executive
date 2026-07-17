@@ -16,6 +16,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Prevent iOS Safari/WKWebView from auto-zooming when a form field is
+   focused. iOS zooms in on any input/textarea/select with a computed
+   font-size under 16px, and often doesn't zoom back out cleanly
+   afterward. The app's inline styles set most fields to 12-13px for a
+   compact look, so this uses !important to force 16px specifically on
+   form fields (the one case where overriding inline styles from here is
+   the right call) without touching the rest of the app's typography. */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
 /* Visible keyboard focus everywhere, using the app's gold accent.
    Inline component styles set outline:none for a cleaner look on mouse
    click; this restores a clear indicator for keyboard navigation only. */
