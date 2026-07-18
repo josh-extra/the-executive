@@ -141,8 +141,8 @@ const fmtDateNum=d=>{if(!d)return d;const[y,m,day]=d.split("-");return y&&m&&day
 // Legislated to reduce again to 14% from 1 July 2027 - revisit then.
 const AU_TAX=[[18200,0,0],[45000,.15,0],[135000,.30,4020],[190000,.37,31020],[Infinity,.45,51370]];
 const calcTax=inc=>{for(let i=AU_TAX.length-1;i>=0;i--)if(inc>AU_TAX[i][0])return AU_TAX[i][2]+AU_TAX[i][1]*(inc-AU_TAX[i][0]);return 0;};
-const ASSET_COLORS={shares:"#C9A84C",property:"#7A9E7E",cash:"#7EB8C9",crypto:"#B07EC9",super:"#C97E7E"};
-const ASSET_LABELS={shares:"Equities",property:"Property",cash:"Cash",crypto:"Digital Assets",super:"Super/Pension"};
+const ASSET_COLORS={shares:"#C9A84C",property:"#7A9E7E",cash:"#7EB8C9",crypto:"#B07EC9",super:"#C97E7E",commodities:"#D9A66C",alternative:"#8C8C9E"};
+const ASSET_LABELS={shares:"Equities",property:"Property",cash:"Cash",crypto:"Digital Assets",super:"Super/Pension",commodities:"Commodities",alternative:"Alternative Assets"};
 const CAT_COLORS={financial:"#C9A84C",career:"#7EB8C9",health:"#7A9E7E",education:"#B07EC9",personal:"#C97E7E"};
 const EXP_CATS={
   income:["Salary","Business Revenue","Investment Income","Rental Income","Side Income","Dividends","Government Payments","Other Income"],
@@ -2858,7 +2858,9 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
   const assets=[
     {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:parseFloat(profile.propertyValue)||0},
     {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:parseFloat(profile.cashSavings)||0},
-    {type:"crypto",value:parseFloat(profile.cryptoValue)||0}
+    {type:"crypto",value:parseFloat(profile.cryptoValue)||0},
+    {type:"commodities",value:commodityPortfolio?.totalValue||0},
+    {type:"alternative",value:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0)}
   ];
   const debts=[{l:"Mortgage",k:"mortgageDebt"},{l:"Investment Loan",k:"investLoanDebt"},{l:"Car Finance",k:"carDebt"},{l:"Credit Cards",k:"creditCardDebt"},{l:"Personal Loans",k:"personalDebt"}].filter(d=>parseFloat(profile[d.k])>0);
   const safeH=holdings||[];
