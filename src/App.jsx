@@ -277,6 +277,21 @@ const DEFAULT_TICKERS=[
 const CRYPTO_SYMBOLS=new Set(["BTC","ETH","SOL","DOGE","XRP","BTC-USD","ETH-USD","SOL-USD","DOGE-USD","XRP-USD","BTC-AUD","ETH-AUD","SOL-AUD","DOGE-AUD","XRP-AUD"]);
 const isCryptoSymbol=sym=>CRYPTO_SYMBOLS.has((sym||"").toUpperCase())||(sym||"").toUpperCase().startsWith("BINANCE:");
 
+// Four separate hooks (market ticker, stocks, crypto, commodities) all
+// fetch quotes independently, and all mount together at app load - which
+// means every page load fires 8-10+ /api/quote requests in the same
+// instant. A single isolated request always works fine, but that burst
+// can trip Finnhub's rate limiting even while staying under their
+// per-minute average. This shared queue staggers every quote request
+// app-wide by ~180ms so they go out as a fast trickle instead of a
+// simultaneous burst, without slowing down any individual page.
+let __quoteQueueTail=Promise.resolve();
+function quoteFetch(url){
+  const result=__quoteQueueTail.then(()=>fetch(url));
+  __quoteQueueTail=result.then(()=>new Promise(res=>setTimeout(res,180)),()=>new Promise(res=>setTimeout(res,180)));
+  return result;
+}
+
 function useMarket(tickers){
   const safeT=tickers&&tickers.length?tickers:DEFAULT_TICKERS;
   const[prices,setPrices]=useState({});
@@ -291,13 +306,13 @@ function useMarket(tickers){
     const userCurrency=L().currency;
     const needsFx=hasCrypto&&userCurrency!=="USD";
 
-    const fxPromise=needsFx?fetch("/api/quote?symbol="+encodeURIComponent(userCurrency==="AUD"?"AUDUSD=X":userCurrency+"USD=X")).then(r=>r.json()).catch(()=>null):Promise.resolve(null);
+    const fxPromise=needsFx?quoteFetch("/api/quote?symbol="+encodeURIComponent(userCurrency==="AUD"?"AUDUSD=X":userCurrency+"USD=X")).then(r=>r.json()).catch(()=>null):Promise.resolve(null);
 
     const[fxData]=await Promise.all([
       fxPromise,
       Promise.all(safeT.filter(tk=>tk.symbol&&tk.symbol.trim()).map(async tk=>{
         try{
-          const r=await fetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
+          const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(tk.symbol));
           const d=await r.json();
           results[tk.symbol]={price:d.price,pct:d.pct||0,change:d.change||0,loading:false,error:false,isCrypto:isCryptoSymbol(tk.symbol)};
         }catch{
@@ -334,7 +349,7 @@ function useCommodities(holdings){
     const results={};
     await Promise.all(safeH.map(async h=>{
       try{
-        const r=await fetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
+        const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
         const d=await r.json();
         if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
@@ -368,7 +383,7 @@ function usePortfolio(holdings){
     const results={};
     await Promise.all(safeH.map(async h=>{
       try{
-        const r=await fetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
+        const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
         const d=await r.json();
         if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
@@ -414,7 +429,7 @@ function useCrypto(holdings){
     await Promise.all(safeH.map(async h=>{
       try{
         const sym=h.symbol.includes("-")?h.symbol:h.symbol+"-USD";
-        const r=await fetch("/api/quote?symbol="+encodeURIComponent(sym));
+        const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(sym));
         const d=await r.json();
         if(d.price)results[h.symbol]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
@@ -4655,7 +4670,7 @@ function WatchlistItem({w,onRemove}){
   const fetchPrice=()=>{
     if(!w.ticker)return;
     setLoading(true);setError(false);
-    fetch("/api/quote?symbol="+encodeURIComponent(w.ticker))
+    quoteFetch("/api/quote?symbol="+encodeURIComponent(w.ticker))
       .then(r=>r.json())
       .then(d=>{
         if(d.price!=null){setPrice(d.price);setPct(d.pct);setError(false);}
