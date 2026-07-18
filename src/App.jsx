@@ -8,6 +8,15 @@ import{Purchases}from"@revenuecat/purchases-capacitor";
 const RC_API_KEY_IOS="appl_TqnMtYLrPgzKlbQFhCBfXByVjOf";
 const RC_ENTITLEMENT_ID="pro";
 
+// On the web, relative fetch("/api/...") calls correctly resolve against
+// the-executive.vip since that's the page's own origin. On native iOS,
+// the app loads from a local bundle under a custom scheme (no
+// server.url configured in capacitor.config.json), so a relative path
+// has no real server behind it and fails instantly, client-side, before
+// ever reaching Vercel. Every API call needs this prefix so it resolves
+// to the real domain on native while staying exactly as before on web.
+const API_BASE=Capacitor.isNativePlatform()?"https://the-executive.vip":"";
+
 const THEMES={
   obsidian:{BG:"#080808",CARD:"#111111",CARD2:"#181818",BORDER:"#1E1E1E",BORDER2:"#2A2A2A",TEXT:"#E4DDD0",MUTED:"#6A6050",MUTED2:"#3A3028",GOLD:"#C9A84C",GL:"#E8C96A",RED:"#C97E7E",GREEN:"#7A9E7E",BLUE:"#7EB8C9",PURPLE:"#B07EC9"},
   charcoal:{BG:"#141414",CARD:"#1E1E1E",CARD2:"#252525",BORDER:"#2E2E2E",BORDER2:"#383838",TEXT:"#E0E0E0",MUTED:"#666666",MUTED2:"#404040",GOLD:"#BFBFBF",GL:"#D8D8D8",RED:"#C07070",GREEN:"#70A870",BLUE:"#70A8C0",PURPLE:"#A070C0"},
@@ -75,7 +84,7 @@ const claudeFetch = async (body, token) => {
     (()=>{try{return sessionStorage.getItem("_et")||localStorage.getItem("exec_token");}catch{return null;}})();
   const headers = {"Content-Type": "application/json"};
   if (tok) headers["Authorization"] = "Bearer " + tok;
-  return fetch("/api/claude", {method: "POST", headers, body: JSON.stringify(body)});
+  return fetch(API_BASE+"/api/claude", {method: "POST", headers, body: JSON.stringify(body)});
 };
 
 // ── Stripe ────────────────────────────────────────────────────────────────────
@@ -287,7 +296,7 @@ const isCryptoSymbol=sym=>CRYPTO_SYMBOLS.has((sym||"").toUpperCase())||(sym||"")
 // simultaneous burst, without slowing down any individual page.
 let __quoteQueueTail=Promise.resolve();
 function quoteFetch(url){
-  const result=__quoteQueueTail.then(()=>fetch(url));
+  const result=__quoteQueueTail.then(()=>fetch(API_BASE+url));
   __quoteQueueTail=result.then(()=>new Promise(res=>setTimeout(res,180)),()=>new Promise(res=>setTimeout(res,180)));
   return result;
 }
@@ -474,7 +483,7 @@ class ErrorBoundary extends Component{
     });
     // Send to Vercel via a simple beacon (no external service needed)
     try{
-      fetch("/api/log-error",{
+      fetch(API_BASE+"/api/log-error",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({errorId,message:e?.message,component:info?.componentStack?.split("\n")[1]?.trim(),url:window.location.href})
@@ -6532,7 +6541,7 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
     }
     setStep(3);
     try{
-      const r=await fetch("/api/delete-account",{
+      const r=await fetch(API_BASE+"/api/delete-account",{
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}
       });
@@ -9400,7 +9409,7 @@ function NewsPage(){
   const fetchNews=async()=>{
     setLoading(true);setError("");
     try{
-      const r=await fetch("/api/news");
+      const r=await fetch(API_BASE+"/api/news");
       if(!r.ok)throw new Error("Server error "+r.status);
       const d=await r.json();
       setNews(d);
@@ -10315,7 +10324,7 @@ function App(){
     if(!authUser){setShowAuth(true);return;}
     setUpgradeLoading(true);
     try{
-      const r=await fetch("/api/stripe-create-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},body:JSON.stringify({priceId,mode:"subscription"})});
+      const r=await fetch(API_BASE+"/api/stripe-create-checkout",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken},body:JSON.stringify({priceId,mode:"subscription"})});
       const d=await r.json();
       if(d.url)window.location.href=d.url;
     }catch(e){console.error("Checkout error:",e);}
@@ -10373,7 +10382,7 @@ function App(){
     }
     if(!subscription?.stripe_customer_id)return;
     try{
-      const r=await fetch("/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}});
+      const r=await fetch(API_BASE+"/api/stripe-portal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+authToken}});
       const d=await r.json();
       if(d.url)window.location.href=d.url;
     }catch(e){console.error("Portal error:",e);}
