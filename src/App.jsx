@@ -1239,7 +1239,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
             </div>
           )}
           {/* Financial Pulse strip */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))"}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))"}}>
             {[
               {l:"Net Worth",v:fmt(nw),c:t.GOLD,sub:Math.round(nw/nwT*100)+"% to target",pct:Math.round(nw/nwT*100),pc:t.GOLD},
               {l:"Bills/mo",v:fmt((bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
@@ -1493,6 +1493,7 @@ function TasksPage({tasks,setTasks}){
 
 function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
   const[showEmojiPicker,setShowEmojiPicker]=useState(false);
@@ -1816,7 +1817,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                           </div>
                         );
                       })()}
-                      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+                      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8}}>
                         <div style={{textAlign:"center",padding:"7px",background:t.CARD2,borderRadius:6}}>
                           <div style={{fontSize:16,color:h.color,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{streak}</div>
                           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>🔥 Streak</div>
@@ -2799,6 +2800,7 @@ function AllocationChart({assets,profile}){
 
 function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,superLog,setSuperLog}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[hForm,setHForm]=useState({ticker:"",shares:"",avgCost:"",name:""});
   const[showCryptoAdd,setShowCryptoAdd]=useState(false);
@@ -3160,7 +3162,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           );
         })}
       </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:14}}>
         <Card>
           <SectionLabel>Asset Allocation</SectionLabel>
           <AllocationChart assets={assets} profile={profile}/>
@@ -3177,7 +3179,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
 
           {/* Summary row */}
           {(commodityHoldings||[]).length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
               {[
                 {l:"Total Value",v:fmt(commodityPortfolio?.totalValue||0),c:t.GOLD},
                 {l:"Total Gain",v:(commodityPortfolio?.totalGain>=0?"+":"")+fmt(commodityPortfolio?.totalGain||0),c:(commodityPortfolio?.totalGain||0)>=0?t.GREEN:t.RED},
@@ -3300,7 +3302,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           </div>
 
           {/* Current balance */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:14}}>
             {[
               {l:"Current Balance",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE},
               {l:"Total Contributed",v:fmt(superLog.reduce((s,e)=>s+(e.type==="contribution"?e.amount:0),0)),c:t.GOLD},
@@ -3430,6 +3432,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
 
 function ProjectorPage({profile}){
   const t=T();
+  const isMobile=useIsMobile();
   const[sr,setSr]=useState(35);
   const[rr,setRr]=useState(8);
   const[yrs,setYrs]=useState(10);
@@ -3486,7 +3489,7 @@ function ProjectorPage({profile}){
       )}
 
       {/* Outcome cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Base Case",v:fmt(pj),c:t.GOLD,sub:"in "+yrs+" yrs"},
           {l:"Bull Case",v:fmt(bull[bull.length-1]),c:t.GREEN,sub:"+"+Math.round((bull[bull.length-1]-currentNW)/currentNW*100||0)+"%"},
@@ -3597,6 +3600,7 @@ function ProjectorPage({profile}){
 
 function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[editing,setEditing]=useState(null);
   const[expanded,setExpanded]=useState({});
@@ -3751,7 +3755,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
       </div>
 
       {/* Summary stats */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <StatCard label="Total Debt" value={fmt(totalDebt)} color={t.RED}/>
         <StatCard label="Min Payments" value={fmt(totalMinPayment)+"/mo"} color={t.MUTED} sub="Combined"/>
         <StatCard label="Debts" value={allDebts.length} color={t.GOLD} sub="Active"/>
@@ -3840,7 +3844,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>Where it sits right now</div>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Interest Rate (%)</div>
                 <Inp type="number" value={form.rate} onChange={e=>setForm(f=>({...f,rate:e.target.value}))} placeholder="6.2"/>
@@ -3934,7 +3938,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
             )}
 
             {/* Key metrics row */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:7,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:7,marginBottom:8}}>
               {[
                 {l:"Balance",v:fmt(bal),c:t.RED},
                 {l:"Rate",v:(d.rate||0)+"%",c:t.MUTED},
@@ -4021,6 +4025,7 @@ function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade
 
 function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,authToken}){
   const t=T();
+  const isMobile=useIsMobile();
   const[form,setForm]=useState({date:todayStr(),type:"income",category:"Salary",amount:"",note:""});
   const[showAdd,setShowAdd]=useState(false);
   const[activeTab,setActiveTab]=useState("overview");
@@ -4141,7 +4146,7 @@ Categorisation rules:
       </div>
 
       {/* Summary stats - this month + all time */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <Card style={{borderColor:t.GREEN+"33"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Income · {displayMonthLabel}</div>
           <div style={{fontSize:24,color:t.GREEN,fontWeight:700,marginBottom:3}}>{fmt(income)}</div>
@@ -4306,7 +4311,7 @@ Categorisation rules:
           <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>
             {(hoveredMonth||currentMonth).label+" "+(hoveredMonth||currentMonth).year}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:12}}>
             {/* Income categories */}
             <Card>
               <div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Income by Category</div>
@@ -4411,6 +4416,7 @@ Categorisation rules:
 
 function BillsPage({bills,setBills}){
   const t=T();
+  const isMobile=useIsMobile();
   const emptyForm={name:"",amount:"",frequency:"monthly",category:"Housing",lastPaid:todayStr(),autopay:false};
   const[showAdd,setShowAdd]=useState(false);
   const[editingId,setEditingId]=useState(null);
@@ -4463,7 +4469,7 @@ function BillsPage({bills,setBills}){
       </div>
 
       {/* Summary */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <Card style={{textAlign:"center",padding:"12px 8px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Monthly Total</div>
           <div style={{fontSize:22,color:t.RED,fontWeight:700}}>{fmtAmt(totalMonthly)}</div>
@@ -4832,7 +4838,7 @@ function InvestPage({profile,subscription,setShowUpgrade}){
 }
 
 function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade,authToken}){
-  const t=T();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
+  const t=T();const isMobile=useIsMobile();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
   const[editingSupp,setEditingSupp]=useState(null);
   const[editForm,setEditForm]=useState({});
   const openEditSupp=(s)=>{setEditForm({name:s.name,dose:s.dose||"",time:s.time||"morning",purpose:s.purpose||""});setEditingSupp(s.id);setShowAdd(false);};
@@ -4850,7 +4856,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Physical Capital</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Health and Vitals</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {vitals.map(v=><StatCard key={v.l} label={v.l} value={v.v} sub={v.sub}/>)}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -4951,7 +4957,7 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
 }
 
 function BodyPage({bodyLog,setBodyLog,profile}){
-  const t=T();const[form,setForm]=useState({date:todayStr(),weight:"",bodyFat:"",sleep:"",hrv:""});
+  const t=T();const isMobile=useIsMobile();const[form,setForm]=useState({date:todayStr(),weight:"",bodyFat:"",sleep:"",hrv:""});
   const add=()=>{
     if(!form.weight&&!form.bodyFat&&!form.sleep&&!form.hrv)return;
     setBodyLog(l=>[{...form,id:Date.now()},...(l||[]).filter(e=>e.date!==form.date)]);
@@ -4969,7 +4975,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Metrics History</div>
       <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
         <SectionLabel>Log Today</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {[["weight","kg"],["bodyFat","BF%"],["sleep","hrs"],["hrv","HRV"]].map(([k,ph])=>(
             <Inp key={k} type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{fontSize:12}}/>
           ))}
@@ -5020,7 +5026,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
 }
 
 function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,authToken}){
-  const t=T();const[showAdd,setShowAdd]=useState(false);const[tab,setTab]=useState("log");
+  const t=T();const isMobile=useIsMobile();const[showAdd,setShowAdd]=useState(false);const[tab,setTab]=useState("log");
   const[wf,setWf]=useState({date:todayStr(),type:"Strength",duration:60,notes:"",sets:[]});
   const[sf,setSf]=useState({exercise:"Bench Press",sets:3,reps:8,weight:""});
   const[plan,setPlan]=useState(null);const[planLoading,setPlanLoading]=useState(false);
@@ -5402,7 +5408,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
         const avgPerWeek=last8weeks.length?Math.round(last8weeks.reduce((s,w)=>s+w.sessions,0)/last8weeks.length*10)/10:0;
         return (
           <div style={{display:"flex",flexDirection:"column",gap:14,position:"relative"}}>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10}}>
               <StatCard label="Total Sessions" value={totalWorkouts} color={t.GOLD}/>
               <StatCard label="Total Exercises" value={totalSetsAll} color={t.BLUE}/>
               <StatCard label="Avg per Week" value={avgPerWeek} color={t.GREEN}/>
@@ -5582,6 +5588,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
 
 function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({title:"",author:"",status:"reading",cur:0,tot:300,review:"",rating:0,dateFinished:todayStr()});  // already updated
   const[expandDone,setExpandDone]=useState({});
@@ -5640,7 +5647,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
         </div>
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
         {[{l:"Reading",v:cats.reading.length,c:t.GOLD},{l:"Up Next",v:cats.next.length,c:t.BLUE},{l:"Done",v:cats.done.length,c:t.GREEN},{l:"Total",v:(books||[]).length,c:t.MUTED}].map(s=>(
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
         ))}
@@ -6169,6 +6176,7 @@ function DayScoreChart({last7,scores,history,dayLetters}){
 
 function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade,authToken}){
   const t=T();
+  const isMobile=useIsMobile();
   const[aiReview,setAiReview]=useState("");
   const[loading,setLoading]=useState(false);
   const[reflection,setReflection]=useState("");
@@ -6255,7 +6263,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
           </button>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=80?t.GREEN:avgScore>=60?t.GOLD:avgScore>=40?t.BLUE:t.RED}/>
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
         <StatCard label="Habit Avg" value={habitAvg+"%"} color={t.GOLD}/>
@@ -6610,7 +6618,7 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
 }
 
 function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,authToken,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
-  const t=T();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
+  const t=T();const isMobile=useIsMobile();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
   const save=()=>{
     const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
     const tD=["mortgageDebt","investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
@@ -6657,7 +6665,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
           ))}
         </div>
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Background Photo</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {BG_PHOTOS.map(p=>{
             const active=(bgPhoto||"none")===p.id;
             return(
@@ -6865,6 +6873,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
 
 function BudgetPage({transactions,budgets,setBudgets}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[newCat,setNewCat]=useState("");
   const[editingCat,setEditingCat]=useState(null);
@@ -7006,7 +7015,7 @@ function BudgetPage({transactions,budgets,setBudgets}){
 
       {totalBudget>0&&(
         <Card style={{marginBottom:14,background:t.CARD2,border:"1px solid "+(totalSpent>totalBudget?t.RED:t.GOLD)+"44"}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>TOTAL BUDGET</div>
               <div style={{fontSize:20,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(totalBudget)}</div>
@@ -8070,6 +8079,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
 
 function SearchPage({tasks,goals,journal,books,workouts,setPage}){
   const t=T();
+  const isMobile=useIsMobile();
   const[query,setQuery]=useState("");
   const q=query.toLowerCase().trim();
 
@@ -8133,7 +8143,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
       {!query&&(
         <div>
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Search across</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8}}>
             {[{l:"Tasks",c:t.GREEN,pg:"tasks"},{l:"Goals",c:t.GOLD,pg:"goals"},{l:"Journal",c:t.PURPLE,pg:"journal"},{l:"Books",c:t.BLUE,pg:"reading"},{l:"Workouts",c:"#D4956A",pg:"workout"},{l:"Recipes",c:t.RED,pg:"recipes"}].map(x=>(
               <div key={x.l} onClick={()=>setPage(x.pg)} style={{background:x.c+"18",border:"1px solid "+x.c+"33",borderRadius:8,padding:"12px 10px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,color:x.c,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{x.l}</div>
@@ -8150,6 +8160,7 @@ const chr34='"';
 // ── Learn Page ────────────────────────────────────────────────────────────────
 function DividendPage({holdings,cryptoHoldings,portfolio}){
   const t=T();
+  const isMobile=useIsMobile();
   const[divs,setDivs]=useState([]);
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({ticker:"",name:"",amountPerShare:"",frequency:"quarterly",nextPayDate:"",franking:"100"});
@@ -8205,7 +8216,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
       <div style={{fontSize:26,color:t.TEXT,marginBottom:20}}>Dividend Tracker</div>
 
       {/* Summary */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Annual Income",v:fmt(totalAnnual),c:t.GREEN},
           {l:"Monthly Income",v:fmt(Math.round(totalMonthly)),c:t.GOLD},
@@ -8222,7 +8233,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
       {divs.length>0&&(
         <Card style={{marginBottom:14}}>
           <SectionLabel>Payment Calendar</SectionLabel>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:6}}>
             {calMonths.map(({year,month,label})=>{
               const payments=paymentsInMonth(year,month);
               const monthTotal=payments.reduce((s,d)=>s+annualIncome(d)/(FREQS[d.frequency]||4),0);
@@ -8278,7 +8289,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
                 <Inp type="number" value={form.amountPerShare} onChange={e=>setForm(f=>({...f,amountPerShare:e.target.value}))} placeholder="0.00"/>
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginBottom:12}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:12}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Frequency</div>
                 <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))}>
@@ -8340,6 +8351,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
 
 function TaxPage({profile,transactions,deductions,setDeductions}){
   const t=T();
+  const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
   const safeProfile=profile||{};
@@ -8388,7 +8400,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
       <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>FY{fyYear-1}/{String(fyYear).slice(2)} · Australian Tax Brackets</div>
 
       {/* Summary cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         {[
           {l:"Gross Income",v:fmt(income),c:t.TEXT},
           {l:"Total Deductions",v:"-"+fmt(totalDeductions),c:totalDeductions>0?t.GREEN:t.MUTED},
@@ -8407,7 +8419,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
       {(LOCALES[safeProfile.locale||"en-AU"]?.taxPage)&&(
       <Card style={{marginBottom:14}}>
         <SectionLabel>Estimated Tax</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12,marginBottom:12}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:12,marginBottom:12}}>
           {[
             {l:"Est. Tax Payable",v:fmt(Math.round(taxWith)),c:t.RED},
             {l:"Tax Saved",v:totalDeductions>0?fmt(Math.round(taxSaving)):"—",c:t.GREEN},
@@ -8553,6 +8565,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
 
 function LearnPage({profile,goals,habits,learnData,setLearnData}){
   const t=T();
+  const isMobile=useIsMobile();
   const[tab,setTab]=useState("discover");
   const[recs,setRecs]=useState([]);
   const[loading,setLoading]=useState(false);
@@ -8804,7 +8817,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
       {tab==="progress"&&(
         <div>
           {/* Stats */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
             {[
               {v:weekHrs+"h",l:"This week",c:t.GOLD},
               {v:streak+"d",l:"Streak",c:t.GREEN},
