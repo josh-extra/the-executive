@@ -14,6 +14,17 @@ export default async function handler(req, res) {
     "DOGE": "BINANCE:DOGEUSDT", "DOGE-USD": "BINANCE:DOGEUSDT", "DOGE-AUD": "BINANCE:DOGEUSDT",
     "XRP": "BINANCE:XRPUSDT", "XRP-USD": "BINANCE:XRPUSDT", "XRP-AUD": "BINANCE:XRPUSDT",
   };
+  // Yahoo uses a completely different symbol format for crypto than Finnhub
+  // does (e.g. "ETH-USD" vs "BINANCE:ETHUSDT") - this map is used
+  // specifically for the Yahoo fallback call below, so that call doesn't
+  // end up sending Finnhub's symbol format to Yahoo, which never matches.
+  const YAHOO_CRYPTO_MAP = {
+    "BTC": "BTC-USD", "BTC-USD": "BTC-USD", "BTC-AUD": "BTC-USD",
+    "ETH": "ETH-USD", "ETH-USD": "ETH-USD", "ETH-AUD": "ETH-USD",
+    "SOL": "SOL-USD", "SOL-USD": "SOL-USD", "SOL-AUD": "SOL-USD",
+    "DOGE": "DOGE-USD", "DOGE-USD": "DOGE-USD", "DOGE-AUD": "DOGE-USD",
+    "XRP": "XRP-USD", "XRP-USD": "XRP-USD", "XRP-AUD": "XRP-USD",
+  };
   // Normalize common shorthand index names people type without knowing exact Yahoo syntax
   const INDEX_MAP = {
     "SP500": "^GSPC", "S&P500": "^GSPC", "S&P": "^GSPC", "SPX": "^GSPC",
@@ -24,6 +35,7 @@ export default async function handler(req, res) {
   };
   const cleaned=rawSymbol.toUpperCase().trim();
   const symbol = CRYPTO_MAP[cleaned] || INDEX_MAP[cleaned] || rawSymbol;
+  const yahooSymbol = YAHOO_CRYPTO_MAP[cleaned] || symbol;
 
   const FH_KEY = process.env.FINNHUB_API_KEY;
   if (!FH_KEY) {
@@ -46,7 +58,7 @@ export default async function handler(req, res) {
   // Yahoo fallback - covers indices (^GSPC, ^AXJO) and forex (AUDUSD=X) that Finnhub doesn't support on free tier
   try {
     const r = await fetch(
-      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=2d`,
       { headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "*/*"
