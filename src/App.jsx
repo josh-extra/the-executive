@@ -164,7 +164,7 @@ const JP=["What is my number 1 priority today?","What am I grateful for?","What 
 const NAV=[
   ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
   ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
-  ["wealth","💸","Wealth"],["cashflow","💰","Cash Flow"],
+  ["wealth","💸","Wealth"],["property","🏘","Property"],["cashflow","💰","Cash Flow"],
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
@@ -712,22 +712,24 @@ function MilestoneCelebration({milestone,onClose}){
     </div>
   );
 }
-function RecalibrateModal({profile,onSave,onClose}){
+function RecalibrateModal({profile,properties,onSave,onClose}){
   const[form,setForm]=useState({
-    annualIncome:profile.annualIncome||"",shareValue:profile.shareValue||"",propertyValue:profile.propertyValue||"",
+    annualIncome:profile.annualIncome||"",shareValue:profile.shareValue||"",
     cashSavings:profile.cashSavings||"",superBalance:profile.superBalance||"",cryptoValue:profile.cryptoValue||"",
-    mortgageDebt:profile.mortgageDebt||"",investLoanDebt:profile.investLoanDebt||"",carDebt:profile.carDebt||"",
+    investLoanDebt:profile.investLoanDebt||"",carDebt:profile.carDebt||"",
     creditCardDebt:profile.creditCardDebt||"",personalDebt:profile.personalDebt||"",netWorthTarget:profile.netWorthTarget||""
   });
+  const propertyTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const mortgageTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const save=()=>{
-    const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
-    const tD=["mortgageDebt","investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
+    const tA=["shareValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+propertyTotal;
+    const tD=["investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+mortgageTotal;
     onSave({...profile,...form,totalAssets:tA,totalDebt:tD,netWorth:tA-tD});
   };
   const fields=[
-    ["annualIncome","Annual Income"],["shareValue","Shares"],["propertyValue","Property"],
+    ["annualIncome","Annual Income"],["shareValue","Shares"],
     ["cashSavings","Cash"],["superBalance","Super"],["cryptoValue","Crypto"],
-    ["mortgageDebt","Mortgage"],["investLoanDebt","Invest Loan"],["carDebt","Car"],
+    ["investLoanDebt","Invest Loan"],["carDebt","Car"],
     ["creditCardDebt","Credit Cards"],["personalDebt","Personal Loans"],["netWorthTarget","NW Target"]
   ];
   return (
@@ -2822,7 +2824,233 @@ function AllocationChart({assets,profile}){
   );
 }
 
-function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,superLog,setSuperLog}){
+function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
+  const t=T();
+  const isMobile=useIsMobile();
+  const[form,setForm]=useState({...property});
+  const[newValue,setNewValue]=useState("");
+  const[confirmDel,setConfirmDel]=useState(false);
+  const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const save=()=>onUpdate({...form,currentValue:parseFloat(form.currentValue)||0,mortgageBalance:parseFloat(form.mortgageBalance)||0,interestRate:form.interestRate?parseFloat(form.interestRate):null,rentalIncome:parseFloat(form.rentalIncome)||0,purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null});
+  const value=parseFloat(property.currentValue)||0;
+  const mortgage=parseFloat(property.mortgageBalance)||0;
+  const equity=value-mortgage;
+  const lvr=value>0?(mortgage/value)*100:0;
+  const rentMult={weekly:52,fortnightly:26,monthly:12}[property.rentalFrequency||"weekly"]||52;
+  const annualRent=(parseFloat(property.rentalIncome)||0)*rentMult;
+  const grossYield=value>0?(annualRent/value)*100:0;
+  const history=(property.valueHistory||[]).map(h=>h.value);
+  const logValue=()=>{
+    const v=parseFloat(newValue);
+    if(!v||v<=0)return;
+    onUpdateValue(v);
+    setForm(f=>({...f,currentValue:v}));
+    setNewValue("");
+  };
+  return(
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+        <button onClick={onBack} style={{background:"none",border:"none",color:t.MUTED,fontSize:20,cursor:"pointer",padding:0}}>←</button>
+        <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>Property</div>
+      </div>
+      <div style={{fontSize:24,color:t.TEXT,marginBottom:16}}>{property.nickname||"Property"}</div>
+
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:16}}>
+        <StatCard label="Equity" value={fmt(equity)} color={t.GREEN}/>
+        <StatCard label="LVR" value={lvr.toFixed(1)+"%"} color={lvr>80?t.RED:t.GOLD}/>
+        <StatCard label={property.type==="investment"?"Gross Yield":"Value"} value={property.type==="investment"?grossYield.toFixed(2)+"%":fmt(value)}/>
+      </div>
+
+      {history.length>1&&(
+        <Card style={{marginBottom:16}}>
+          <SectionLabel>Value History</SectionLabel>
+          <SparkLine data={history} color={t.GOLD}/>
+        </Card>
+      )}
+
+      <Card style={{marginBottom:16}}>
+        <SectionLabel>Update Current Value</SectionLabel>
+        <div style={{display:"flex",gap:8}}>
+          <Inp type="number" value={newValue} onChange={e=>setNewValue(e.target.value)} placeholder={"Current: "+fmt(value)}/>
+          <Btn onClick={logValue} style={{flexShrink:0}}>Log</Btn>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom:16}}>
+        <SectionLabel>Details</SectionLabel>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Inp value={form.nickname} onChange={e=>upd("nickname",e.target.value)} placeholder="Nickname (e.g. Home, 12 Smith St)"/>
+          <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
+            <option value="home">Home</option>
+            <option value="investment">Investment Property</option>
+          </Sel>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+            <Inp type="number" value={form.purchasePrice||""} onChange={e=>upd("purchasePrice",e.target.value)} placeholder="Purchase Price"/>
+            <Inp type="date" value={form.purchaseDate||""} onChange={e=>upd("purchaseDate",e.target.value)}/>
+          </div>
+        </div>
+      </Card>
+
+      <Card style={{marginBottom:16}}>
+        <SectionLabel>Mortgage</SectionLabel>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+          <Inp type="number" value={form.mortgageBalance||""} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Balance Owing"/>
+          <Inp type="number" value={form.interestRate||""} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate %"/>
+        </div>
+      </Card>
+
+      {form.type==="investment"&&(
+        <Card style={{marginBottom:16}}>
+          <SectionLabel>Rental Income</SectionLabel>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8,marginBottom:10}}>
+            <Inp type="number" value={form.rentalIncome||""} onChange={e=>upd("rentalIncome",e.target.value)} placeholder="Rent Amount"/>
+            <Sel value={form.rentalFrequency||"weekly"} onChange={e=>upd("rentalFrequency",e.target.value)}>
+              <option value="weekly">Per Week</option>
+              <option value="fortnightly">Per Fortnight</option>
+              <option value="monthly">Per Month</option>
+            </Sel>
+          </div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Annual: {fmt(annualRent)} · Gross yield: {grossYield.toFixed(2)}%</div>
+        </Card>
+      )}
+
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={save} style={{flex:1}}>Save Changes</Btn>
+        <Btn variant="ghost" onClick={()=>setConfirmDel(true)} style={{color:t.RED}}>Delete</Btn>
+      </div>
+
+      {confirmDel&&(
+        <Modal title="Delete Property?" onClose={()=>setConfirmDel(false)}>
+          <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>This removes "{property.nickname}" and its full value history. This can't be undone.</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn variant="ghost" onClick={()=>setConfirmDel(false)} style={{flex:1}}>Cancel</Btn>
+            <Btn onClick={onDelete} style={{flex:1,background:t.RED}}>Delete</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function PropertyPage({properties,setProperties}){
+  const t=T();
+  const isMobile=useIsMobile();
+  const[showAdd,setShowAdd]=useState(false);
+  const[selectedId,setSelectedId]=useState(null);
+  const emptyForm={nickname:"",type:"home",currentValue:"",purchasePrice:"",purchaseDate:"",mortgageBalance:"",interestRate:"",rentalIncome:"",rentalFrequency:"weekly"};
+  const[form,setForm]=useState(emptyForm);
+  const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const safeProps=properties||[];
+  const selected=safeProps.find(p=>p.id===selectedId);
+
+  if(selected){
+    return <PropertyDetail
+      property={selected}
+      onBack={()=>setSelectedId(null)}
+      onUpdate={updates=>setProperties(ps=>ps.map(p=>p.id===selected.id?{...p,...updates}:p))}
+      onDelete={()=>{setProperties(ps=>ps.filter(p=>p.id!==selected.id));setSelectedId(null);}}
+      onUpdateValue={v=>setProperties(ps=>ps.map(p=>p.id===selected.id?{...p,currentValue:v,valueHistory:[...(p.valueHistory||[]),{date:todayStr(),value:v}]}:p))}
+    />;
+  }
+
+  const addProperty=()=>{
+    if(!form.nickname||!form.currentValue)return;
+    const v=parseFloat(form.currentValue)||0;
+    setProperties(ps=>[...ps,{
+      id:Date.now(),
+      nickname:form.nickname,
+      type:form.type,
+      currentValue:v,
+      purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null,
+      purchaseDate:form.purchaseDate||null,
+      mortgageBalance:parseFloat(form.mortgageBalance)||0,
+      interestRate:form.interestRate?parseFloat(form.interestRate):null,
+      rentalIncome:parseFloat(form.rentalIncome)||0,
+      rentalFrequency:form.rentalFrequency||"weekly",
+      valueHistory:[{date:todayStr(),value:v}]
+    }]);
+    setForm(emptyForm);
+    setShowAdd(false);
+  };
+
+  const totalValue=safeProps.reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const totalMortgage=safeProps.reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
+  const totalEquity=totalValue-totalMortgage;
+
+  return(
+    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
+      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Real Estate</div>
+      <div style={{fontSize:24,color:t.TEXT,marginBottom:16}}>Property Portfolio</div>
+
+      {safeProps.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:16}}>
+          <StatCard label="Total Value" value={fmt(totalValue)}/>
+          <StatCard label="Total Mortgage" value={fmt(totalMortgage)} color={t.RED}/>
+          <StatCard label="Total Equity" value={fmt(totalEquity)} color={t.GREEN}/>
+        </div>
+      )}
+
+      <Card style={{marginBottom:16}}>
+        <SectionLabel>Your Properties</SectionLabel>
+        {safeProps.length===0&&<div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center",padding:"20px 0"}}>No properties added yet</div>}
+        {safeProps.map((p,i)=>{
+          const v=parseFloat(p.currentValue)||0;
+          const m=parseFloat(p.mortgageBalance)||0;
+          const eq=v-m;
+          return(
+            <div key={p.id}>
+              {i>0&&<Divider/>}
+              <div onClick={()=>setSelectedId(p.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",cursor:"pointer"}}>
+                <div>
+                  <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:3}}>{p.nickname}</div>
+                  <Tag color={p.type==="investment"?t.BLUE:t.GOLD}>{p.type==="investment"?"Investment":"Home"}</Tag>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:14,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(v)}</div>
+                  <div style={{fontSize:10,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>Equity {fmt(eq)}</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+
+      {!showAdd?(
+        <Btn onClick={()=>setShowAdd(true)} style={{width:"100%"}}>+ Add Property</Btn>
+      ):(
+        <Card>
+          <SectionLabel action={<button onClick={()=>{setShowAdd(false);setForm(emptyForm);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}>×</button>}>New Property</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <Inp value={form.nickname} onChange={e=>upd("nickname",e.target.value)} placeholder="Nickname (e.g. Home, 12 Smith St)"/>
+            <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
+              <option value="home">Home</option>
+              <option value="investment">Investment Property</option>
+            </Sel>
+            <Inp type="number" value={form.currentValue} onChange={e=>upd("currentValue",e.target.value)} placeholder="Current Value"/>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+              <Inp type="number" value={form.mortgageBalance} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Mortgage Owing (optional)"/>
+              <Inp type="number" value={form.interestRate} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate % (optional)"/>
+            </div>
+            {form.type==="investment"&&(
+              <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+                <Inp type="number" value={form.rentalIncome} onChange={e=>upd("rentalIncome",e.target.value)} placeholder="Rent Amount"/>
+                <Sel value={form.rentalFrequency} onChange={e=>upd("rentalFrequency",e.target.value)}>
+                  <option value="weekly">Per Week</option>
+                  <option value="fortnightly">Per Fortnight</option>
+                  <option value="monthly">Per Month</option>
+                </Sel>
+              </div>
+            )}
+            <Btn onClick={addProperty}>Add Property</Btn>
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -2855,14 +3083,16 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
   };
   const nw=profile.netWorth||0,nwT=Number(profile.netWorthTarget||3000000);
   const nwHistFull={...nwHistory,[monthStr()]:nw};
+  const propertyTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const mortgageTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const assets=[
-    {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:parseFloat(profile.propertyValue)||0},
+    {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:propertyTotal},
     {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:parseFloat(profile.cashSavings)||0},
     {type:"crypto",value:parseFloat(profile.cryptoValue)||0},
     {type:"commodities",value:commodityPortfolio?.totalValue||0},
     {type:"alternative",value:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0)}
   ];
-  const debts=[{l:"Mortgage",k:"mortgageDebt"},{l:"Investment Loan",k:"investLoanDebt"},{l:"Car Finance",k:"carDebt"},{l:"Credit Cards",k:"creditCardDebt"},{l:"Personal Loans",k:"personalDebt"}].filter(d=>parseFloat(profile[d.k])>0);
+  const debts=[{l:"Mortgage",v:mortgageTotal},{l:"Investment Loan",k:"investLoanDebt"},{l:"Car Finance",k:"carDebt"},{l:"Credit Cards",k:"creditCardDebt"},{l:"Personal Loans",k:"personalDebt"}].filter(d=>d.v>0||parseFloat(profile[d.k])>0);
   const safeH=holdings||[];
   const sP=portfolio||{prices:{},totalValue:0,totalGain:0,totalGainPct:0,dayChange:0,lastUpdated:null,refresh:()=>{}};
   const addH=()=>{
@@ -2903,7 +3133,7 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           <Card style={{padding:"12px 14px"}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Net Equity Breakdown</div>
             {[
-              {l:"Property",asset:parseFloat(profile.propertyValue)||0,debt:parseFloat(profile.mortgageDebt)||0,c:"#7A9E7E"},
+              {l:"Property",asset:propertyTotal,debt:mortgageTotal,c:"#7A9E7E"},
               {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:parseFloat(profile.investLoanDebt)||0,c:t.GOLD},
               {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
               {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:0,c:"#7EB8C9"},
@@ -3268,6 +3498,19 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
           <AddCommodityForm commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings}/>
         </Card>
 
+        {/* ── PROPERTY (summary, links to dedicated page) ── */}
+        <Card style={{marginBottom:12,cursor:"pointer"}} onClick={()=>setPage&&setPage("property")}>
+          <SectionLabel action={<span style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>View all →</span>}>Property</SectionLabel>
+          {(properties||[]).length===0?(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>No properties tracked yet — tap to add one</div>
+          ):(
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{(properties||[]).length} {(properties||[]).length===1?"property":"properties"}</span>
+              <span style={{fontSize:14,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(propertyTotal)}</span>
+            </div>
+          )}
+        </Card>
+
         {/* ── ALTERNATIVE ASSETS ── */}
         <Card style={{marginBottom:12}}>
           <SectionLabel>Alternative Assets</SectionLabel>
@@ -3374,8 +3617,8 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
                   setSuperLog(sl=>[{id:Date.now(),date:superForm.date,balance:amount,amount:Math.abs(diff),change:diff,type:superForm.type,note:superForm.note},...sl]);
                   // Update profile balance
                   profile.superBalance=String(amount);
-                  const tA=(parseFloat(profile.shareValue)||0)+(parseFloat(profile.propertyValue)||0)+(parseFloat(profile.cashSavings)||0)+amount+(parseFloat(profile.cryptoValue)||0);
-                  const tD=(parseFloat(profile.mortgageDebt)||0)+(parseFloat(profile.investLoanDebt)||0)+(parseFloat(profile.carDebt)||0)+(parseFloat(profile.creditCardDebt)||0)+(parseFloat(profile.personalDebt)||0);
+                  const tA=(parseFloat(profile.shareValue)||0)+propertyTotal+(parseFloat(profile.cashSavings)||0)+amount+(parseFloat(profile.cryptoValue)||0);
+                  const tD=mortgageTotal+(parseFloat(profile.investLoanDebt)||0)+(parseFloat(profile.carDebt)||0)+(parseFloat(profile.creditCardDebt)||0)+(parseFloat(profile.personalDebt)||0);
                   if(onUpdateProfile)onUpdateProfile({...profile,superBalance:String(amount),totalAssets:tA,netWorth:tA-tD});
                   setSuperForm({balance:"",type:"balance",date:todayStr(),note:""});
                   setShowSuperAdd(false);
@@ -3437,11 +3680,11 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
         <Card>
           <SectionLabel>Liabilities</SectionLabel>
           {debts.map((d,i)=>(
-            <div key={d.k}>
+            <div key={d.l}>
               {i>0&&<Divider/>}
               <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0"}}>
                 <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{d.l}</span>
-                <span style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"-"+fmt(parseFloat(profile[d.k]))}</span>
+                <span style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"-"+fmt(d.v!=null?d.v:parseFloat(profile[d.k]))}</span>
               </div>
             </div>
           ))}
@@ -3624,7 +3867,7 @@ function ProjectorPage({profile}){
   );
 }
 
-function DebtPage({profile,setProfile,debts,setDebts,subscription,setShowUpgrade}){
+function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,setShowUpgrade}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -4727,7 +4970,7 @@ function WatchlistItem({w,onRemove}){
   );
 }
 
-function InvestPage({profile,subscription,setShowUpgrade}){
+function InvestPage({profile,properties,subscription,setShowUpgrade}){
   const t=T();
   const[tab,setTab]=useState("ideas");
   const asOfDate=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
@@ -4750,7 +4993,7 @@ function InvestPage({profile,subscription,setShowUpgrade}){
         model:"claude-sonnet-4-6",
         max_tokens:800,
         tools:[{type:"web_search_20250305",name:"web_search"}],
-        system:"Investment analyst for "+(profile?.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile?.shareValue)||0)+", Property "+fmt(parseFloat(profile?.propertyValue)||0)+", Super "+fmt(parseFloat(profile?.superBalance)||0)+", Crypto "+fmt(parseFloat(profile?.cryptoValue)||0)+". Available cash: "+fmt(parseFloat(profile?.cashSavings)||0)+". Search for current market conditions. Give 3-4 specific opportunities with: NAME, ASSET CLASS, WHY NOW (specific current catalyst), SUGGESTED ALLOCATION, RISK. Be specific.",
+        system:"Investment analyst for "+(profile?.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile?.shareValue)||0)+", Property "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+", Super "+fmt(parseFloat(profile?.superBalance)||0)+", Crypto "+fmt(parseFloat(profile?.cryptoValue)||0)+". Available cash: "+fmt(parseFloat(profile?.cashSavings)||0)+". Search for current market conditions. Give 3-4 specific opportunities with: NAME, ASSET CLASS, WHY NOW (specific current catalyst), SUGGESTED ALLOCATION, RISK. Be specific.",
         messages:[{role:"user",content:"What are the best opportunities right now given current market conditions? Search for latest data."}]
       });
       if(!r.ok){
@@ -6437,7 +6680,7 @@ function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workout
   );
 }
 
-function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,setMessages}){
+function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog,messages,setMessages}){
   const t=T();
   const initMsg={role:"assistant",content:"Good to have you here, "+profile.firstName+". I have full visibility of your dashboard. Ask me anything, or say 'review my dashboard' for an honest assessment."};
   const msgs=messages&&messages.length>0?messages:[initMsg];
@@ -6459,7 +6702,7 @@ function AdvisorPage({profile,tasks,goals,supplements,habits,habitLog,messages,s
     lastMsgDate.toLocaleDateString(_locale,{day:"numeric",month:"short"})
   ):null;
 
-  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt(parseFloat(profile.propertyValue)||0)+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
+  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
 
   const send=async text=>{
     const q=text||input.trim();if(!q||loading)return;setInput("");
@@ -6643,11 +6886,13 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
   );
 }
 
-function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,authToken,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
+function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,setTheme,bgPhoto,setBgPhotoId,nwHistory,tasks,goals,workouts,transactions,journal,authUser,authToken,handleSignOut,setShowAuth,subscription,onUpgrade,handlePortal}){
   const t=T();const isMobile=useIsMobile();const[form,setForm]=useState({...profile});const[saved,setSaved]=useState(false);
+  const propertyTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const mortgageTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const save=()=>{
-    const tA=["shareValue","propertyValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
-    const tD=["mortgageDebt","investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0);
+    const tA=["shareValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+propertyTotal;
+    const tD=["investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+mortgageTotal;
     setProfile({...form,totalAssets:tA,totalDebt:tD,netWorth:tA-tD});setSaved(true);setTimeout(()=>setSaved(false),2000);
   };
   const HEALTH_GOALS=["Build Muscle","Lose Fat","Improve Sleep","Boost Testosterone","Increase Energy","Improve HRV","Reduce Stress","Longevity"];
@@ -6844,7 +7089,7 @@ function ProfilePage({profile,setProfile,onReset,onRecalibrate,theme,setTheme,bg
             supplements,workouts,journal,books,bodyLog,
             transactions,bills,debts,taxDeductions,notes,nwHistory,history,
             weeklyReflections,holdings,cryptoHoldings,
-            commodityHoldings,altAssets,budgets,
+            commodityHoldings,altAssets,properties,budgets,
           };
           const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
           const url=URL.createObjectURL(blob);
@@ -7182,7 +7427,7 @@ function SetupPage({onComplete}){
     firstName:"",lastName:"",age:"",location:"",occupation:"",
     height:"",weight:"",targetWeight:"",bodyFat:"",sleepHours:"",
     healthGoals:[],currentHabits:[],riskProfile:"Growth - accept volatility",
-    annualIncome:"",propertyValue:"",mortgageDebt:"",investLoanDebt:"",
+    annualIncome:"",investLoanDebt:"",
     cashSavings:"",superBalance:"",carDebt:"",creditCardDebt:"",personalDebt:"",
     netWorthTarget:"",theme:"obsidian"
   });
@@ -7204,8 +7449,8 @@ function SetupPage({onComplete}){
   const back=()=>setStep(s=>Math.max(s-1,0));
 
   const finish=()=>{
-    const tA=(parseFloat(p.propertyValue)||0)+(parseFloat(p.cashSavings)||0)+(parseFloat(p.superBalance)||0);
-    const tD=(parseFloat(p.mortgageDebt)||0)+(parseFloat(p.investLoanDebt)||0)+(parseFloat(p.carDebt)||0)+(parseFloat(p.creditCardDebt)||0)+(parseFloat(p.personalDebt)||0);
+    const tA=(parseFloat(p.cashSavings)||0)+(parseFloat(p.superBalance)||0);
+    const tD=(parseFloat(p.investLoanDebt)||0)+(parseFloat(p.carDebt)||0)+(parseFloat(p.creditCardDebt)||0)+(parseFloat(p.personalDebt)||0);
     onComplete({
       profile:{...p,totalAssets:tA,totalDebt:tD,netWorth:tA-tD,shareValue:0,cryptoValue:0},
       goals:initGoals.map((g,i)=>({...g,id:Date.now()+i,progress:0})),
@@ -7523,12 +7768,9 @@ function SetupPage({onComplete}){
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Finances</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Your financial position</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Shares and crypto are tracked separately in the Wealth tab. Skip anything you prefer not to enter now.</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Shares, crypto, and property are tracked separately in their own tabs. Skip anything you prefer not to enter now.</div>
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {inp("annualIncome","Annual Income (AUD)","320,000","number")}
-              <div style={{height:1,background:t.BORDER}}/>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Property</div>
-              <div style={{display:"flex",gap:10}}>{inp("propertyValue","Property Value","1,000,000","number")}{inp("mortgageDebt","Mortgage Owing","900,000","number")}</div>
               <div style={{height:1,background:t.BORDER}}/>
               <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Other</div>
               <div style={{display:"flex",gap:10}}>{inp("cashSavings","Cash & Savings","50,000","number")}{inp("superBalance","Superannuation","150,000","number")}</div>
@@ -9532,7 +9774,7 @@ function App(){
   // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
-    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     (async()=>{
       try{
         setSyncing(true);
@@ -9722,6 +9964,7 @@ function App(){
   const[cryptoHoldings,setCryptoHoldings]=useState([]);
   const[commodityHoldings,setCommodityHoldings]=useState([]);
   const[altAssets,setAltAssets]=useState([]);
+  const[properties,setProperties]=useState([]);
   const[superLog,setSuperLog]=useState([]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
@@ -9807,6 +10050,7 @@ function App(){
               if(d.learnData)setLearnData(d.learnData);
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
+              if(d.properties!==undefined)setProperties(d.properties);
             if(d.advisorMessages!==undefined)setAdvisorMessages(d.advisorMessages);
             // Update localStorage with cloud data so it's in sync
             saveData({...d,lastSavedDate:today});
@@ -9857,6 +10101,7 @@ function App(){
       if(saved.learnData)setLearnData(saved.learnData);
       if(saved.commodityHoldings!==undefined)setCommodityHoldings(saved.commodityHoldings);
       if(saved.altAssets!==undefined)setAltAssets(saved.altAssets);
+      if(saved.properties!==undefined)setProperties(saved.properties);
         if(saved.advisorMessages!==undefined)setAdvisorMessages(saved.advisorMessages);
       }
       setHydrated(true);
@@ -9864,9 +10109,37 @@ function App(){
     })();
   },[]);
 
+  // One-time migration: the app used to store a single flat property
+  // value + mortgage figure directly on the profile. Now that Property
+  // has its own dedicated tracking (supporting multiple properties with
+  // full detail), migrate that old data into a single property entry
+  // the first time this loads, then clear the old fields so it isn't
+  // double-counted. Clearing propertyValue means this check naturally
+  // won't fire again on subsequent loads.
+  useEffect(()=>{
+    if(!hydrated)return;
+    if(properties.length===0&&parseFloat(profile.propertyValue)>0){
+      const migrated={
+        id:Date.now(),
+        nickname:"My Property",
+        type:"home",
+        currentValue:parseFloat(profile.propertyValue)||0,
+        mortgageBalance:parseFloat(profile.mortgageDebt)||0,
+        purchasePrice:null,
+        purchaseDate:null,
+        interestRate:null,
+        rentalIncome:0,
+        rentalFrequency:"weekly",
+        valueHistory:[]
+      };
+      setProperties([migrated]);
+      setProfile(p=>({...p,propertyValue:"",mortgageDebt:""}));
+    }
+  },[hydrated]);
+
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -9911,13 +10184,13 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -9958,6 +10231,7 @@ function App(){
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
             if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
             if(d.altAssets!==undefined)setAltAssets(d.altAssets);
+            if(d.properties!==undefined)setProperties(d.properties);
             // Finance
             if(d.transactions!==undefined)setTransactions(d.transactions);
             if(d.bills!==undefined)setBills(d.bills);
@@ -10004,7 +10278,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
@@ -10231,6 +10505,7 @@ function App(){
               if(d.learnData)setLearnData(d.learnData);
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
+              if(d.properties!==undefined)setProperties(d.properties);
             if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -10271,6 +10546,7 @@ function App(){
               if(d.learnData)setLearnData(d.learnData);
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
+              if(d.properties!==undefined)setProperties(d.properties);
               if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
@@ -10408,17 +10684,19 @@ function App(){
   const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
   const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
   const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
-  const liveAssets=(parseFloat(activeProfile?.propertyValue)||0)+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
-  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0);
+  const livePropertyValue=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const livePropertyDebt=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
+  const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
+  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0)||((properties||[]).length>0);
   const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
-  const effectiveTotalDebt=liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0);
+  const effectiveTotalDebt=(liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0))+livePropertyDebt;
   const liveProfile=activeProfile?(hasLiveData
     ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
     :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
   ):activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
-  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
+  const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
     <div style={{display:"flex",minHeight:"100vh",background:bgPhoto&&bgPhoto!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
@@ -10434,7 +10712,7 @@ function App(){
       )}
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
-      {showRecalibrate&&<RecalibrateModal profile={activeProfile} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
+      {showRecalibrate&&<RecalibrateModal profile={activeProfile} properties={properties} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
       {showAuth&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
@@ -10483,14 +10761,15 @@ function App(){
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
-          {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} superLog={superLog} setSuperLog={setSuperLog}/>}
+          {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
+          {page==="property"&&<PropertyPage properties={properties} setProperties={setProperties}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
-          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
-          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
+          {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} properties={properties} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
+          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
@@ -10504,8 +10783,8 @@ function App(){
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="learn"/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="services"/>:<ServicesPage services={services} setServices={setServices}/>)}
-          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="advisor"/>:<AdvisorPage profile={liveProfile} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
-          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} authToken={authToken} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
+          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="advisor"/>:<AdvisorPage profile={liveProfile} properties={properties} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
+          {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} properties={properties} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} authToken={authToken} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>
       </div>
