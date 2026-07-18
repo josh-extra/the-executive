@@ -3138,6 +3138,8 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
               {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:0,c:"#7EB8C9"},
               {l:"Crypto",asset:parseFloat(profile.cryptoValue)||0,debt:0,c:t.PURPLE},
+              {l:"Commodities",asset:commodityPortfolio?.totalValue||0,debt:0,c:"#D9A66C"},
+              {l:"Alternative Assets",asset:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0),debt:0,c:"#8C8C9E"},
               {l:"Credit Cards",asset:0,debt:parseFloat(profile.creditCardDebt)||0,c:t.RED},
               {l:"Personal Loans",asset:0,debt:parseFloat(profile.personalDebt)||0,c:t.RED},
               {l:"Car Finance",asset:0,debt:parseFloat(profile.carDebt)||0,c:t.RED},
