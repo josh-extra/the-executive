@@ -41,14 +41,14 @@ export default defineConfig({
             urlPattern: /^https:\/\/api\.stripe\.com\/.*/i,
             handler: 'NetworkOnly'
           },
-          // Cache market data for 5 minutes - stale-while-revalidate
+          // Never cache market data - the app already handles its own
+          // refresh timing (throttled requests + interval polling), and
+          // stale-while-revalidate was silently serving old/empty cached
+          // responses for up to 5 minutes at a time while genuinely
+          // fresh data was fetched in the background and discarded.
           {
             urlPattern: /\/api\/quote/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'market-data',
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 }
-            }
+            handler: 'NetworkOnly'
           },
           // Cache news for 10 minutes
           {
