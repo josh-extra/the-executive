@@ -917,9 +917,9 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     );
   }
 
-  // Desktop sidebar (unchanged)
+  // Desktop sidebar (fixed to viewport so it never moves on scroll)
   return (
-    <div style={{width:collapsed?54:200,flexShrink:0,background:t.CARD,borderRight:"1px solid "+t.BORDER,display:"flex",flexDirection:"column",height:"100vh",position:"sticky",top:0,transition:"width .2s",overflow:"hidden"}}>
+    <div style={{width:collapsed?54:200,flexShrink:0,background:t.CARD,borderRight:"1px solid "+t.BORDER,display:"flex",flexDirection:"column",height:"100vh",position:"fixed",top:0,left:0,zIndex:50,transition:"width .2s",overflow:"hidden"}}>
       <div style={{padding:collapsed?"12px 8px":"14px 14px",borderBottom:"1px solid "+t.BORDER,display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between"}}>
         {!collapsed&&<div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>The Executive</div>}
         <button onClick={()=>setCollapsed(x=>!x)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:14,lineHeight:1,flexShrink:0}}>M</button>
@@ -10822,7 +10822,7 @@ function App(){
         </div>
       )}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel} authUser={authUser} setShowAuth={setShowAuth}/>
-      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto",marginLeft:isMobile?0:(sidebarCollapsed?54:200),transition:"margin-left .2s"}}>
         {!profile&&(isMobile?(
           <div style={{margin:"0 14px",marginTop:"calc(14px + env(safe-area-inset-top))",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
