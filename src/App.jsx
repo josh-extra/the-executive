@@ -2832,7 +2832,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
   const[newValue,setNewValue]=useState("");
   const[confirmDel,setConfirmDel]=useState(false);
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
-  const save=()=>onUpdate({...form,currentValue:parseFloat(form.currentValue)||0,mortgageBalance:parseFloat(form.mortgageBalance)||0,interestRate:form.interestRate?parseFloat(form.interestRate):null,rentalIncome:parseFloat(form.rentalIncome)||0,purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null});
+  const save=()=>onUpdate({...form,currentValue:parseFloat(form.currentValue)||0,mortgageBalance:parseFloat(form.mortgageBalance)||0,interestRate:form.interestRate?parseFloat(form.interestRate):null,weeklyRepayment:parseFloat(form.weeklyRepayment)||0,loanTermYears:form.loanTermYears?parseFloat(form.loanTermYears):null,rentalIncome:parseFloat(form.rentalIncome)||0,purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null,managementFeePct:form.managementFeePct?parseFloat(form.managementFeePct):null,ratesAnnual:parseFloat(form.ratesAnnual)||0,waterAnnual:parseFloat(form.waterAnnual)||0,insuranceAnnual:parseFloat(form.insuranceAnnual)||0,maintenanceAnnual:parseFloat(form.maintenanceAnnual)||0});
   const value=parseFloat(property.currentValue)||0;
   const mortgage=parseFloat(property.mortgageBalance)||0;
   const equity=value-mortgage;
@@ -2840,6 +2840,16 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
   const rentMult={weekly:52,fortnightly:26,monthly:12}[property.rentalFrequency||"weekly"]||52;
   const annualRent=(parseFloat(property.rentalIncome)||0)*rentMult;
   const grossYield=value>0?(annualRent/value)*100:0;
+  const managementFeeAnnual=annualRent*((parseFloat(property.managementFeePct)||0)/100);
+  const ratesAnnual=parseFloat(property.ratesAnnual)||0;
+  const waterAnnual=parseFloat(property.waterAnnual)||0;
+  const insuranceAnnual=parseFloat(property.insuranceAnnual)||0;
+  const maintenanceAnnual=parseFloat(property.maintenanceAnnual)||0;
+  const totalAnnualExpenses=managementFeeAnnual+ratesAnnual+waterAnnual+insuranceAnnual+maintenanceAnnual;
+  const netAnnualIncome=annualRent-totalAnnualExpenses;
+  const netYield=value>0?(netAnnualIncome/value)*100:0;
+  const annualRepayment=(parseFloat(property.weeklyRepayment)||0)*52;
+  const annualCashFlow=netAnnualIncome-annualRepayment;
   const history=(property.valueHistory||[]).map(h=>h.value);
   const logValue=()=>{
     const v=parseFloat(newValue);
@@ -2861,6 +2871,13 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
         <StatCard label="LVR" value={lvr.toFixed(1)+"%"} color={lvr>80?t.RED:t.GOLD}/>
         <StatCard label={property.type==="investment"?"Gross Yield":"Value"} value={property.type==="investment"?grossYield.toFixed(2)+"%":fmt(value)}/>
       </div>
+      {property.type==="investment"&&(
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:16}}>
+          <StatCard label="Net Yield" value={netYield.toFixed(2)+"%"} color={t.PURPLE}/>
+          <StatCard label="Annual Expenses" value={fmt(totalAnnualExpenses)} color={t.RED}/>
+          <StatCard label="Cash Flow (yr)" value={(annualCashFlow>=0?"+":"")+fmt(annualCashFlow)} color={annualCashFlow>=0?t.GREEN:t.RED}/>
+        </div>
+      )}
 
       {history.length>1&&(
         <Card style={{marginBottom:16}}>
@@ -2881,10 +2898,16 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
         <SectionLabel>Details</SectionLabel>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <Inp value={form.nickname} onChange={e=>upd("nickname",e.target.value)} placeholder="Nickname (e.g. Home, 12 Smith St)"/>
-          <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
-            <option value="home">Home</option>
-            <option value="investment">Investment Property</option>
-          </Sel>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+            <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
+              <option value="home">Home</option>
+              <option value="investment">Investment Property</option>
+            </Sel>
+            <Sel value={form.category||"residential"} onChange={e=>upd("category",e.target.value)}>
+              <option value="residential">Residential</option>
+              <option value="commercial">Commercial</option>
+            </Sel>
+          </div>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
             <Inp type="number" value={form.purchasePrice||""} onChange={e=>upd("purchasePrice",e.target.value)} placeholder="Purchase Price"/>
             <Inp type="date" value={form.purchaseDate||""} onChange={e=>upd("purchaseDate",e.target.value)}/>
@@ -2894,11 +2917,35 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
 
       <Card style={{marginBottom:16}}>
         <SectionLabel>Mortgage</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
-          <Inp type="number" value={form.mortgageBalance||""} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Balance Owing"/>
-          <Inp type="number" value={form.interestRate||""} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate %"/>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+            <Inp type="number" value={form.mortgageBalance||""} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Balance Owing"/>
+            <Inp type="number" value={form.interestRate||""} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate %"/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+            <Inp type="number" value={form.weeklyRepayment||""} onChange={e=>upd("weeklyRepayment",e.target.value)} placeholder="Weekly Repayment"/>
+            <Inp type="number" value={form.loanTermYears||""} onChange={e=>upd("loanTermYears",e.target.value)} placeholder="Loan Term (years)"/>
+          </div>
         </div>
       </Card>
+
+      {form.type==="investment"&&(
+        <Card style={{marginBottom:16}}>
+          <SectionLabel>Annual Expenses</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:10}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+              <Inp type="number" value={form.managementFeePct||""} onChange={e=>upd("managementFeePct",e.target.value)} placeholder="Management Fee (% of rent)"/>
+              <Inp type="number" value={form.ratesAnnual||""} onChange={e=>upd("ratesAnnual",e.target.value)} placeholder="Council Rates ($/yr)"/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+              <Inp type="number" value={form.waterAnnual||""} onChange={e=>upd("waterAnnual",e.target.value)} placeholder="Water ($/yr)"/>
+              <Inp type="number" value={form.insuranceAnnual||""} onChange={e=>upd("insuranceAnnual",e.target.value)} placeholder="Insurance ($/yr)"/>
+            </div>
+            <Inp type="number" value={form.maintenanceAnnual||""} onChange={e=>upd("maintenanceAnnual",e.target.value)} placeholder="Maintenance Budget ($/yr)"/>
+          </div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Management: {fmt(managementFeeAnnual)} · Total expenses: {fmt(totalAnnualExpenses)}/yr</div>
+        </Card>
+      )}
 
       {form.type==="investment"&&(
         <Card style={{marginBottom:16}}>
@@ -2911,7 +2958,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
               <option value="monthly">Per Month</option>
             </Sel>
           </div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Annual: {fmt(annualRent)} · Gross yield: {grossYield.toFixed(2)}%</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Annual: {fmt(annualRent)} · Gross yield: {grossYield.toFixed(2)}% · Net yield: {netYield.toFixed(2)}%</div>
         </Card>
       )}
 
@@ -2938,7 +2985,7 @@ function PropertyPage({properties,setProperties}){
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
   const[selectedId,setSelectedId]=useState(null);
-  const emptyForm={nickname:"",type:"home",currentValue:"",purchasePrice:"",purchaseDate:"",mortgageBalance:"",interestRate:"",rentalIncome:"",rentalFrequency:"weekly"};
+  const emptyForm={nickname:"",type:"home",category:"residential",currentValue:"",purchasePrice:"",purchaseDate:"",mortgageBalance:"",interestRate:"",weeklyRepayment:"",loanTermYears:"",rentalIncome:"",rentalFrequency:"weekly",managementFeePct:"",ratesAnnual:"",waterAnnual:"",insuranceAnnual:"",maintenanceAnnual:""};
   const[form,setForm]=useState(emptyForm);
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
 
@@ -2962,13 +3009,21 @@ function PropertyPage({properties,setProperties}){
       id:Date.now(),
       nickname:form.nickname,
       type:form.type,
+      category:form.category||"residential",
       currentValue:v,
       purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null,
       purchaseDate:form.purchaseDate||null,
       mortgageBalance:parseFloat(form.mortgageBalance)||0,
       interestRate:form.interestRate?parseFloat(form.interestRate):null,
+      weeklyRepayment:parseFloat(form.weeklyRepayment)||0,
+      loanTermYears:form.loanTermYears?parseFloat(form.loanTermYears):null,
       rentalIncome:parseFloat(form.rentalIncome)||0,
       rentalFrequency:form.rentalFrequency||"weekly",
+      managementFeePct:form.managementFeePct?parseFloat(form.managementFeePct):null,
+      ratesAnnual:parseFloat(form.ratesAnnual)||0,
+      waterAnnual:parseFloat(form.waterAnnual)||0,
+      insuranceAnnual:parseFloat(form.insuranceAnnual)||0,
+      maintenanceAnnual:parseFloat(form.maintenanceAnnual)||0,
       valueHistory:[{date:todayStr(),value:v}]
     }]);
     setForm(emptyForm);
@@ -3005,7 +3060,10 @@ function PropertyPage({properties,setProperties}){
               <div onClick={()=>setSelectedId(p.id)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",cursor:"pointer"}}>
                 <div>
                   <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:3}}>{p.nickname}</div>
-                  <Tag color={p.type==="investment"?t.BLUE:t.GOLD}>{p.type==="investment"?"Investment":"Home"}</Tag>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                    <Tag color={p.type==="investment"?t.BLUE:t.GOLD}>{p.type==="investment"?"Investment":"Home"}</Tag>
+                    <Tag color={p.category==="commercial"?t.PURPLE:t.MUTED}>{p.category==="commercial"?"Commercial":"Residential"}</Tag>
+                  </div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:14,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(v)}</div>
@@ -3024,14 +3082,24 @@ function PropertyPage({properties,setProperties}){
           <SectionLabel action={<button onClick={()=>{setShowAdd(false);setForm(emptyForm);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}>×</button>}>New Property</SectionLabel>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <Inp value={form.nickname} onChange={e=>upd("nickname",e.target.value)} placeholder="Nickname (e.g. Home, 12 Smith St)"/>
-            <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
-              <option value="home">Home</option>
-              <option value="investment">Investment Property</option>
-            </Sel>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+              <Sel value={form.type} onChange={e=>upd("type",e.target.value)}>
+                <option value="home">Home</option>
+                <option value="investment">Investment Property</option>
+              </Sel>
+              <Sel value={form.category} onChange={e=>upd("category",e.target.value)}>
+                <option value="residential">Residential</option>
+                <option value="commercial">Commercial</option>
+              </Sel>
+            </div>
             <Inp type="number" value={form.currentValue} onChange={e=>upd("currentValue",e.target.value)} placeholder="Current Value"/>
             <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
               <Inp type="number" value={form.mortgageBalance} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Mortgage Owing (optional)"/>
               <Inp type="number" value={form.interestRate} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate % (optional)"/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+              <Inp type="number" value={form.weeklyRepayment} onChange={e=>upd("weeklyRepayment",e.target.value)} placeholder="Weekly Repayment (optional)"/>
+              <Inp type="number" value={form.loanTermYears} onChange={e=>upd("loanTermYears",e.target.value)} placeholder="Loan Term (years, optional)"/>
             </div>
             {form.type==="investment"&&(
               <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
@@ -3042,6 +3110,20 @@ function PropertyPage({properties,setProperties}){
                   <option value="monthly">Per Month</option>
                 </Sel>
               </div>
+            )}
+            {form.type==="investment"&&(
+              <>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginTop:2}}>Annual Expenses (optional)</div>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+                  <Inp type="number" value={form.managementFeePct} onChange={e=>upd("managementFeePct",e.target.value)} placeholder="Management Fee (% of rent)"/>
+                  <Inp type="number" value={form.ratesAnnual} onChange={e=>upd("ratesAnnual",e.target.value)} placeholder="Council Rates ($/yr)"/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
+                  <Inp type="number" value={form.waterAnnual} onChange={e=>upd("waterAnnual",e.target.value)} placeholder="Water ($/yr)"/>
+                  <Inp type="number" value={form.insuranceAnnual} onChange={e=>upd("insuranceAnnual",e.target.value)} placeholder="Insurance ($/yr)"/>
+                </div>
+                <Inp type="number" value={form.maintenanceAnnual} onChange={e=>upd("maintenanceAnnual",e.target.value)} placeholder="Maintenance Budget ($/yr)"/>
+              </>
             )}
             <Btn onClick={addProperty}>Add Property</Btn>
           </div>
