@@ -437,16 +437,17 @@ function useCrypto(holdings){
     const results={};
     await Promise.all(safeH.map(async h=>{
       try{
-        const sym=h.symbol.includes("-")?h.symbol:h.symbol+"-USD";
+        const key=h.ticker||h.symbol;
+        const sym=key.includes("-")?key:key+"-USD";
         const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(sym));
         const d=await r.json();
-        if(d.price)results[h.symbol]={price:d.price,change:d.change||0,pct:d.pct||0};
+        if(d.price)results[key]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
     }));
     setPrices(results);
     setLastUpdated(new Date());
     setLoading(false);
-  },[safeH.map(h=>h.symbol).join(",")]);
+  },[safeH.map(h=>h.ticker||h.symbol).join(",")]);
 
   useEffect(()=>{
     fetchPrices();
@@ -455,7 +456,7 @@ function useCrypto(holdings){
   },[fetchPrices]);
 
   const totalValue=safeH.reduce((s,h)=>{
-    const lp=prices[h.symbol]?.price;
+    const lp=prices[h.ticker||h.symbol]?.price;
     return s+(lp?lp*h.amount:h.avgCost?h.avgCost*h.amount:0);
   },0);
   const totalCost=safeH.reduce((s,h)=>s+(h.avgCost?h.avgCost*h.amount:0),0);
