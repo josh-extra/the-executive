@@ -10830,7 +10830,22 @@ function App(){
     if(authToken) await supabase.signOut(authToken).catch(()=>{});
     localStorage.removeItem("exec_token");
     localStorage.removeItem("exec_refresh");
+    // Clear the cached local snapshot and all in-memory data - not just the auth
+    // token - so the next person on this device (e.g. a family member sharing it)
+    // never sees this account's profile, finances, health data, etc.
+    localStorage.removeItem(SK);
+    setProfile(null);
+    setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
+    setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
+    setBooks(D_BOOKS);setReadingGoal(24);setBills([]);setDebts([]);setTaxDeductions([]);
+    setHistory({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
+    setBudgets({});setWeeklyReflections({});setNotes([]);setServices([]);
+    setLearnData({library:[],sessions:[],weeklyGoal:5});
+    setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setProperties([]);
+    setSuperLog([]);setAdvisorMessages([]);setLastSaved(null);setNwHistory({});
+    setSeenMilestones([]);setMarketTickers(DEFAULT_TICKERS);
     setAuthToken(null);setAuthUser(null);setSessionExpired(false);
+    setPage("dashboard");
   };
 
   const handleCheckout=async(priceId)=>{
