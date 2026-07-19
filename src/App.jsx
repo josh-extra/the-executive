@@ -3133,6 +3133,60 @@ function PropertyPage({properties,setProperties}){
   );
 }
 
+// Shared ticker database used by both the Wealth page ticker autocomplete and the
+// Dashboard's custom watchlist search, so suggestions stay consistent everywhere.
+const TICKER_DB=[
+  {symbol:"^GSPC",label:"S&P 500",cat:"Index"},{symbol:"^AXJO",label:"ASX 200",cat:"Index"},{symbol:"^IXIC",label:"Nasdaq",cat:"Index"},{symbol:"^DJI",label:"Dow Jones",cat:"Index"},{symbol:"^RUT",label:"Russell 2000",cat:"Index"},{symbol:"^FTSE",label:"FTSE 100",cat:"Index"},{symbol:"^N225",label:"Nikkei 225",cat:"Index"},{symbol:"^HSI",label:"Hang Seng",cat:"Index"},
+  {symbol:"AUDUSD=X",label:"AUD/USD",cat:"Forex",fx:true},{symbol:"GBPUSD=X",label:"GBP/USD",cat:"Forex",fx:true},{symbol:"EURUSD=X",label:"EUR/USD",cat:"Forex",fx:true},{symbol:"USDJPY=X",label:"USD/JPY",cat:"Forex",fx:true},{symbol:"NZDUSD=X",label:"NZD/USD",cat:"Forex",fx:true},
+  {symbol:"BTC-USD",label:"Bitcoin",cat:"Crypto"},{symbol:"ETH-USD",label:"Ethereum",cat:"Crypto"},{symbol:"SOL-USD",label:"Solana",cat:"Crypto"},{symbol:"XRP-USD",label:"XRP",cat:"Crypto"},{symbol:"DOGE-USD",label:"Dogecoin",cat:"Crypto"},{symbol:"BNB-USD",label:"BNB",cat:"Crypto"},
+  {symbol:"AAPL",label:"Apple",cat:"US"},{symbol:"MSFT",label:"Microsoft",cat:"US"},{symbol:"NVDA",label:"Nvidia",cat:"US"},{symbol:"GOOGL",label:"Alphabet",cat:"US"},{symbol:"AMZN",label:"Amazon",cat:"US"},{symbol:"META",label:"Meta",cat:"US"},{symbol:"TSLA",label:"Tesla",cat:"US"},{symbol:"NFLX",label:"Netflix",cat:"US"},{symbol:"AMD",label:"AMD",cat:"US"},{symbol:"JPM",label:"JPMorgan",cat:"US"},{symbol:"SPY",label:"S&P 500 ETF",cat:"ETF"},{symbol:"QQQ",label:"Nasdaq ETF",cat:"ETF"},{symbol:"GLD",label:"Gold ETF",cat:"ETF"},
+  {symbol:"CBA.AX",label:"Commonwealth Bank",cat:"ASX"},{symbol:"BHP.AX",label:"BHP Group",cat:"ASX"},{symbol:"CSL.AX",label:"CSL",cat:"ASX"},{symbol:"ANZ.AX",label:"ANZ Bank",cat:"ASX"},{symbol:"NAB.AX",label:"NAB",cat:"ASX"},{symbol:"WBC.AX",label:"Westpac",cat:"ASX"},{symbol:"WES.AX",label:"Wesfarmers",cat:"ASX"},{symbol:"MQG.AX",label:"Macquarie",cat:"ASX"},{symbol:"RIO.AX",label:"Rio Tinto",cat:"ASX"},{symbol:"WOW.AX",label:"Woolworths",cat:"ASX"},{symbol:"TLS.AX",label:"Telstra",cat:"ASX"},{symbol:"GMG.AX",label:"Goodman Group",cat:"ASX"},{symbol:"FMG.AX",label:"Fortescue",cat:"ASX"},{symbol:"XRO.AX",label:"Xero",cat:"ASX"},{symbol:"PME.AX",label:"Pro Medicus",cat:"ASX"},
+  {symbol:"GC=F",label:"Gold",cat:"Commodity"},{symbol:"SI=F",label:"Silver",cat:"Commodity"},{symbol:"CL=F",label:"Crude Oil",cat:"Commodity"},{symbol:"NG=F",label:"Natural Gas",cat:"Commodity"},
+];
+
+// Dropdown autocomplete for a single ticker input - matches on symbol prefix or company/index name.
+// onSelect fires with the full {symbol,label,cat} entry when a suggestion is picked (so callers can
+// also auto-fill a name/label field); onChange fires on every keystroke with the raw typed value.
+function TickerAutocomplete({value,onChange,onSelect,placeholder,style}){
+  const t=T();
+  const[open,setOpen]=useState(false);
+  const{flex,width,...inputStyle}=style||{};
+  const q=(value||"").trim().toLowerCase();
+  const suggestions=q.length>=1?TICKER_DB.filter(s=>
+    s.symbol.toLowerCase().startsWith(q)||s.label.toLowerCase().includes(q)
+  ).slice(0,6):[];
+  return(
+    <div style={{position:"relative",flex,width}}>
+      <input
+        type="text"
+        value={value||""}
+        onChange={e=>{onChange(e.target.value.toUpperCase());setOpen(true);}}
+        onFocus={()=>setOpen(true)}
+        onBlur={()=>setTimeout(()=>setOpen(false),150)}
+        placeholder={placeholder||""}
+        spellCheck={false}
+        style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box",...inputStyle}}
+      />
+      {open&&suggestions.length>0&&(
+        <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,zIndex:300,boxShadow:"0 8px 24px rgba(0,0,0,.5)",overflow:"hidden",maxHeight:220,overflowY:"auto"}}>
+          {suggestions.map(s=>(
+            <div key={s.symbol} onMouseDown={()=>{onChange(s.symbol);onSelect&&onSelect(s);setOpen(false);}}
+              style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",cursor:"pointer",borderBottom:"1px solid "+t.BORDER+"33"}}
+              onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div>
+                <span style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{s.symbol}</span>
+                <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",marginLeft:8}}>{s.label}</span>
+              </div>
+              <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:t.CARD2,padding:"1px 6px",borderRadius:8}}>{s.cat}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
@@ -3264,7 +3318,10 @@ function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdin
               {[["Ticker","ticker","BHP.AX"],["Shares","shares","100"],["Avg Cost","avgCost","45.20"],["Label","name","BHP Group"]].map(([l,k,ph])=>(
                 <div key={k}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
-                  <Inp value={hForm[k]} onChange={e=>setHForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{fontSize:12,padding:"7px 9px"}}/>
+                  {k==="ticker"
+                    ?<TickerAutocomplete value={hForm.ticker} onChange={v=>setHForm(f=>({...f,ticker:v}))} onSelect={s=>setHForm(f=>({...f,ticker:s.symbol,name:f.name||s.label}))} placeholder={ph} style={{fontSize:12,padding:"7px 9px"}}/>
+                    :<Inp value={hForm[k]} onChange={e=>setHForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{fontSize:12,padding:"7px 9px"}}/>
+                  }
                 </div>
               ))}
             </div>
@@ -5214,7 +5271,7 @@ function InvestPage({profile,properties,subscription,setShowUpgrade}){
           {showWAdd&&(
             <Card style={{marginBottom:12,borderColor:t.GOLD+"44"}}>
               <div style={{display:"flex",gap:7,marginBottom:7}}>
-                <Inp value={wForm.ticker} onChange={e=>setWForm(f=>({...f,ticker:e.target.value.toUpperCase()}))} placeholder="Ticker (e.g. BHP.AX)" style={{flex:1}}/>
+                <TickerAutocomplete value={wForm.ticker} onChange={v=>setWForm(f=>({...f,ticker:v}))} onSelect={s=>setWForm(f=>({...f,ticker:s.symbol,name:f.name||s.label}))} placeholder="Ticker (e.g. BHP.AX)" style={{flex:1}}/>
                 <Inp value={wForm.name} onChange={e=>setWForm(f=>({...f,name:e.target.value}))} placeholder="Name" style={{flex:2}}/>
               </div>
               <Inp value={wForm.notes} onChange={e=>setWForm(f=>({...f,notes:e.target.value}))} placeholder="Notes - why watching?" style={{marginBottom:7}}/>
@@ -9709,14 +9766,8 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
 function TickerSearch({marketTickers,setMarketTickers,DEFAULT_TICKERS,onSave,onReset}){
   const t=T();
   const[search,setSearch]=useState("");
-  const TICKER_DB=[
-    {symbol:"^GSPC",label:"S&P 500",cat:"Index"},{symbol:"^AXJO",label:"ASX 200",cat:"Index"},{symbol:"^IXIC",label:"Nasdaq",cat:"Index"},{symbol:"^DJI",label:"Dow Jones",cat:"Index"},{symbol:"^RUT",label:"Russell 2000",cat:"Index"},{symbol:"^FTSE",label:"FTSE 100",cat:"Index"},{symbol:"^N225",label:"Nikkei 225",cat:"Index"},{symbol:"^HSI",label:"Hang Seng",cat:"Index"},
-    {symbol:"AUDUSD=X",label:"AUD/USD",cat:"Forex",fx:true},{symbol:"GBPUSD=X",label:"GBP/USD",cat:"Forex",fx:true},{symbol:"EURUSD=X",label:"EUR/USD",cat:"Forex",fx:true},{symbol:"USDJPY=X",label:"USD/JPY",cat:"Forex",fx:true},{symbol:"NZDUSD=X",label:"NZD/USD",cat:"Forex",fx:true},
-    {symbol:"BTC-USD",label:"Bitcoin",cat:"Crypto"},{symbol:"ETH-USD",label:"Ethereum",cat:"Crypto"},{symbol:"SOL-USD",label:"Solana",cat:"Crypto"},{symbol:"XRP-USD",label:"XRP",cat:"Crypto"},{symbol:"DOGE-USD",label:"Dogecoin",cat:"Crypto"},{symbol:"BNB-USD",label:"BNB",cat:"Crypto"},
-    {symbol:"AAPL",label:"Apple",cat:"US"},{symbol:"MSFT",label:"Microsoft",cat:"US"},{symbol:"NVDA",label:"Nvidia",cat:"US"},{symbol:"GOOGL",label:"Alphabet",cat:"US"},{symbol:"AMZN",label:"Amazon",cat:"US"},{symbol:"META",label:"Meta",cat:"US"},{symbol:"TSLA",label:"Tesla",cat:"US"},{symbol:"NFLX",label:"Netflix",cat:"US"},{symbol:"AMD",label:"AMD",cat:"US"},{symbol:"JPM",label:"JPMorgan",cat:"US"},{symbol:"SPY",label:"S&P 500 ETF",cat:"ETF"},{symbol:"QQQ",label:"Nasdaq ETF",cat:"ETF"},{symbol:"GLD",label:"Gold ETF",cat:"ETF"},
-    {symbol:"CBA.AX",label:"Commonwealth Bank",cat:"ASX"},{symbol:"BHP.AX",label:"BHP Group",cat:"ASX"},{symbol:"CSL.AX",label:"CSL",cat:"ASX"},{symbol:"ANZ.AX",label:"ANZ Bank",cat:"ASX"},{symbol:"NAB.AX",label:"NAB",cat:"ASX"},{symbol:"WBC.AX",label:"Westpac",cat:"ASX"},{symbol:"WES.AX",label:"Wesfarmers",cat:"ASX"},{symbol:"MQG.AX",label:"Macquarie",cat:"ASX"},{symbol:"RIO.AX",label:"Rio Tinto",cat:"ASX"},{symbol:"WOW.AX",label:"Woolworths",cat:"ASX"},{symbol:"TLS.AX",label:"Telstra",cat:"ASX"},{symbol:"GMG.AX",label:"Goodman Group",cat:"ASX"},{symbol:"FMG.AX",label:"Fortescue",cat:"ASX"},{symbol:"XRO.AX",label:"Xero",cat:"ASX"},{symbol:"PME.AX",label:"Pro Medicus",cat:"ASX"},
-    {symbol:"GC=F",label:"Gold",cat:"Commodity"},{symbol:"SI=F",label:"Silver",cat:"Commodity"},{symbol:"CL=F",label:"Crude Oil",cat:"Commodity"},{symbol:"NG=F",label:"Natural Gas",cat:"Commodity"},
-  ];
+  // Uses the shared module-level TICKER_DB (defined above WealthPage) so suggestions
+  // stay consistent with the Wealth page's ticker autocomplete.
   const current=marketTickers||DEFAULT_TICKERS;
   const isFull=current.length>=5;
   const q=search.toLowerCase();
