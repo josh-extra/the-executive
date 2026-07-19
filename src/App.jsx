@@ -6923,6 +6923,13 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
     lastMsgDate.toLocaleDateString(_locale,{day:"numeric",month:"short"})
   ):null;
 
+  // Show the quick-start prompts on the very first message ever, and again at the start
+  // of each new day - conversation history stays intact either way, this just gives a
+  // fresh set of suggestions rather than only ever showing them once, forever.
+  const lastMsgOverall=messages&&messages.length>0?messages[messages.length-1]:null;
+  const lastMsgIsToday=lastMsgOverall&&lastMsgOverall.timestamp?new Date(lastMsgOverall.timestamp).toDateString()===new Date().toDateString():false;
+  const showPrompts=msgs.length===1||!lastMsgIsToday;
+
   const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
 
   const send=async text=>{
@@ -6957,11 +6964,14 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
           {msgs.length>1&&<button onClick={()=>setMessages([])} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 9px",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10}}>Clear</button>}
         </div>
       </div>
-      {msgs.length===1&&(
-        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12,flexShrink:0}}>
-          {PROMPTS.map(p=>(
-            <button key={p} onClick={()=>send(p)} style={{padding:"6px 11px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:18,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>{p}</button>
-          ))}
+      {showPrompts&&(
+        <div style={{marginBottom:12,flexShrink:0}}>
+          {msgs.length>1&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Quick start for today</div>}
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {PROMPTS.map(p=>(
+              <button key={p} onClick={()=>send(p)} style={{padding:"6px 11px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:18,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>{p}</button>
+            ))}
+          </div>
         </div>
       )}
       <div style={{flex:1,overflowY:"auto",paddingRight:4,marginBottom:10}}>
