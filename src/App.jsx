@@ -3150,11 +3150,33 @@ const TICKER_DB=[
 function TickerAutocomplete({value,onChange,onSelect,placeholder,style}){
   const t=T();
   const[open,setOpen]=useState(false);
+  const[verify,setVerify]=useState(null); // null | "checking" | {ok:true,price} | {ok:false}
   const{flex,width,...inputStyle}=style||{};
   const q=(value||"").trim().toLowerCase();
   const suggestions=q.length>=1?TICKER_DB.filter(s=>
     s.symbol.toLowerCase().startsWith(q)||s.label.toLowerCase().includes(q)
   ).slice(0,6):[];
+
+  // For anything not in our quick list, live-verify against the same quote API that
+  // powers every price on the site, so the person gets a clear yes/no instead of
+  // silence - silence reads as "invalid" even when it's just an unlisted symbol.
+  useEffect(()=>{
+    if(suggestions.length>0||q.length<2){setVerify(null);return;}
+    setVerify("checking");
+    let cancelled=false;
+    const sym=value.trim().toUpperCase();
+    const id=setTimeout(async()=>{
+      try{
+        const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(sym));
+        const d=await r.json();
+        if(!cancelled)setVerify(d&&d.price?{ok:true,price:d.price}:{ok:false});
+      }catch{
+        if(!cancelled)setVerify({ok:false});
+      }
+    },600);
+    return()=>{cancelled=true;clearTimeout(id);};
+  },[value]);
+
   return(
     <div style={{position:"relative",flex,width}}>
       <input
@@ -3182,6 +3204,12 @@ function TickerAutocomplete({value,onChange,onSelect,placeholder,style}){
             </div>
           ))}
         </div>
+      )}
+      {suggestions.length===0&&(
+        verify==="checking"?<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>Checking symbol...</div>
+        :verify&&verify.ok?<div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>{"Valid ticker - "+fmt(verify.price)}</div>
+        :verify&&verify.ok===false?<div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>Couldn't verify this symbol - double check the format (e.g. .AX for ASX), or add it anyway if you know it's right</div>
+        :null
       )}
     </div>
   );
