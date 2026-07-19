@@ -4417,6 +4417,11 @@ function CashFlowPage({transactions,setTransactions,subscription,setShowUpgrade,
   const totalIncome=transactions.filter(tx=>tx.type==="income").reduce((s,tx)=>s+tx.amount,0);
   const totalExpense=transactions.filter(tx=>tx.type==="expense").reduce((s,tx)=>s+tx.amount,0);
 
+  // Duplicate detection — same date+type+amount, often caused by importing overlapping bank statements
+  const dupeKey=tx=>tx.date+"|"+tx.type+"|"+Math.round((parseFloat(tx.amount)||0)*100);
+  const dupeGroups=Object.values(transactions.reduce((m,tx)=>{const k=dupeKey(tx);(m[k]=m[k]||[]).push(tx);return m;},{})).filter(g=>g.length>1);
+  const dupeExtraCount=dupeGroups.reduce((s,g)=>s+g.length-1,0);
+
   // Category totals for selected period
   const selectedMonthData=hoveredMonth||(hasCurrentMonthData?currentMonth:prevMonth);
   const byCatIncome=EXP_CATS.income.map(cat=>({cat,total:selectedMonthData.txs.filter(tx=>tx.type==="income"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0)})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
@@ -4478,13 +4483,23 @@ Categorisation rules:
       if(!Array.isArray(parsed)||!parsed.length){setPdfState("error");setPdfError("No transactions found in this PDF.");return;}
       const valid=parsed.filter(tx=>tx.date&&tx.amount).map((tx,i)=>({id:"pdf_"+i+"_"+Date.now(),date:tx.date,type:tx.type==="income"?"income":"expense",category:tx.category||"Other",amount:Math.abs(parseFloat(tx.amount)||0),note:tx.description||""})).filter(tx=>tx.amount>0);
       if(!valid.length){setPdfState("error");setPdfError("Could not extract valid transactions. Make sure this is a bank statement PDF.");return;}
-      setExtracted(valid);const sel={};valid.forEach(tx=>{sel[tx.id]=true;});setSelected(sel);setPdfState("review");
+      // Flag likely duplicates - same date/type/amount already saved, or repeated within this same statement (common with overlapping statement periods)
+      const existingKeys={};
+      transactions.forEach(tx=>{const k=dupeKey(tx);existingKeys[k]=(existingKeys[k]||0)+1;});
+      const seenInBatch={};
+      const withDupes=valid.map(tx=>{
+        const k=dupeKey(tx);
+        const dupe=!!existingKeys[k]||!!seenInBatch[k];
+        seenInBatch[k]=(seenInBatch[k]||0)+1;
+        return{...tx,dupe};
+      });
+      setExtracted(withDupes);const sel={};withDupes.forEach(tx=>{sel[tx.id]=!tx.dupe;});setSelected(sel);setPdfState("review");
     }catch(err){
       setPdfState("error");
       setPdfError(err.message?.includes("JSON")?"Could not parse the statement — try a different PDF format.":"Something went wrong: "+err.message);
     }
   };
-  const confirmImport=()=>{setTransactions(ts=>[...extracted.filter(tx=>selected[tx.id]).map(tx=>({...tx,id:Date.now()+Math.random()})),...ts]);setExtracted([]);setSelected({});setPdfState("idle");};
+  const confirmImport=()=>{setTransactions(ts=>[...extracted.filter(tx=>selected[tx.id]).map(({dupe,...tx})=>({...tx,id:Date.now()+Math.random()})),...ts]);setExtracted([]);setSelected({});setPdfState("idle");};
   const add=()=>{if(!form.amount||isNaN(form.amount))return;setTransactions(ts=>[{...form,amount:parseFloat(form.amount),id:Date.now()},...ts]);setForm(f=>({...f,amount:"",note:""}));setShowAdd(false);};
   const shown=transactions.filter(tx=>filter==="all"||tx.type===filter).slice(0,50);
 
@@ -4524,6 +4539,14 @@ Categorisation rules:
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>{"All time: "+(totalIncome-totalExpense>=0?"+":"-")+fmt(Math.abs(totalIncome-totalExpense))}</div>
         </Card>
       </div>
+
+      {/* Duplicate transaction warning - visible regardless of active tab, since it affects the totals above */}
+      {dupeExtraCount>0&&(
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap",padding:"9px 14px",background:t.RED+"14",border:"1px solid "+t.RED+"44",borderRadius:8,marginBottom:14}}>
+          <div style={{fontSize:11,color:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{"⚠ "+dupeExtraCount+" possible duplicate "+(dupeExtraCount===1?"transaction is":"transactions are")+" currently included in the totals above - likely from overlapping statement imports"}</div>
+          <button onClick={()=>setActiveTab("transactions")} style={{background:"none",border:"1px solid "+t.RED+"44",borderRadius:6,padding:"5px 12px",color:t.RED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10,flexShrink:0}}>Review Duplicates</button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -4586,7 +4609,7 @@ Categorisation rules:
           {pdfState==="review"&&(
             <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{extracted.length+" found - "+Object.values(selected).filter(Boolean).length+" selected"}</div>
+                <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{extracted.length+" found"+(extracted.filter(tx=>tx.dupe).length>0?" · "+extracted.filter(tx=>tx.dupe).length+" possible duplicates":"")+" · "+Object.values(selected).filter(Boolean).length+" selected"}</div>
                 <div style={{display:"flex",gap:7}}>
                   <button onClick={()=>{const all=Object.values(selected).every(Boolean);const s={};extracted.forEach(tx=>{s[tx.id]=!all;});setSelected(s);}} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 9px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>{Object.values(selected).every(Boolean)?"Deselect All":"Select All"}</button>
                   <Btn onClick={confirmImport} disabled={!Object.values(selected).some(Boolean)} style={{fontSize:10,padding:"4px 10px"}}>{"Import "+Object.values(selected).filter(Boolean).length}</Btn>
@@ -4595,12 +4618,15 @@ Categorisation rules:
               </div>
               <div style={{maxHeight:280,overflowY:"auto",border:"1px solid "+t.BORDER,borderRadius:7}}>
                 {extracted.map((tx,i)=>(
-                  <div key={tx.id} onClick={()=>setSelected(s=>({...s,[tx.id]:!s[tx.id]}))} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderBottom:i<extracted.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:selected[tx.id]?t.GOLD+"08":"transparent"}}>
+                  <div key={tx.id} onClick={()=>setSelected(s=>({...s,[tx.id]:!s[tx.id]}))} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderBottom:i<extracted.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:selected[tx.id]?t.GOLD+"08":tx.dupe?t.RED+"08":"transparent"}}>
                     <div style={{width:14,height:14,borderRadius:3,border:"1.5px solid "+(selected[tx.id]?t.GOLD:t.BORDER2),background:selected[tx.id]?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                       {selected[tx.id]&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}>V</span>}
                     </div>
                     <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",width:80,flexShrink:0}}>{tx.date}</div>
-                    <div style={{flex:1,fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx.note}</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx.note}</div>
+                      {tx.dupe&&<div style={{fontSize:8,color:t.RED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:.5,marginTop:1}}>Possible duplicate</div>}
+                    </div>
                     <select value={tx.category} onClick={e=>e.stopPropagation()} onChange={e=>{e.stopPropagation();setExtracted(ex=>ex.map(x=>x.id===tx.id?{...x,category:e.target.value}:x));}} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 4px",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:9,outline:"none",flexShrink:0}}>
                       {EXP_CATS[tx.type].map(c=><option key={c} value={c}>{c}</option>)}
                     </select>
@@ -4744,6 +4770,31 @@ Categorisation rules:
             <div style={{fontSize:11,color:t.MUTED}}>|</div>
             <div style={{fontSize:11,color:t.RED,fontFamily:"'Montserrat',sans-serif"}}>Expenses: {fmt(shown.filter(tx=>tx.type==="expense").reduce((s,tx)=>s+tx.amount,0))}</div>
           </div>
+          {/* Duplicate cleanup */}
+          {dupeExtraCount>0&&(
+            <Card style={{marginBottom:14,borderColor:t.RED+"44"}}>
+              <div style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:4}}>{"⚠ "+dupeExtraCount+" possible duplicate "+(dupeExtraCount===1?"transaction":"transactions")+" found"}</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>Same date, type and amount - often caused by importing overlapping bank statement periods. These are currently counted in your cash flow totals. Remove the extras below to fix it.</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {dupeGroups.map((g,gi)=>(
+                  <div key={gi} style={{border:"1px solid "+t.BORDER,borderRadius:7,overflow:"hidden"}}>
+                    {g.map((tx,i)=>(
+                      <div key={tx.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",borderBottom:i<g.length-1?"1px solid "+t.BORDER:"none",background:i===0?"transparent":t.RED+"08"}}>
+                        <div>
+                          <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{tx.category}{tx.note&&<span style={{color:t.MUTED}}>{" - "+tx.note}</span>}</div>
+                          <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{tx.date+(i===0?" - keeping this one":" - likely duplicate")}</div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <div style={{fontSize:11,color:tx.type==="income"?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{(tx.type==="income"?"+":"-")+fmt(tx.amount)}</div>
+                          <button onClick={()=>setTransactions(ts=>ts.filter(x=>x.id!==tx.id))} style={{background:"none",border:"1px solid "+t.RED+"44",borderRadius:5,padding:"3px 8px",color:t.RED,cursor:"pointer",fontSize:9,fontFamily:"'Montserrat',sans-serif"}}>Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
           {shown.length===0?<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:28,marginBottom:10}}>T</div><div>No transactions yet</div></div>:
           <Card>
             {shown.map((tx,i)=>(
