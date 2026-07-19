@@ -819,9 +819,9 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   ];
 
   const groups=[
-    ["Command",["dashboard","weekly","advisor","learn","notes","services"]],
+    ["Command",["dashboard","weekly","advisor","news","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
-    ["Wealth",["wealth","property","cashflow","bills","budget","debt","invest","projector","dividends","tax","news"]],
+    ["Wealth",["wealth","property","cashflow","bills","budget","debt","invest","projector","dividends","tax"]],
     ["Health",["health","body","workout","recipes"]],
     ["Settings",["profile"]]
   ];
