@@ -7514,7 +7514,7 @@ function SetupPage({onComplete}){
     healthGoals:[],currentHabits:[],riskProfile:"Growth - accept volatility",
     annualIncome:"",investLoanDebt:"",
     cashSavings:"",superBalance:"",carDebt:"",creditCardDebt:"",personalDebt:"",
-    netWorthTarget:"",theme:"obsidian"
+    netWorthTarget:"",theme:"obsidian",bgPhoto:"none"
   });
   const[initGoals,setInitGoals]=useState([]);
   const[initSupps,setInitSupps]=useState([]);
@@ -7522,7 +7522,7 @@ function SetupPage({onComplete}){
   const[newSupp,setNewSupp]=useState({name:"",dose:"",time:"morning",purpose:""});
 
   const STEPS=[
-    "welcome","personal","body","healthgoals","habits","supplements","goals","financial","risk","done"
+    "welcome","personal","body","healthgoals","habits","supplements","goals","financial","appearance","risk","done"
   ];
   const cur=STEPS[step];
   const prog=step/(STEPS.length-1);
@@ -7872,12 +7872,12 @@ function SetupPage({onComplete}){
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Appearance</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose your theme</div>
             <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Pick the look that suits you. You can change this anytime in Profile.</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:24}}>
               {[
                 {id:"obsidian",label:"Obsidian",sub:"Dark - gold accents",bg:"#0D0D0D",card:"#141414",border:"#2A2A2A",accent:"#C9A84C",text:"#E8E0D0",muted:"#7A7060"},
                 {id:"charcoal",label:"Charcoal",sub:"Dark - grey tones",bg:"#141414",card:"#1E1E1E",border:"#2E2E2E",accent:"#AFAFAF",text:"#E0E0E0",muted:"#666"},
               ].map(th=>(
-                <div key={th.id} onClick={()=>{setP(f=>({...f,theme:th.id}));_themeKey=th.id;setThemeState&&setThemeState(th.id);}} style={{background:th.card,border:"2px solid "+(p.theme===th.id?th.accent:th.border),borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
+                <div key={th.id} onClick={()=>{setP(f=>({...f,theme:th.id}));_themeKey=th.id;}} style={{background:th.card,border:"2px solid "+(p.theme===th.id?th.accent:th.border),borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
                   <div style={{background:th.bg,borderRadius:7,padding:10,marginBottom:10,border:"1px solid "+th.border}}>
                     <div style={{fontSize:8,color:th.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Today's Score</div>
                     <div style={{fontSize:22,color:th.accent,fontFamily:"'Montserrat',sans-serif",fontWeight:700,marginBottom:6}}>78%</div>
@@ -7891,6 +7891,25 @@ function SetupPage({onComplete}){
                   {p.theme===th.id&&<div style={{marginTop:6,fontSize:9,color:th.accent,fontFamily:"'Montserrat',sans-serif"}}>Selected</div>}
                 </div>
               ))}
+            </div>
+            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose a background</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>Optional - adds a photo backdrop behind your dashboard. You can change this anytime in Profile.</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+              {BG_PHOTOS.map(bgp=>{
+                const active=(p.bgPhoto||"none")===bgp.id;
+                return(
+                  <div key={bgp.id} onClick={()=>upd("bgPhoto",bgp.id)} style={{cursor:"pointer",borderRadius:8,border:"2px solid "+(active?t.GOLD:t.BORDER),overflow:"hidden",position:"relative",background:t.CARD2}}>
+                    <div style={{paddingBottom:"56%",position:"relative"}}>
+                      {bgp.thumb
+                        ?<img src={bgp.thumb} alt={bgp.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:active?1:0.6}}/>
+                        :<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:t.MUTED}}>⊗</div>
+                      }
+                      {active&&<div style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",background:t.GOLD,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span></div>}
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"4px 6px",background:"rgba(0,0,0,0.75)",fontSize:9,color:"#fff",fontFamily:"'Montserrat',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{bgp.label}</div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -7919,7 +7938,7 @@ function SetupPage({onComplete}){
         <button onClick={cur==="risk"?next:next} style={{flex:3,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:14,color:t.BG,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
           {cur==="risk"?"Finish Setup":"Continue"}
         </button>
-        {["body","supplements","goals","financial"].includes(cur)&&(
+        {["body","supplements","goals","financial","appearance"].includes(cur)&&(
           <button onClick={next} style={{position:"absolute",top:-28,right:20,background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textDecoration:"underline"}}>Skip</button>
         )}
       </div>
@@ -10459,6 +10478,7 @@ function App(){
     setSeenMilestones([]);setNwHistory({});setBudgets({});
     setAdvisorMessages([]);
     if(data.profile.theme){_themeKey=data.profile.theme;setThemeState(data.profile.theme);}
+    if(data.profile.bgPhoto){setBgPhotoId(data.profile.bgPhoto);}
     setShowSetup(false);
     setPage("dashboard");
   };
