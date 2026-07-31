@@ -10361,7 +10361,7 @@ function App(){
   // double-counted. Clearing propertyValue means this check naturally
   // won't fire again on subsequent loads.
   useEffect(()=>{
-    if(!hydrated)return;
+    if(!hydrated||!profile)return;
     if(properties.length===0&&parseFloat(profile.propertyValue)>0){
       const migrated={
         id:Date.now(),
