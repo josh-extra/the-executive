@@ -1,4 +1,4 @@
-import { sendMetaEvent, getAttribution } from "./meta-capi.js";
+import { sendMetaEvent, getAttribution } from "../lib/meta-capi.js";
 
 export const config = { api: { bodyParser: false } };
 
