@@ -90,7 +90,7 @@
         }
 
         /* Checkout -> InitiateCheckout + attribution capture */
-        if(url.indexOf('/api/create-checkout')>-1){
+        if(url.indexOf('create-checkout')>-1){
           var raw='', uid=null;
           try{
             var b=args[1]&&args[1].body;
