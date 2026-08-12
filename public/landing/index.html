@@ -32,11 +32,11 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '1767190420951677');
+fbq('init', '1357563119318237');
 fbq('track', 'PageView');
 </script>
 <noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1767190420951677&ev=PageView&noscript=1"
+src="https://www.facebook.com/tr?id=1357563119318237&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel -->
 <link href="./index_files/css2" rel="stylesheet">
@@ -474,10 +474,10 @@ src="https://www.facebook.com/tr?id=1767190420951677&ev=PageView&noscript=1"
     <div class="section-label reveal">Privacy first</div>
     <div class="section-rule" style="margin:14px auto 20px;"></div>
     <h2 class="section-title reveal">Your data is yours. Always.</h2>
-    <p class="section-body reveal" style="margin:0 auto;">The Executive is built on the assumption that your financial and personal data should never be anyone else's business. We don't advertise, we don't sell data, and we don't use your information to train AI models.</p>
+    <p class="section-body reveal" style="margin:0 auto;">The Executive is built on the assumption that your financial and personal data should never be anyone else's business. We never sell your data, and we never use your information to train AI models. The app itself is completely ad-free.</p>
     <div class="privacy-row reveal">
       <div class="privacy-item"><span class="privacy-icon">🔒</span>Encrypted &amp; secure</div>
-      <div class="privacy-item"><span class="privacy-icon">🚫</span>No ads, ever</div>
+      <div class="privacy-item"><span class="privacy-icon">🚫</span>No ads in-app</div>
       <div class="privacy-item"><span class="privacy-icon">📵</span>No data selling</div>
       <div class="privacy-item"><span class="privacy-icon">☁️</span>Your Supabase account</div>
       <div class="privacy-item"><span class="privacy-icon">📱</span>Works offline</div>
@@ -575,6 +575,58 @@ src="https://www.facebook.com/tr?id=1767190420951677&ev=PageView&noscript=1"
     entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target);}});
   },{threshold:0.1});
   document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+  /* ---- Meta conversion events ---- */
+  (function(){
+    if(typeof fbq!=='function')return;
+
+    /* ViewContent once the pricing section is actually seen */
+    var priced=false;
+    var pricing=document.getElementById('pricing');
+    if(pricing){
+      var po=new IntersectionObserver(function(entries){
+        entries.forEach(function(e){
+          if(e.isIntersecting && !priced){
+            priced=true;
+            fbq('track','ViewContent',{content_name:'Pricing',content_category:'landing'});
+            po.disconnect();
+          }
+        });
+      },{threshold:0.4});
+      po.observe(pricing);
+    }
+
+    /* Scroll depth - useful as a retargeting audience of engaged readers */
+    var deep=false;
+    window.addEventListener('scroll',function(){
+      if(deep)return;
+      var h=document.documentElement;
+      var pct=(h.scrollTop||document.body.scrollTop)/((h.scrollHeight||document.body.scrollHeight)-h.clientHeight);
+      if(pct>0.6){ deep=true; fbq('trackCustom','ScrollDepth60'); }
+    },{passive:true});
+
+    /* CTA clicks */
+    document.addEventListener('click',function(ev){
+      var a=ev.target.closest && ev.target.closest('a');
+      if(!a)return;
+      var href=a.getAttribute('href')||'';
+      if(href.indexOf('/app')===-1)return;
+
+      var label=(a.textContent||'').trim().toLowerCase();
+      if(label.indexOf('upgrade')>-1){
+        fbq('track','InitiateCheckout',{
+          content_name:'Executive Monthly',
+          value:14.00,
+          currency:'AUD'
+        });
+      }else{
+        fbq('track','Lead',{
+          content_name:'Get Started Free',
+          content_category:a.closest('nav')?'nav':'body'
+        });
+      }
+    },true);
+  })();
 </script>
 
 

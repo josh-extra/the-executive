@@ -1,3 +1,5 @@
+import { sendMetaEvent, getAttribution } from "./meta-capi.js";
+
 export const config = { api: { bodyParser: false } };
 
 async function getRawBody(req) {
@@ -223,6 +225,34 @@ export default async function handler(req, res) {
         const email = session.customer_details?.email
           || await getUserEmail(uid, SUPABASE_URL, SUPABASE_KEY);
         if (email) await sendEmail(welcomeEmail(email));
+
+        // ---- Meta Conversions API: server-side Purchase ----
+        // This is the event Meta optimises campaigns against. Fired server
+        // side so it cannot be lost to iOS ATT, adblockers or cookie clearing.
+        try {
+          const attr = await getAttribution(uid, SUPABASE_URL, SUPABASE_KEY);
+          const amount = session.amount_total != null
+            ? session.amount_total / 100
+            : null;
+          await sendMetaEvent({
+            eventName: "Purchase",
+            eventId: `purchase_${session.id}`,   // stable = Meta dedupes retries
+            email,
+            userId: uid,
+            value: amount,
+            currency: (session.currency || "aud").toUpperCase(),
+            fbp: attr.fbp,
+            fbc: attr.fbc,
+            ip: attr.ip_address,
+            userAgent: attr.user_agent,
+            customData: {
+              content_name: amount && amount > 100 ? "Executive Annual" : "Executive Monthly",
+              content_type: "subscription",
+            },
+          });
+        } catch (e) {
+          console.error("Meta Purchase event failed:", e.message);
+        }
       }
       break;
     }

@@ -15,6 +15,126 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+
+    <!-- Meta Pixel -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1357563119318237');
+    fbq('track', 'PageView');
+    </script>
+    <!-- End Meta Pixel -->
+    <!-- No <noscript> fallback here on purpose: the HTML spec only permits
+         <link>, <style> and <meta> inside <noscript> in <head>, and vite's
+         parse5 pass rejects anything else. It would be pointless regardless -
+         this is a React SPA that renders nothing without JavaScript. -->
+
+    <!-- Conversion event bridge.
+         Wraps window.fetch so signup and checkout fire pixel events without
+         touching App.jsx. Also stashes _fbp/_fbc server-side so the webhook
+         Purchase event can be attributed to the ad click. -->
+    <script>
+    (function(){
+      var ANNUAL='price_1Ti01CRwVRKTnmPjQlIcIfaV';
+      function cookie(n){
+        var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');
+        return m?m.pop():'';
+      }
+
+      /* Read the logged-in user id straight out of the Supabase JWT in
+         localStorage. Means we never depend on how create-checkout.js
+         happens to name its request fields. */
+      function uidFromSession(){
+        try{
+          for(var i=0;i<localStorage.length;i++){
+            var k=localStorage.key(i);
+            if(!k||!/^sb-.*-auth-token$/.test(k))continue;
+            var v=JSON.parse(localStorage.getItem(k)||'null');
+            var t=v&&(v.access_token||(v.currentSession&&v.currentSession.access_token));
+            if(!t)continue;
+            var b64=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+            while(b64.length%4)b64+='=';
+            var p=JSON.parse(atob(b64));
+            if(p&&p.sub)return p.sub;
+          }
+        }catch(e){}
+        return null;
+      }
+
+      var orig=window.fetch;
+      if(!orig)return;
+
+      window.fetch=function(){
+        var args=arguments, url='';
+        try{
+          var i=args[0];
+          url=(typeof i==='string')?i:(i&&i.url)?i.url:'';
+        }catch(e){}
+
+        /* Signup -> CompleteRegistration (only on a successful response) */
+        if(url.indexOf('/auth/v1/signup')>-1){
+          return orig.apply(this,args).then(function(res){
+            try{
+              if(res.ok && window.fbq){
+                fbq('track','CompleteRegistration',{content_name:'Account Signup',status:true});
+              }
+            }catch(e){}
+            return res;
+          });
+        }
+
+        /* Checkout -> InitiateCheckout + attribution capture */
+        if(url.indexOf('/api/create-checkout')>-1){
+          var raw='', uid=null;
+          try{
+            var b=args[1]&&args[1].body;
+            if(typeof b==='string'){
+              raw=b;
+              var p=JSON.parse(b);
+              uid=p.userId||p.user_id||p.uid||p.user||null;
+            }
+          }catch(e){}
+          /* Fall back to the JWT if the request body did not carry an id */
+          if(!uid)uid=uidFromSession();
+
+          var annual=(raw.indexOf(ANNUAL)>-1)||/year|annual/i.test(raw);
+          try{
+            if(window.fbq){
+              fbq('track','InitiateCheckout',{
+                value:annual?139.00:14.00,
+                currency:'AUD',
+                content_name:annual?'Executive Annual':'Executive Monthly'
+              });
+            }
+          }catch(e){}
+
+          if(uid){
+            try{
+              orig('/api/meta-attr',{
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({
+                  userId:uid,
+                  fbp:cookie('_fbp'),
+                  fbc:cookie('_fbc'),
+                  ua:navigator.userAgent
+                }),
+                keepalive:true
+              })['catch'](function(){});
+            }catch(e){}
+          }
+        }
+
+        return orig.apply(this,args);
+      };
+    })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
