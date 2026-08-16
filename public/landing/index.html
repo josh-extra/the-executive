@@ -40,13 +40,14 @@ fbq('track', 'PageView');
 src="https://www.facebook.com/tr?id=1357563119318237&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel -->
-<link href="./index_files/css2" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#060606;--card:#0E0E0E;--card2:#121212;
     --border:#1A1A1A;--border2:#252525;
     --gold:#C9A84C;--gl:#E8C96A;
-    --text:#E8E0D0;--muted:#6A6050;
+    --text:#E8E0D0;--muted:#8C7F69;
     --red:#C97E7E;--green:#7A9E7E;--blue:#7EB8C9;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -475,12 +476,12 @@ src="https://www.facebook.com/tr?id=1357563119318237&ev=PageView&noscript=1"
     <div class="section-label reveal">Privacy first</div>
     <div class="section-rule" style="margin:14px auto 20px;"></div>
     <h2 class="section-title reveal">Your data is yours. Always.</h2>
-    <p class="section-body reveal" style="margin:0 auto;">The Executive is built on the assumption that your financial and personal data should never be anyone else's business. We never sell your data, and we never use your information to train AI models. The app itself is completely ad-free.</p>
+    <p class="section-body reveal" style="margin:0 auto;">The Executive is built on the assumption that your financial and personal data should never be anyone else's business. We never sell your data, and we never use your information to train AI models. The app itself is completely ad-free. Our <a href="/privacy" style="color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(201,168,76,.3);">Privacy Policy</a> names every service provider that touches your data and links the clause that backs the AI training claim.</p>
     <div class="privacy-row reveal">
       <div class="privacy-item"><span class="privacy-icon">🔒</span>Encrypted &amp; secure</div>
       <div class="privacy-item"><span class="privacy-icon">🚫</span>No ads in-app</div>
       <div class="privacy-item"><span class="privacy-icon">📵</span>No data selling</div>
-      <div class="privacy-item"><span class="privacy-icon">☁️</span>Your Supabase account</div>
+      <div class="privacy-item"><span class="privacy-icon">☁️</span>Export or delete anytime</div>
       <div class="privacy-item"><span class="privacy-icon">📱</span>Works offline</div>
     </div>
   </section>
@@ -495,7 +496,7 @@ src="https://www.facebook.com/tr?id=1357563119318237&ev=PageView&noscript=1"
     <div class="faq-list">
       <div class="faq-item open">
         <div class="faq-q">Is my data private and secure?</div>
-        <div class="faq-a">Yes. Your data is stored securely in the cloud and synced to your account. AI Advisor questions are sent to Anthropic's API. Nothing is shared, sold or used for advertising. Your data is yours — full stop.</div>
+        <div class="faq-a">Yes. Your data is encrypted in transit and at rest, and row-level security means your account can only ever read its own records. We never sell your data, never show ads in the app, and never use your information to train AI models. Running the app does involve a handful of service providers — Supabase, Vercel, Stripe, Resend and Anthropic — and when you use an AI feature, the relevant data is sent to Anthropic, who are contractually barred from training on it. Our Privacy Policy names all of them and quotes the clause. You can export or delete everything at any time.</div>
       </div>
       <div class="faq-item">
         <div class="faq-q">What's included in the free version?</div>
@@ -551,6 +552,8 @@ src="https://www.facebook.com/tr?id=1357563119318237&ev=PageView&noscript=1"
       <a href="#features">Features</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
       <a href="https://the-executive.vip/app">Launch App</a>
     </div>
     <div class="footer-copy">© 2026 The Executive · All rights reserved · the-executive.vip</div>

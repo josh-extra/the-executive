@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — The Executive</title>
+<meta name="description" content="How The Executive collects, uses, stores and shares your data. Written plainly.">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://the-executive.vip/privacy">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#060606;--card:#0E0E0E;--card2:#121212;
+    --border:#1A1A1A;--border2:#252525;
+    --gold:#C9A84C;--gl:#E8C96A;
+    --text:#E8E0D0;--muted:#8C7F69;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg);color:var(--text);font-family:'Montserrat',sans-serif;font-weight:300;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 40px;display:flex;justify-content:space-between;align-items:center;background:rgba(6,6,6,.92);border-bottom:1px solid var(--border);backdrop-filter:blur(12px);}
+  .nav-logo{font-size:11px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;font-weight:500;text-decoration:none;}
+  .nav-back{font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:1px;transition:color .2s;}
+  .nav-back:hover{color:var(--text);}
+
+  .wrap{max-width:760px;margin:0 auto;padding:140px 24px 40px;}
+  .doc-label{font-size:9px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:14px;}
+  h1{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,5vw,52px);font-weight:300;line-height:1.15;margin-bottom:14px;}
+  .updated{font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:40px;}
+
+  .lede{font-size:14px;color:var(--text);line-height:1.9;padding:22px;background:var(--card);border:1px solid var(--border);border-left:2px solid var(--gold);border-radius:8px;margin-bottom:48px;font-weight:300;}
+
+  h2{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:400;margin:44px 0 14px;color:var(--text);}
+  h3{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:28px 0 10px;font-weight:500;}
+  p{font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:14px;}
+  p strong{color:var(--text);font-weight:500;}
+  ul{margin:0 0 16px 18px;}
+  li{font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:7px;}
+  li strong{color:var(--text);font-weight:500;}
+  a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(201,168,76,.3);}
+  a:hover{border-bottom-color:var(--gold);}
+
+  .quote{background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:20px 22px;margin:18px 0 22px;}
+  .quote p{margin:0;font-size:13px;color:var(--text);font-style:italic;line-height:1.8;}
+  .quote .src{font-style:normal;font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:.5px;}
+
+  .tbl{width:100%;border-collapse:collapse;margin:18px 0 24px;font-size:12px;}
+  .tbl th{text-align:left;padding:11px 12px;background:var(--card2);color:var(--gold);font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:500;border-bottom:1px solid var(--border2);}
+  .tbl td{padding:12px;border-bottom:1px solid var(--border);color:var(--muted);line-height:1.7;vertical-align:top;}
+  .tbl td:first-child{color:var(--text);white-space:nowrap;font-weight:400;}
+  .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+
+  .callout{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:20px 22px;margin:22px 0;}
+  .callout p:last-child{margin-bottom:0;}
+
+  footer{border-top:1px solid var(--border);padding:44px 24px;text-align:center;max-width:760px;margin:60px auto 0;}
+  .footer-logo{font-size:11px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:16px;}
+  .footer-links{display:flex;gap:24px;justify-content:center;margin-bottom:20px;flex-wrap:wrap;}
+  .footer-links a{font-size:11px;color:var(--muted);text-decoration:none;letter-spacing:1px;border-bottom:none;transition:color .2s;}
+  .footer-links a:hover{color:var(--text);}
+  .footer-copy{font-size:10px;color:var(--muted);letter-spacing:1px;}
+
+  @media(max-width:600px){
+    nav{padding:16px 20px;}
+    .wrap{padding:110px 20px 30px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">The Executive</a>
+  <a href="/" class="nav-back">Back to site</a>
+</nav>
+
+<div class="wrap">
+  <div class="doc-label">Legal</div>
+  <h1>Privacy Policy</h1>
+  <div class="updated">Last updated 15 August 2026</div>
+
+  <div class="lede">
+    The Executive holds some of the most sensitive information a person has — what they earn, what they owe, what they weigh, and what they write in a journal. This policy sets out exactly what we collect, exactly where it goes, and exactly what we will never do with it. It is written to be read, not to be skipped.
+  </div>
+
+  <h2>1. Who we are</h2>
+  <p>The Executive is a personal dashboard application operated by <strong>Joshua Extra</strong> (<strong>ABN 75 885 010 380</strong>), a sole trader based in Queensland, Australia ("we", "us"). We operate the website at the-executive.vip and the application at the-executive.vip/app.</p>
+  <p>You can reach us about anything in this policy at <a href="mailto:privacy@the-executive.vip">privacy@the-executive.vip</a>.</p>
+
+  <h2>2. What we collect</h2>
+
+  <h3>Information you give us</h3>
+  <p>Almost everything in The Executive is information you enter yourself. Depending on which parts of the app you use, that can include:</p>
+  <ul>
+    <li><strong>Account details</strong> — your email address and a password (stored only as a cryptographic hash, never in readable form).</li>
+    <li><strong>Financial information</strong> — net worth, assets, property, investment holdings, superannuation, cash flow, transactions, bills, budgets, debts, dividends and tax figures.</li>
+    <li><strong>Health information</strong> — body measurements, weight, workouts, supplements, habits and daily scores.</li>
+    <li><strong>Personal writing</strong> — journal entries, notes, goals, tasks, weekly reflections and reading logs.</li>
+    <li><strong>Bank statements</strong> — if you use the PDF import feature, the statement file you upload.</li>
+  </ul>
+  <p>Health information and financial information are treated as <strong>sensitive information</strong> under Australian privacy law. We collect them only because you choose to enter them, and only to show them back to you.</p>
+
+  <h3>Information collected automatically</h3>
+  <ul>
+    <li><strong>Technical data</strong> — IP address, browser and device type, and timestamps, logged by our hosting provider for security and reliability.</li>
+    <li><strong>Error reports</strong> — if the app breaks, we log what broke so we can fix it.</li>
+    <li><strong>Marketing analytics on this website only</strong> — see section 7.</li>
+  </ul>
+  <p>We do not track your behaviour inside the application for advertising purposes.</p>
+
+  <h2>3. How we use it</h2>
+  <p>We use your information to run the app for you and for nothing else: to display your dashboard, calculate your figures, sync your data between your devices, generate the AI features you ask for, process your subscription, send you service emails, and diagnose faults.</p>
+  <p>We do not build advertising profiles, we do not sell or rent your information, and we do not use your information to train artificial intelligence models — ours or anyone else's.</p>
+
+  <h2>4. AI features — what is actually sent</h2>
+  <p>This is the part most policies are vague about, so we will be specific. The Executive's AI features work by sending your data to <strong>Anthropic's Claude API</strong> and returning the response to you. Nothing is sent to Anthropic unless you use one of these features.</p>
+
+  <div class="tbl-scroll">
+  <table class="tbl">
+    <thead><tr><th>Feature</th><th>What is sent to Anthropic</th></tr></thead>
+    <tbody>
+      <tr><td>AI Advisor</td><td>Your dashboard context — profile and financial summary, properties, goals, tasks, habits and supplements — plus the question you ask.</td></tr>
+      <tr><td>Morning Briefing</td><td>A summary of your current figures and the day's tasks, plus live market data.</td></tr>
+      <tr><td>AI Weekly Review</td><td>Your scores, habits and activity for the week, and your journal entries for that week.</td></tr>
+      <tr><td>Bank statement import</td><td><strong>The full PDF statement you upload</strong>, so transactions can be read and categorised.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Anthropic processes this under its Commercial Terms of Service, which state:</p>
+  <div class="quote">
+    <p>"Anthropic may not train models on Customer Content from Services."</p>
+    <div class="src">Anthropic Commercial Terms of Service, Section B — effective 17 June 2025</div>
+  </div>
+  <p>You can read those terms yourself at <a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noopener">anthropic.com/legal/commercial-terms</a>. We link to them rather than paraphrasing so you can verify the claim instead of taking our word for it.</p>
+
+  <div class="callout">
+    <p><strong>If you would rather send nothing at all:</strong> every AI feature is optional. The dashboard, tracking, portfolio, budgeting and health tools all work without them. Not using the AI pages means none of your data is sent to Anthropic.</p>
+  </div>
+
+  <h2>5. Who else we share with</h2>
+  <p>Running the app requires a small number of service providers. Each one receives only what it needs to do its job. We do not share your information with anyone else.</p>
+
+  <div class="tbl-scroll">
+  <table class="tbl">
+    <thead><tr><th>Provider</th><th>Purpose</th><th>What it receives</th></tr></thead>
+    <tbody>
+      <tr><td>Supabase</td><td>Database and authentication</td><td>Your account and all app data you save</td></tr>
+      <tr><td>Vercel</td><td>Hosting and delivery</td><td>Technical request data (IP, device, timestamps)</td></tr>
+      <tr><td>Anthropic</td><td>AI features</td><td>Only what section 4 describes, only when you use them</td></tr>
+      <tr><td>Stripe</td><td>Subscription payments</td><td>Your email and payment details. Card numbers go directly to Stripe and never reach our servers.</td></tr>
+      <tr><td>Resend</td><td>Service emails</td><td>Your email address and the message content</td></tr>
+      <tr><td>Yahoo Finance, Finnhub</td><td>Market prices</td><td>Ticker symbols only — no personal information</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Some of these providers store or process data outside Australia, including in the United States. By using The Executive you consent to that transfer. We may also disclose information where we are legally required to, or to protect someone's safety — and we will tell you if that ever happens, unless we are legally prevented from doing so.</p>
+
+  <h2>6. What we will never do</h2>
+  <ul>
+    <li>Sell, rent or trade your personal information to anybody.</li>
+    <li>Use your information to train AI models.</li>
+    <li>Show advertising inside the application.</li>
+    <li>Share your financial or health data with data brokers, insurers, lenders or employers.</li>
+    <li>Read your journal entries, other than as necessary to provide the feature you asked for.</li>
+  </ul>
+  <p>The Executive is funded entirely by subscriptions. That is deliberate: it means the product has no reason to monetise you.</p>
+
+  <h2>7. Cookies and website analytics</h2>
+  <p>The <strong>application</strong> uses browser storage only to keep you signed in and to hold your data locally so the app works offline. No advertising cookies are used in the app.</p>
+  <p>This <strong>marketing website</strong> uses the <strong>Meta Pixel</strong>, which sets cookies and reports visits and sign-ups to Meta Platforms so we can measure our advertising. This tracks your visit to this website only — never your activity inside the application. You can block it with browser privacy settings, an ad blocker, or through your <a href="https://www.facebook.com/adpreferences" target="_blank" rel="noopener">Meta ad preferences</a>.</p>
+
+  <h2>8. Security</h2>
+  <p>Data is transmitted over encrypted connections (HTTPS) and stored in an encrypted database. Access is enforced at the database level by row-level security, so your account can only ever read and write its own records. Passwords are hashed. AI requests are rate limited and verified against your subscription.</p>
+  <p>No system is perfectly secure, and we will not pretend otherwise. If a data breach occurs that is likely to cause you serious harm, we will notify you and the Office of the Australian Information Commissioner as required under the Notifiable Data Breaches scheme.</p>
+
+  <h2>9. Your rights and choices</h2>
+  <ul>
+    <li><strong>Access</strong> — everything we hold about you is visible in the app.</li>
+    <li><strong>Export</strong> — you can export your transactions, workouts, journal entries, goals, tasks and score history as CSV files at any time, from the Profile page.</li>
+    <li><strong>Correction</strong> — you can edit or delete any entry yourself.</li>
+    <li><strong>Deletion</strong> — you can delete your account and all associated data from the Profile page. This is permanent.</li>
+    <li><strong>Complaint</strong> — email us first at <a href="mailto:privacy@the-executive.vip">privacy@the-executive.vip</a>. If we do not resolve it, you can complain to the <a href="https://www.oaic.gov.au/privacy/privacy-complaints" target="_blank" rel="noopener">Office of the Australian Information Commissioner</a>.</li>
+  </ul>
+  <p>You do not need to give a reason to delete your account, and we will not ask you to sit through a retention offer to do it.</p>
+
+  <h2>10. How long we keep it</h2>
+  <p>We keep your data for as long as your account exists. If you cancel your subscription your data stays intact, so you can return without losing your history. If you delete your account, your data is removed from our live database immediately and from routine encrypted backups within 30 days. Records we are legally required to retain — payment and tax records, generally for seven years — are kept by Stripe and by us for that period.</p>
+
+  <h2>11. Children</h2>
+  <p>The Executive is not intended for anyone under 16, and we do not knowingly collect their information. If you believe a child has created an account, contact us and we will delete it.</p>
+
+  <h2>12. Changes to this policy</h2>
+  <p>If we change this policy in a way that materially affects how your information is handled, we will email you before it takes effect. The date at the top always reflects the current version.</p>
+
+  <h2>13. Contact</h2>
+  <p>Privacy questions, access requests and complaints: <a href="mailto:privacy@the-executive.vip">privacy@the-executive.vip</a>.</p>
+</div>
+
+<footer>
+  <div class="footer-logo">The Executive</div>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
+    <a href="https://the-executive.vip/app">Launch App</a>
+  </div>
+  <div class="footer-copy">© 2026 The Executive · All rights reserved · the-executive.vip</div>
+</footer>
+
+</body>
+</html>
