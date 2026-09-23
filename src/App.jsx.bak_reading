@@ -6081,32 +6081,6 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
   );
 }
 
-// Renders note text with light structure: blank lines kept,
-// "# " heading, "- " or "* " bullet, "> " quote.
-function NoteText({text,size}){
-  const t=T();
-  const fs=size||12;
-  const serif="'Cormorant Garamond',Georgia,serif";
-  const lines=String(text||"").split("\n");
-  return (
-    <div>
-      {lines.map((ln,i)=>{
-        const s=ln.trim();
-        if(!s)return <div key={i} style={{height:9}}/>;
-        if(s.indexOf("# ")===0)return <div key={i} style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginTop:i?8:0,marginBottom:4}}>{s.slice(2)}</div>;
-        if(s.indexOf("- ")===0||s.indexOf("* ")===0)return (
-          <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",paddingLeft:2}}>
-            <div style={{width:4,height:4,borderRadius:"50%",background:t.GOLD,marginTop:fs*0.75,flexShrink:0}}/>
-            <div style={{fontSize:fs,color:t.TEXT,fontFamily:serif,lineHeight:1.7}}>{s.slice(2)}</div>
-          </div>
-        );
-        if(s.indexOf("> ")===0)return <div key={i} style={{fontSize:fs+1,color:t.TEXT,fontFamily:serif,fontStyle:"italic",lineHeight:1.7,borderLeft:"2px solid "+t.GOLD+"66",paddingLeft:10,margin:"2px 0"}}>{s.slice(2)}</div>;
-        return <div key={i} style={{fontSize:fs,color:t.TEXT,fontFamily:serif,lineHeight:1.7}}>{ln}</div>;
-      })}
-    </div>
-  );
-}
-
 function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   const t=T();
   const isMobile=useIsMobile();
@@ -6116,89 +6090,6 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   const[editingBook,setEditingBook]=useState(null);
   const[notePrompt,setNotePrompt]=useState(null);
   const[expandNotes,setExpandNotes]=useState({});
-  const[confirmDel,setConfirmDel]=useState(null);
-  const[editNote,setEditNote]=useState(null);
-  const[savedFlash,setSavedFlash]=useState(false);
-  // Restore an unsaved note draft (e.g. the app was closed mid-note)
-  useEffect(()=>{
-    const d=(books||[]).find(b=>b.noteDraft);
-    if(d)setNotePrompt({...d.noteDraft,bookId:d.id});
-  },[]);
-  // Autosave the draft into the book while typing, so it syncs before Save is pressed
-  useEffect(()=>{
-    if(!notePrompt)return;
-    const tm=setTimeout(()=>{
-      const{bookId,...draft}=notePrompt;
-      setBooks(bs=>bs.map(b=>b.id===bookId?{...b,noteDraft:draft}:b));
-    },600);
-    return()=>clearTimeout(tm);
-  },[notePrompt]);
-  const clearDraft=(b)=>{if(!b.noteDraft)return b;const{noteDraft,...rest}=b;return rest;};
-  const flashSaved=()=>{setSavedFlash(true);setTimeout(()=>setSavedFlash(false),2200);};
-  const skipNote=()=>{
-    const id=notePrompt?notePrompt.bookId:null;
-    setBooks(bs=>bs.map(b=>b.id===id?clearDraft(b):b));
-    setNotePrompt(null);
-  };
-  const deleteBook=(id)=>{
-    setBooks(bs=>bs.filter(x=>x.id!==id));
-    if(notePrompt&&notePrompt.bookId===id)setNotePrompt(null);
-    setConfirmDel(null);
-  };
-  const deleteNote=(bookId,noteId)=>{
-    setBooks(bs=>bs.map(b=>b.id===bookId?{...b,readingNotes:(b.readingNotes||[]).filter(n=>n.id!==noteId)}:b));
-    setConfirmDel(null);
-  };
-  const saveEditNote=()=>{
-    if(!editNote)return;
-    const txt=editNote.text.trim();
-    if(!txt)return;
-    setBooks(bs=>bs.map(b=>b.id===editNote.bookId?{...b,readingNotes:(b.readingNotes||[]).map(n=>n.id===editNote.noteId?{...n,text:txt}:n)}:b));
-    setEditNote(null);
-    flashSaved();
-  };
-  const startReading=(id)=>{
-    setBooks(bs=>bs.map(b=>b.id===id?{...b,status:"reading",cur:Number(b.cur)||0,startedDate:todayStr()}:b));
-  };
-  const linkBtn=(c)=>({background:"none",border:"none",color:c,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif",padding:0});
-  const confirmBar=(msg,onYes)=>(
-    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",background:t.RED+"14",border:"1px solid "+t.RED+"44",borderRadius:7,padding:"8px 10px",margin:"8px 0"}}>
-      <span style={{flex:1,minWidth:150,fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{msg}</span>
-      <button onClick={onYes} style={{background:t.RED+"22",border:"1px solid "+t.RED+"66",borderRadius:6,padding:"5px 12px",color:t.RED,cursor:"pointer",fontSize:11,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Delete</button>
-      <button onClick={()=>setConfirmDel(null)} style={{background:"none",border:"1px solid "+t.BORDER2,borderRadius:6,padding:"5px 12px",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:"'Montserrat',sans-serif"}}>Cancel</button>
-    </div>
-  );
-  const renderNote=(b,n,col)=>{
-    const editing=editNote&&editNote.noteId===n.id;
-    return (
-      <div key={n.id} style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,borderLeft:"2px solid "+col}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:4}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"p."+n.fromPage+" - p."+n.toPage+" - "+n.date}</div>
-          {!editing&&(
-            <div style={{display:"flex",gap:12}}>
-              <button onClick={()=>{setConfirmDel(null);setEditNote({bookId:b.id,noteId:n.id,text:n.text});}} style={linkBtn(t.GOLD)}>Edit</button>
-              <button onClick={()=>setConfirmDel({kind:"note",bookId:b.id,noteId:n.id})} style={linkBtn(t.MUTED)}>Delete</button>
-            </div>
-          )}
-        </div>
-        {editing?(
-          <div>
-            <textarea spellCheck={true} autoCorrect="on" autoCapitalize="sentences" autoFocus
-              value={editNote.text}
-              onChange={e=>{const v=e.target.value;setEditNote(p=>({...p,text:v}));}}
-              rows={6}
-              style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 10px",color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
-            />
-            <div style={{display:"flex",gap:8,marginTop:8}}>
-              <Btn onClick={saveEditNote} style={{fontSize:11}}>Save</Btn>
-              <Btn onClick={()=>setEditNote(null)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
-            </div>
-          </div>
-        ):<NoteText text={n.text}/>}
-        {confirmDel&&confirmDel.kind==="note"&&confirmDel.noteId===n.id&&confirmBar("Delete this note? This can't be undone.",()=>deleteNote(b.id,n.id))}
-      </div>
-    );
-  };
   const annualGoal=readingGoal||24;
   const setAnnualGoal=setReadingGoal;
   const[editGoal,setEditGoal]=useState(false);
@@ -6236,10 +6127,9 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
         if(notePrompt.rating>0)updates.rating=notePrompt.rating;
         if(notePrompt.review.trim())updates.review=notePrompt.review.trim();
       }
-      return{...clearDraft(b),...updates};
+      return{...b,...updates};
     }));
     setNotePrompt(null);
-    flashSaved();
   };
   const cats={reading:(books||[]).filter(b=>b.status==="reading"),next:(books||[]).filter(b=>b.status==="next"),done:(books||[]).filter(b=>b.status==="done")};
   const colMap={reading:t.GOLD,next:t.BLUE,done:t.GREEN};
@@ -6252,9 +6142,6 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
         </div>
         <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add</Btn>
       </div>
-      {savedFlash&&(
-        <div style={{marginBottom:12,padding:"8px 12px",background:t.GREEN+"14",border:"1px solid "+t.GREEN+"44",borderRadius:7,fontSize:11,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>Note saved and syncing to your account</div>
-      )}
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
         {[{l:"Reading",v:cats.reading.length,c:t.GOLD},{l:"Up Next",v:cats.next.length,c:t.BLUE},{l:"Done",v:cats.done.length,c:t.GREEN},{l:"Total",v:(books||[]).length,c:t.MUTED}].map(s=>(
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
@@ -6335,15 +6222,14 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                 value={notePrompt.text}
                 onChange={e=>setNotePrompt(p=>({...p,text:e.target.value}))}
                 placeholder="Key idea, quote, or reflection... (optional)"
-                rows={6}
+                rows={3}
                 style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}
               />
             </>
           )}
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6,lineHeight:1.6}}>{"Formatting: # Heading   - Bullet   > Quote   Blank lines are kept. Drafts save automatically."}</div>
           <div style={{display:"flex",gap:8,marginTop:10}}>
             <Btn onClick={saveNote}>{notePrompt.isFinish?"Save":"Save Note"}</Btn>
-            <Btn onClick={skipNote} variant="ghost">Skip</Btn>
+            <Btn onClick={()=>setNotePrompt(null)} variant="ghost">Skip</Btn>
           </div>
         </Card>
       )}
@@ -6425,11 +6311,12 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                           <span style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>{b.dateFinished||"Done"}</span>
                         </div>
                       )}
-                      <button onClick={()=>setEditingBook(editingBook===b.id?null:b.id)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Edit</button>
-                      <button onClick={()=>setConfirmDel({kind:"book",bookId:b.id})} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
+                      {b.status==="done"&&(
+                        <button onClick={()=>setEditingBook(editingBook===b.id?null:b.id)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Edit</button>
+                      )}
+                      <button onClick={()=>setBooks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
                     </div>
                   </div>
-                  {confirmDel&&confirmDel.kind==="book"&&confirmDel.bookId===b.id&&confirmBar("Delete \""+b.title+"\""+(notes.length?" and its "+notes.length+" "+(notes.length===1?"note":"notes"):"")+"? This can't be undone.",()=>deleteBook(b.id))}
 
                   {/* Inline edit form for finished books */}
                   {editingBook===b.id&&(
@@ -6441,23 +6328,15 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                           <Inp value={b.author||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,author:e.target.value}:x))} placeholder="Author" style={{flex:1,fontSize:12}}/>
                         </div>
                         <div style={{display:"flex",gap:7}}>
-                          {b.status==="done"?(
                           <div style={{flex:1}}>
                             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Date Finished</div>
                             <Inp type="date" value={b.dateFinished||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,dateFinished:e.target.value}:x))} style={{fontSize:12}}/>
                           </div>
-                          ):(
-                          <div style={{flex:1}}>
-                            <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Current Page</div>
-                            <Inp type="number" value={b.cur||0} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,cur:Math.max(0,Math.min(parseInt(e.target.value)||0,x.tot||0))}:x))} style={{fontSize:12}}/>
-                          </div>
-                          )}
                           <div style={{flex:1}}>
                             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Total Pages</div>
                             <Inp type="number" value={b.tot||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,tot:parseInt(e.target.value)||b.tot}:x))} placeholder="Pages" style={{fontSize:12}}/>
                           </div>
                         </div>
-                        {b.status==="done"&&(<>
                         <div>
                           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Rating</div>
                           <div style={{display:"flex",gap:6}}>
@@ -6470,10 +6349,8 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Review / Notes</div>
                           <textarea spellCheck={true} autoCorrect="on" autoCapitalize="sentences" value={b.review||""} onChange={e=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,review:e.target.value}:x))} placeholder="Your thoughts on the book..." rows={3} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"8px 10px",color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:12,outline:"none",resize:"vertical",lineHeight:1.7,boxSizing:"border-box"}}/>
                         </div>
-                        </>)}
-                        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                          {b.status==="next"&&<button onClick={()=>{startReading(b.id);setEditingBook(null);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Start Reading</button>}
-                          {b.status==="done"&&<button onClick={()=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,status:"reading"}:x))} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Move back to Reading</button>}
+                        <div style={{display:"flex",gap:7}}>
+                          <button onClick={()=>setBooks(bs=>bs.map(x=>x.id===b.id?{...x,status:"reading"}:x))} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:6,padding:"5px 10px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Move back to Reading</button>
                           <Btn onClick={()=>setEditingBook(null)} style={{fontSize:11}}>Done</Btn>
                         </div>
                       </div>
@@ -6491,18 +6368,17 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                           {b.review&&(
                             <div style={{padding:"10px 12px",background:t.CARD2,borderRadius:7,borderLeft:"2px solid "+col}}>
                               <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>My Review</div>
-                              <NoteText text={b.review}/>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.75}}>{b.review}</div>
                             </div>
                           )}
-                          {(b.readingNotes||[]).map(n=>renderNote(b,n,col))}
+                          {(b.readingNotes||[]).map(n=>(
+                            <div key={n.id} style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,borderLeft:"2px solid "+col}}>
+                              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>{"p."+n.fromPage+" - p."+n.toPage+" - "+n.date}</div>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.7}}>{n.text}</div>
+                            </div>
+                          ))}
                         </div>
                       )}
-                    </div>
-                  )}
-                  {b.status==="next"&&editingBook!==b.id&&(
-                    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"}}>
-                      <button onClick={()=>startReading(b.id)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"6px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:600}}>Start Reading</button>
-                      <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{(b.tot||0)+" pages"+(b.cur?" - starting at p."+b.cur:"")}</span>
                     </div>
                   )}
                   {b.status==="reading"&&(
@@ -6563,7 +6439,14 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                       </button>
                       {showingNotes&&(
                         <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:8}}>
-                          {notes.map(n=>renderNote(b,n,col))}
+                          {notes.map(n=>(
+                            <div key={n.id} style={{padding:"8px 10px",background:t.CARD2,borderRadius:6,borderLeft:"2px solid "+col}}>
+                              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>
+                                {"p."+n.fromPage+" - p."+n.toPage+" - "+n.date}
+                              </div>
+                              <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.7}}>{n.text}</div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
