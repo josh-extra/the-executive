@@ -59,19 +59,14 @@ const L=()=>LOCALES[_locale]||LOCALES["en-AU"];
 const SUPABASE_URL="https://vvnnzepagtrlvnqyqbdr.supabase.co";
 const SUPABASE_KEY="sb_publishable_yh1Srs_fsONIuZQ7flIksg_f53KPcVn";
 const sbH=(token)=>({"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+(token||SUPABASE_KEY)});
-// Remembers the last cloud blob per user so saves never drop keys
-// that this app version doesn't know about (web vs iOS version drift).
-let _cloudBase={uid:null,data:{}};
-const rememberCloud=(uid,d)=>{if(uid&&d&&typeof d==="object")_cloudBase={uid,data:d};};
-const withCloudBase=(uid,d)=>(_cloudBase.uid===uid?{..._cloudBase.data,...d}:d);
 const supabase={
   async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
   async signIn(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
   async refresh(refreshToken){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:refreshToken})});return r.json();},
   async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
-  async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();const d=rows&&rows[0]?rows[0].data:null;rememberCloud(userId,d);return d;},
-  async save(userId,token,data){const merged=withCloudBase(userId,data);const r=await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data:merged,updated_at:new Date().toISOString()})});if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error("Save failed: "+r.status+" "+JSON.stringify(err));}rememberCloud(userId,merged);return r;},
+  async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();return rows&&rows[0]?rows[0].data:null;},
+  async save(userId,token,data){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data,updated_at:new Date().toISOString()})});if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error("Save failed: "+r.status+" "+JSON.stringify(err));}return r;},
 };
 
 // Module-level auth token — set by App when user logs in
@@ -10443,7 +10438,7 @@ function App(){
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
-          fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:withCloudBase(authUser.id,dataToSave),updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
+          fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:dataToSave,updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
         }catch{}
       }
     };
@@ -10455,7 +10450,6 @@ function App(){
           .then(r=>r.json()).then(rows=>{
             let d=rows?.[0]?.data;
             if(!d)return;
-            rememberCloud(authUser.id,d);
             // This tab may have been asleep/backgrounded across midnight -
             // apply the same daily reset logic used on fresh page loads,
             // so a long-lived tab doesn't carry yesterday's completions
