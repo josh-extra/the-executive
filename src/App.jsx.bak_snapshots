@@ -10144,7 +10144,7 @@ function App(){
   // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
-    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     (async()=>{
       try{
         setSyncing(true);
@@ -10322,7 +10322,6 @@ function App(){
   const[debts,setDebts]=useState([]);
   const[taxDeductions,setTaxDeductions]=useState([]);
   const[history,setHistory]=useState({});
-  const[dailySnaps,setDailySnaps]=useState({});
   const[bodyLog,setBodyLog]=useState([]);
   const[habits,setHabits]=useState(D_HABITS);
   const[habitLog,setHabitLog]=useState({});
@@ -10406,7 +10405,7 @@ function App(){
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             if(d.history)setHistory(d.history);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.habits!==undefined)setHabits(d.habits);
             if(d.habitLog)setHabitLog(d.habitLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
@@ -10457,7 +10456,7 @@ function App(){
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
-        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);if(saved.dailySnaps)setDailySnaps(saved.dailySnaps);
+        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);
         if(saved.habits!==undefined)setHabits(saved.habits);
         if(saved.habitLog)setHabitLog(saved.habitLog);
         if(saved.holdings!==undefined)setHoldings(saved.holdings);
@@ -10510,7 +10509,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -10555,13 +10554,13 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -10611,7 +10610,7 @@ function App(){
             if(d.budgets)setBudgets(d.budgets);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             // Health & body
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.workouts!==undefined)setWorkouts(d.workouts);
             // Journal & reading
             if(d.journal!==undefined)setJournal(d.journal);
@@ -10650,7 +10649,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
@@ -10737,7 +10736,7 @@ function App(){
     setCompleted([]);
     setSupplements(data.supplements||[]);
     setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks([]);setBills([]);setHistory({});setDailySnaps({});setBodyLog([]);
+    setBooks([]);setBills([]);setHistory({});setBodyLog([]);
     // Build habits from selected habit names
     const habitColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A"];
     const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
@@ -10879,7 +10878,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
             if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -10920,7 +10919,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
               if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -10976,7 +10975,7 @@ function App(){
     setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setReadingGoal(24);setBills([]);setDebts([]);setTaxDeductions([]);
-    setHistory({});setDailySnaps({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
+    setHistory({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setBudgets({});setWeeklyReflections({});setNotes([]);setServices([]);
     setLearnData({library:[],sessions:[],weeklyGoal:5});
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setProperties([]);
@@ -11058,7 +11057,7 @@ function App(){
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks(D_BOOKS);setBills([]);setHistory({});setDailySnaps({});setBodyLog([]);
+    setBooks(D_BOOKS);setBills([]);setHistory({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);setBudgets({});setAdvisorMessages([]);
     setShowSetup(true);
@@ -11083,42 +11082,6 @@ function App(){
     :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
   ):activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
-
-  // Daily snapshot recorder - keeps today's snapshot current as things change.
-  // Previous days are never touched, so the midnight reset can't erase them.
-  const snapNW=Math.round(liveProfile?.netWorth||0);
-  useEffect(()=>{
-    if(!hydrated||!profile)return;
-    const today=todayStr();
-    const tt=todayTasks(tasks);
-    setDailySnaps(prev=>{
-      const p=prev||{};
-      const cur=p[today]||{};
-      const prevKey=Object.keys(p).filter(k=>k<today).sort().pop();
-      const prevBooks=(prevKey&&p[prevKey].books)||{};
-      const bk={};
-      (books||[]).forEach(b=>{
-        const active=b.status==="reading"||(b.status==="done"&&b.dateFinished===today);
-        if(!active)return;
-        const c=Number(b.cur)||0;
-        const start=cur.books&&cur.books[b.id]?cur.books[b.id].s:(prevBooks[b.id]?prevBooks[b.id].c:c);
-        bk[b.id]={t:b.title,s:start,c,tot:Number(b.tot)||0};
-      });
-      const next={
-        nw:snapNW,
-        td:tt.filter(x=>x.done).map(x=>x.text),
-        to:tt.filter(x=>!x.done).map(x=>x.text),
-        st:(supplements||[]).filter(s=>s.taken).map(s=>s.name),
-        sm:(supplements||[]).filter(s=>!s.taken).map(s=>s.name),
-        books:bk
-      };
-      if(JSON.stringify(cur)===JSON.stringify(next))return prev;
-      const out={...p,[today]:next};
-      const keys=Object.keys(out).sort();
-      if(keys.length>400)keys.slice(0,keys.length-400).forEach(k=>{delete out[k];});
-      return out;
-    });
-  },[hydrated,profile,tasks,supplements,books,snapNW]);
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
