@@ -6583,19 +6583,10 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
   );
 }
 
-function MonthlyHeatmap({history,highlight}){
+function MonthlyHeatmap({history}){
   const t=T();
-  const M="'Montserrat',sans-serif",S="'Cormorant Garamond',Georgia,serif";
+  const[hovered,setHovered]=useState(null);
   const[monthOffset,setMonthOffset]=useState(0); // 0=this month, -1=last month, etc
-  const[picked,setPicked]=useState(null);
-  // Follow the week shown in Daily Snapshots: jump to the month of its last day
-  const hlEnd=highlight&&highlight.length?highlight[highlight.length-1]:null;
-  useEffect(()=>{
-    if(!hlEnd)return;
-    const e=new Date(hlEnd+"T12:00:00"),n=new Date();
-    setMonthOffset(Math.min((e.getFullYear()*12+e.getMonth())-(n.getFullYear()*12+n.getMonth()),0));
-    setPicked(null);
-  },[hlEnd]);
   const now=new Date();
   const viewDate=new Date(now.getFullYear(),now.getMonth()+monthOffset,1);
   const year=viewDate.getFullYear(),month=viewDate.getMonth();
@@ -6604,81 +6595,97 @@ function MonthlyHeatmap({history,highlight}){
   const firstDay=new Date(year,month,1).getDay();
   const monthLabel=viewDate.toLocaleDateString(_locale,{month:"long",year:"numeric"});
   const today=todayStr();
-  const hist=history||{};
-  const hl=highlight||[];
-  const DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const col=s=>s>=80?t.GREEN:s>=60?t.GOLD:s>=40?t.BLUE:t.RED;
+  const DAY_LABELS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const getColor=score=>{
+    if(!score)return t.CARD2;
+    if(score>=80)return t.GREEN;
+    if(score>=60)return t.GOLD;
+    if(score>=40)return t.BLUE;
+    return t.RED;
+  };
   const cells=[];
   for(let i=0;i<firstDay;i++)cells.push(null);
   for(let d=1;d<=daysInMonth;d++){
     const ds=year+"-"+String(month+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
-    cells.push({d,ds,score:(hist[ds]&&hist[ds].score)||0,isFuture:ds>today,isToday:ds===today});
+    cells.push({d,ds,score:history[ds]?.score||0,data:history[ds]||null,isToday:ds===today,isFuture:ds>today});
   }
-  const past=cells.filter(c=>c&&!c.isFuture);
-  const scored=past.filter(c=>c.score>0);
-  const avg=scored.length?Math.round(scored.reduce((a,c)=>a+c.score,0)/scored.length):0;
-  const best=scored.length?scored.reduce((b,c)=>c.score>b.score?c:b,scored[0]):null;
-  const top=scored.filter(c=>c.score>=80).length;
-  const pk=picked?cells.find(c=>c&&c.ds===picked):null;
-  const dayName=c=>DAYS[new Date(c.ds+"T12:00:00").getDay()]+" "+c.d;
-  const nav=(dir,off)=>(
-    <button onClick={()=>{if(off)return;setMonthOffset(o=>Math.min(o+dir,0));setPicked(null);}}
-      style={{width:24,height:24,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:off?t.BORDER:t.MUTED,cursor:off?"default":"pointer",fontFamily:M,fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>
-      {dir<0?"<":">"}
-    </button>
-  );
-  const stat=(l,v,c,sub)=>(
-    <div>
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:M,letterSpacing:1,marginBottom:2}}>{l}</div>
-      <div style={{fontSize:24,color:c||t.TEXT,fontFamily:S,lineHeight:1.1}}>{v}</div>
-      {sub&&<div style={{fontSize:9,color:t.MUTED,fontFamily:M}}>{sub}</div>}
-    </div>
-  );
+  const hovCell=hovered!==null?cells.find(c=>c&&c.ds===hovered):null;
+  const col=hovCell?getColor(hovCell.score):t.BORDER;
   return(
     <Card style={{marginBottom:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:10,flexWrap:"wrap"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {nav(-1,false)}
-          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:M}}>{monthLabel}</div>
-          {nav(1,isCurrentMonth)}
+          <button onClick={()=>{setMonthOffset(o=>o-1);setHovered(null);}}
+            style={{width:24,height:24,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ‹
+          </button>
+          <SectionLabel>{monthLabel}</SectionLabel>
+          <button onClick={()=>{setMonthOffset(o=>Math.min(o+1,0));setHovered(null);}}
+            disabled={isCurrentMonth}
+            style={{width:24,height:24,borderRadius:6,border:"1px solid "+t.BORDER,background:t.CARD,color:isCurrentMonth?t.BORDER:t.MUTED,cursor:isCurrentMonth?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ›
+          </button>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {[{c:t.GREEN,l:"80+"},{c:t.GOLD,l:"60+"},{c:t.BLUE,l:"40+"},{c:t.RED,l:"<40"}].map(k=>(
             <div key={k.l} style={{display:"flex",alignItems:"center",gap:3}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:k.c}}/>
-              <span style={{fontSize:9,color:t.MUTED,fontFamily:M}}>{k.l}</span>
+              <div style={{width:8,height:8,borderRadius:2,background:k.c+"88"}}/>
+              <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{k.l}</span>
             </div>
           ))}
         </div>
       </div>
-      <div style={{display:"flex",gap:28,alignItems:"center",flexWrap:"wrap"}}>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(7,18px)",gap:8}}>
-          {DAYS.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:M,textAlign:"center"}}>{l.charAt(0)}</div>)}
-          {cells.map((c,i)=>{
-            if(!c)return <div key={"p"+i}/>;
-            const on=hl.indexOf(c.ds)>=0;
-            const sel=picked===c.ds;
-            const ring=on||sel?"0 0 0 2px "+t.CARD+",0 0 0 3.5px "+(sel?t.TEXT:t.GL):"none";
-            return (
-              <div key={c.ds} title={dayName(c)+(c.score?" - "+c.score:"")}
-                onClick={()=>!c.isFuture&&setPicked(picked===c.ds?null:c.ds)}
-                style={{width:18,height:18,borderRadius:"50%",cursor:c.isFuture?"default":"pointer",boxSizing:"border-box",
-                  background:c.isFuture?"transparent":c.score?col(c.score):t.CARD2,
-                  border:c.isFuture?"1px solid "+t.BORDER2:c.score?"none":"1px solid "+t.BORDER2,
-                  boxShadow:ring}}/>
-            );
-          })}
-        </div>
-        <div style={{flex:1,minWidth:180,display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:14}}>
-          {stat("Month avg",avg||"-",avg?col(avg):t.MUTED)}
-          {stat("Days tracked",scored.length+"/"+past.length)}
-          {stat("Best day",best?best.score:"-",best?col(best.score):t.MUTED,best?dayName(best):null)}
-          {stat("80+ days",top,top?t.GREEN:t.TEXT)}
-        </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:3,marginBottom:4}}>
+        {DAY_LABELS.map(l=><div key={l} style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center"}}>{l}</div>)}
       </div>
-      <div style={{fontSize:10,color:pk?t.TEXT:t.MUTED,fontFamily:M,marginTop:12}}>
-        {pk?new Date(pk.ds+"T12:00:00").toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"})+" - "+(pk.score?"score "+pk.score:"nothing recorded"):"Gold rings show the week above. Tap a day to see its score."}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:3,marginBottom:hovCell?10:0}}>
+        {cells.map((cell,i)=>{
+          if(!cell)return<div key={"pad"+i}/>;
+          const c=getColor(cell.isFuture?0:cell.score);
+          const isHov=hovered===cell.ds;
+          return(
+            <div key={cell.ds}
+              onMouseEnter={()=>!cell.isFuture&&setHovered(cell.ds)}
+              onMouseLeave={()=>setHovered(null)}
+              onClick={()=>!cell.isFuture&&setHovered(hovered===cell.ds?null:cell.ds)}
+              style={{aspectRatio:"1",borderRadius:4,background:cell.isFuture?"transparent":cell.score>0?c+"66":c,border:"1px solid "+(isHov?c:cell.isToday?t.GOLD:cell.score>0&&!cell.isFuture?c+"55":t.BORDER+"33"),display:"flex",alignItems:"center",justifyContent:"center",cursor:cell.isFuture?"default":"pointer",transform:isHov?"scale(1.15)":"scale(1)",transition:"transform .1s, border .1s",zIndex:isHov?2:1,position:"relative"}}>
+              <span style={{fontSize:8,color:isHov?c:cell.isToday?t.GOLD:cell.score>0?c:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontWeight:isHov||cell.isToday?700:400}}>{cell.d}</span>
+            </div>
+          );
+        })}
       </div>
+      {hovCell&&(
+        <div style={{background:t.CARD2,border:"1px solid "+col+"55",borderRadius:8,padding:"10px 14px",animation:"fadeIn .15s ease"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>
+              {new Date(hovCell.ds+"T12:00:00").toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long"})}
+            </div>
+            <div style={{fontSize:18,color:col,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1}}>
+              {hovCell.score||0}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>/100</span>
+            </div>
+          </div>
+          {hovCell.data?(
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              {[
+                {label:"Tasks",value:hovCell.data.tasks,icon:"✓",color:t.GREEN},
+                {label:"Habits",value:hovCell.data.habits,icon:"🔥",color:t.GOLD},
+                {label:"Supps",value:hovCell.data.supps,icon:"💊",color:t.BLUE},
+              ].map(s=>(
+                <div key={s.label} style={{display:"flex",alignItems:"center",gap:7,background:s.color+"12",border:"1px solid "+s.color+"30",borderRadius:8,padding:"6px 12px",flex:1,minWidth:80}}>
+                  <span style={{fontSize:14}}>{s.icon}</span>
+                  <div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>{s.label}</div>
+                    <div style={{fontSize:13,color:s.color,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{s.value!=null?s.value+" done":"—"}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ):(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontStyle:"italic"}}>No activity recorded this day</div>
+          )}
+        </div>
+      )}
+      {!hovCell&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center",marginTop:8}}>Hover or tap any day to see breakdown</div>}
     </Card>
   );
 }
@@ -7049,7 +7056,31 @@ function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habit
         </div>
       </div>
       <DailySnapshots last7={last7} dailySnaps={dailySnaps} history={history} habits={habits} habitLog={habitLog} completed={completed} transactions={transactions} workouts={workouts} bodyLog={bodyLog} journal={journal}/>
-      <Card style={{borderColor:t.GOLD+"33",marginBottom:14}}>
+
+      <MonthlyHeatmap history={history}/>
+
+      <Card style={{marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showReflection?12:0}}>
+          <div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>My Reflection</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Your own notes on the week</div>
+          </div>
+          <button onClick={()=>setShowReflection(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>{showReflection?"Done":"Write"}</button>
+        </div>
+        {showReflection&&(
+          <div>
+            <textarea spellCheck={true} autoCorrect="on" autoCapitalize="sentences" value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
+            <Btn onClick={()=>{setWeeklyReflections(r=>({...(r||{}),[weekKey]:reflection}));setShowReflection(false);}}>Save Reflection</Btn>
+          </div>
+        )}
+        {!showReflection&&savedReflection&&(
+          <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.75,fontStyle:"italic"}}>"{savedReflection}"</div>
+        )}
+        {!showReflection&&!savedReflection&&(
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Tap Write to add your own reflection for the week.</div>
+        )}
+      </Card>
+      <Card style={{borderColor:t.GOLD+"33"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiReview?12:0}}>
           <div>
             <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>
@@ -7082,30 +7113,6 @@ function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habit
         {!aiReview&&!loading&&<div style={{marginTop:8,fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{isMonday&&isPro(subscription)?"Your weekly review is being prepared...":"Generates an honest assessment of your week — wins, gaps, patterns and priorities."}</div>}
       </Card>
       {!isPro(subscription)&&<UpgradeHint message="✦ Generate your AI Weekly Review with The Executive" onUpgrade={()=>setShowUpgrade(true)}/>}
-
-      <MonthlyHeatmap history={history} highlight={last7}/>
-
-      <Card style={{marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showReflection?12:0}}>
-          <div>
-            <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>My Reflection</div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Your own notes on the week</div>
-          </div>
-          <button onClick={()=>setShowReflection(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>{showReflection?"Done":"Write"}</button>
-        </div>
-        {showReflection&&(
-          <div>
-            <textarea spellCheck={true} autoCorrect="on" autoCapitalize="sentences" value={reflection||savedReflection} onChange={e=>setReflection(e.target.value)} placeholder={"What went well? What didn't? What will you do differently next week?"} rows={4} style={{width:"100%",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",fontSize:13,outline:"none",resize:"vertical",lineHeight:1.75,boxSizing:"border-box",marginBottom:8}}/>
-            <Btn onClick={()=>{setWeeklyReflections(r=>({...(r||{}),[weekKey]:reflection}));setShowReflection(false);}}>Save Reflection</Btn>
-          </div>
-        )}
-        {!showReflection&&savedReflection&&(
-          <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Cormorant Garamond',Georgia,serif",lineHeight:1.75,fontStyle:"italic"}}>"{savedReflection}"</div>
-        )}
-        {!showReflection&&!savedReflection&&(
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Tap Write to add your own reflection for the week.</div>
-        )}
-      </Card>
     </div>
   );
 }
