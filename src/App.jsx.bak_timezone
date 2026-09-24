@@ -138,12 +138,8 @@ function rollAutopayForward(b){
   if(nextDue===b.nextDue)return b;
   return{...b,nextDue,lastPaid:todayStr(),paymentHistory};
 }
-// Local-time date helpers: always use the device's own time zone, never UTC
-const localDateStr=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-const daysAgoStr=n=>{const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-n);return localDateStr(d);};
-const parseLocalDate=s=>new Date(typeof s==="string"&&s.length===10?s+"T12:00:00":s);
 const monthStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
-const calcAge=dob=>{if(!dob)return null;const d=parseLocalDate(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
+const calcAge=dob=>{if(!dob)return null;const d=new Date(dob),now=new Date();let age=now.getFullYear()-d.getFullYear();if(now.getMonth()<d.getMonth()||(now.getMonth()===d.getMonth()&&now.getDate()<d.getDate()))age--;return age;};
 const fmtDate=d=>{try{return new Date(d+"T12:00:00").toLocaleDateString(_locale,{day:"numeric",month:"short"});}catch{return d;}};
 const fmtDateNum=d=>{if(!d)return d;const[y,m,day]=d.split("-");return y&&m&&day?day+"/"+m+"/"+y:d;};
 // AU tax brackets, FY2026-27 (from 1 July 2026) - second bracket reduced to 15%.
@@ -1388,7 +1384,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
               // Calculate per-habit streak
               let streak=0;
               for(let i=0;i<365;i++){
-                const d=daysAgoStr(i);
+                const d=new Date(Date.now()-i*864e5).toISOString().split("T")[0];
                 if(habitLog[h.id+"_"+d])streak++;
                 else if(i>0)break;
               }
@@ -1804,10 +1800,10 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                       {(()=>{
                         const days90=Array.from({length:90},(_,i)=>{
                           const d=new Date();d.setDate(d.getDate()-(89-i));
-                          return localDateStr(d);
+                          return d.toISOString().split("T")[0];
                         });
                         // Group by week
-                        const firstDay=parseLocalDate(days90[0]);
+                        const firstDay=new Date(days90[0]);
                         const startPad=firstDay.getDay();
                         const cells=[...Array(startPad).fill(null),...days90];
                         const weeks=[];
@@ -1818,7 +1814,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         weeks.forEach((week,wi)=>{
                           const firstReal=week.find(d=>d);
                           if(firstReal){
-                            const m=parseLocalDate(firstReal).getMonth();
+                            const m=new Date(firstReal).getMonth();
                             if(m!==lastMonth){monthLabels.push({wi,label:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m]});lastMonth=m;}
                           }
                         });
@@ -8832,7 +8828,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio}){
 
   const paymentsInMonth=(year,month)=>divs.filter(d=>{
     if(!d.nextPayDate)return false;
-    const next=parseLocalDate(d.nextPayDate);
+    const next=new Date(d.nextPayDate);
     const freq=FREQS[d.frequency]||4;
     const monthsApart=(year-next.getFullYear())*12+(month-next.getMonth());
     if(monthsApart<0)return false;
@@ -10715,7 +10711,7 @@ function App(){
     setNwHistory(h=>({...h,[monthStr()]:profile.netWorth||0}));
   },[profile,hydrated]);
 
-  const streak=(()=>{let s=0,graced=false;for(let i=0;i<365;i++){const k=daysAgoStr(i);if(history[k]?.score>=50){s++;graced=false;}else if(i===0){}else if(!graced){graced=true;}else break;}return s;})();
+  const streak=(()=>{let s=0,graced=false;for(let i=0;i<365;i++){const k=new Date(Date.now()-i*864e5).toISOString().split("T")[0];if(history[k]?.score>=50){s++;graced=false;}else if(i===0){}else if(!graced){graced=true;}else break;}return s;})();
 
   const prevNW=useRef(null);
   useEffect(()=>{
