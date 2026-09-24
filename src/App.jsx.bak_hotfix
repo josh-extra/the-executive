@@ -10777,61 +10777,6 @@ function App(){
     }
   },[authUser]);
 
-  // Computed before the early returns below so the hook order never changes
-  const activeProfile=profile||DEMO;
-  if(activeProfile.locale)_locale=activeProfile.locale;
-  const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
-  const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
-  const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
-  const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
-  const livePropertyValue=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
-  const livePropertyDebt=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
-  const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
-  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0)||((properties||[]).length>0);
-  const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
-  const effectiveTotalDebt=(liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0))+livePropertyDebt;
-  const liveProfile=activeProfile?(hasLiveData
-    ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
-    :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
-  ):activeProfile;
-  const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
-
-  // Daily snapshot recorder - keeps today's snapshot current as things change.
-  // Previous days are never touched, so the midnight reset can't erase them.
-  const snapNW=Math.round(liveProfile?.netWorth||0);
-  useEffect(()=>{
-    if(!hydrated||!profile)return;
-    const today=todayStr();
-    const tt=todayTasks(tasks);
-    setDailySnaps(prev=>{
-      const p=prev||{};
-      const cur=p[today]||{};
-      const prevKey=Object.keys(p).filter(k=>k<today).sort().pop();
-      const prevBooks=(prevKey&&p[prevKey].books)||{};
-      const bk={};
-      (books||[]).forEach(b=>{
-        const active=b.status==="reading"||(b.status==="done"&&b.dateFinished===today);
-        if(!active)return;
-        const c=Number(b.cur)||0;
-        const start=cur.books&&cur.books[b.id]?cur.books[b.id].s:(prevBooks[b.id]?prevBooks[b.id].c:c);
-        bk[b.id]={t:b.title,s:start,c,tot:Number(b.tot)||0};
-      });
-      const next={
-        nw:snapNW,
-        td:tt.filter(x=>x.done).map(x=>x.text),
-        to:tt.filter(x=>!x.done).map(x=>x.text),
-        st:(supplements||[]).filter(s=>s.taken).map(s=>s.name),
-        sm:(supplements||[]).filter(s=>!s.taken).map(s=>s.name),
-        books:bk
-      };
-      if(JSON.stringify(cur)===JSON.stringify(next))return prev;
-      const out={...p,[today]:next};
-      const keys=Object.keys(out).sort();
-      if(keys.length>400)keys.slice(0,keys.length-400).forEach(k=>{delete out[k];});
-      return out;
-    });
-  },[hydrated,profile,tasks,supplements,books,snapNW]);
-
   if(splash){
     return (
       <div style={{position:"fixed",inset:0,background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",zIndex:9999,minHeight:"100vh",WebkitMinHeight:"-webkit-fill-available"}}>
@@ -11121,6 +11066,59 @@ function App(){
   };
 
   const t=T();
+  const activeProfile=profile||DEMO;
+  if(activeProfile.locale)_locale=activeProfile.locale;
+  const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
+  const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
+  const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
+  const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
+  const livePropertyValue=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
+  const livePropertyDebt=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
+  const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
+  const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0)||((properties||[]).length>0);
+  const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
+  const effectiveTotalDebt=(liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0))+livePropertyDebt;
+  const liveProfile=activeProfile?(hasLiveData
+    ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
+    :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
+  ):activeProfile;
+  const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
+
+  // Daily snapshot recorder - keeps today's snapshot current as things change.
+  // Previous days are never touched, so the midnight reset can't erase them.
+  const snapNW=Math.round(liveProfile?.netWorth||0);
+  useEffect(()=>{
+    if(!hydrated||!profile)return;
+    const today=todayStr();
+    const tt=todayTasks(tasks);
+    setDailySnaps(prev=>{
+      const p=prev||{};
+      const cur=p[today]||{};
+      const prevKey=Object.keys(p).filter(k=>k<today).sort().pop();
+      const prevBooks=(prevKey&&p[prevKey].books)||{};
+      const bk={};
+      (books||[]).forEach(b=>{
+        const active=b.status==="reading"||(b.status==="done"&&b.dateFinished===today);
+        if(!active)return;
+        const c=Number(b.cur)||0;
+        const start=cur.books&&cur.books[b.id]?cur.books[b.id].s:(prevBooks[b.id]?prevBooks[b.id].c:c);
+        bk[b.id]={t:b.title,s:start,c,tot:Number(b.tot)||0};
+      });
+      const next={
+        nw:snapNW,
+        td:tt.filter(x=>x.done).map(x=>x.text),
+        to:tt.filter(x=>!x.done).map(x=>x.text),
+        st:(supplements||[]).filter(s=>s.taken).map(s=>s.name),
+        sm:(supplements||[]).filter(s=>!s.taken).map(s=>s.name),
+        books:bk
+      };
+      if(JSON.stringify(cur)===JSON.stringify(next))return prev;
+      const out={...p,[today]:next};
+      const keys=Object.keys(out).sort();
+      if(keys.length>400)keys.slice(0,keys.length-400).forEach(k=>{delete out[k];});
+      return out;
+    });
+  },[hydrated,profile,tasks,supplements,books,snapNW]);
   const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
