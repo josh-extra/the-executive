@@ -6790,183 +6790,7 @@ function DayScoreChart({last7,scores,history,dayLetters}){
   );
 }
 
-// Daily snapshots - day-by-day overview on the Weekly page
-function DailySnapshots({last7,dailySnaps,history,habits,habitLog,completed,transactions,workouts,bodyLog,journal}){
-  const t=T();
-  const M="'Montserrat',sans-serif",S="'Cormorant Garamond',Georgia,serif";
-  const DAY=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const DAYFULL=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const today=todayStr();
-  const snaps=dailySnaps||{};
-  const hist=history||{};
-  const[sel,setSel]=useState(null);
-  const selDay=sel&&last7.indexOf(sel)>=0?sel:(last7.indexOf(today)>=0?today:last7[6]);
-  const dObj=d=>new Date(d+"T12:00:00");
-  const money=v=>"$"+Math.round(Math.abs(v)).toLocaleString("en-AU");
-  const signed=v=>(v<0?"-":"+")+money(v);
-  const keys=Object.keys(snaps).sort();
-  const firstSnap=keys[0]||null;
-  const prevNW=d=>{const k=keys.filter(x=>x<d).pop();return k?snaps[k].nw:null;};
-  const nwDelta=d=>{const s=snaps[d];if(!s)return null;const p=prevNW(d);return p===null?null:s.nw-p;};
-  const spentOn=d=>{
-    const tx=(transactions||[]).filter(x=>x.date===d&&x.type==="expense");
-    const bc={};let total=0;
-    tx.forEach(x=>{const a=Math.abs(parseFloat(x.amount)||0);total+=a;const c=x.category||"Other";bc[c]=(bc[c]||0)+a;});
-    const top=Object.entries(bc).sort((a,b)=>b[1]-a[1])[0];
-    return{total,top:top?top[0]:null};
-  };
-  const tasksDone=d=>snaps[d]?snaps[d].td.length:((hist[d]&&hist[d].tasks)||0);
-  const score=d=>(hist[d]&&hist[d].score)||0;
-
-  // Week summary
-  const wk=last7.filter(d=>snaps[d]);
-  let weekNW=null;
-  if(wk.length){const base=prevNW(wk[0]);if(base!==null)weekNW=snaps[wk[wk.length-1]].nw-base;else if(wk.length>1)weekNW=snaps[wk[wk.length-1]].nw-snaps[wk[0]].nw;}
-  const scored=last7.filter(d=>score(d)>0);
-  const avg=scored.length?Math.round(scored.reduce((a,d)=>a+score(d),0)/scored.length):0;
-  const best=scored.length?scored.reduce((b,d)=>score(d)>score(b)?d:b,scored[0]):null;
-  const weekTasks=last7.reduce((a,d)=>a+tasksDone(d),0);
-  const weekSpent=last7.reduce((a,d)=>a+spentOn(d).total,0);
-
-  // Selected day
-  const d=selDay;
-  const snap=snaps[d]||null;
-  const isFuture=d>today;
-  const sc=score(d);
-  const delta=nwDelta(d);
-  const spent=spentOn(d);
-  const habitRows=(habits||[]).map(h=>[h.name,!!(habitLog||{})[h.id+"_"+d]]);
-  const hDone=habitRows.filter(h=>h[1]).length;
-  const goalsDone=(completed||[]).filter(g=>g.completedAt===d);
-  const jEntry=(journal||[]).find(e=>e.date===d);
-  const wOuts=(workouts||[]).filter(w=>w.date===d);
-  const body=(bodyLog||[]).find(e=>e.date===d&&e.weight);
-  const reading=snap?Object.values(snap.books||{}).filter(b=>b.c>b.s):[];
-  const tTotal=snap?snap.td.length+snap.to.length:0;
-  const hasAny=sc>0||snap||spent.total>0||jEntry||wOuts.length||body||goalsDone.length||hDone>0;
-
-  const label=(txt)=><div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:M,marginBottom:8}}>{txt}</div>;
-  const muted=(txt)=><div style={{fontSize:11,color:t.MUTED,fontFamily:M}}>{txt}</div>;
-  const chip=(name,on,key)=>(
-    <span key={key} style={{display:"inline-block",fontSize:10,padding:"4px 9px",borderRadius:12,margin:"0 6px 6px 0",fontFamily:M,background:on?t.GREEN+"1A":t.CARD2,color:on?t.GREEN:t.MUTED,border:"1px solid "+(on?t.GREEN+"44":t.BORDER2)}}>{name}</span>
-  );
-  const tile=(l,v,c,sub)=>(
-    <Card style={{padding:"12px 14px"}}>
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:M,letterSpacing:1,marginBottom:4}}>{l}</div>
-      <div style={{fontSize:22,color:c,fontFamily:S}}>{v}</div>
-      {sub&&<div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginTop:2}}>{sub}</div>}
-    </Card>
-  );
-  const sumItem=(l,v,c)=>(
-    <div>
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:M,letterSpacing:1,marginBottom:3}}>{l}</div>
-      <div style={{fontSize:20,color:c||t.TEXT,fontFamily:S}}>{v}</div>
-    </div>
-  );
-  const subLine=[wOuts.length?"Workout: "+wOuts.map(w=>(w.type||"Workout")+(w.duration?" - "+w.duration+" min":"")).join(", "):null,body?"Weight: "+body.weight+" kg":null].filter(Boolean).join("   |   ");
-
-  return (
-    <div style={{marginBottom:18}}>
-      <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:M,marginBottom:10}}>Daily Snapshots</div>
-
-      <Card style={{marginBottom:10,borderColor:t.GOLD+"33",display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(105px,1fr))",gap:12}}>
-        {sumItem("Net worth",weekNW===null?"-":signed(weekNW),weekNW===null?t.MUTED:weekNW>=0?t.GREEN:t.RED)}
-        {sumItem("Avg score",avg||"-",t.GOLD)}
-        {sumItem("Best day",best?DAYFULL[dObj(best).getDay()]:"-")}
-        {sumItem("Tasks done",weekTasks)}
-        {sumItem("Spent",money(weekSpent))}
-      </Card>
-
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:5,marginBottom:10}}>
-        {last7.map(day=>{
-          const s=score(day),on=day===d,fut=day>today,dl=nwDelta(day);
-          const c=s>=80?t.GOLD:s>=50?t.TEXT:t.MUTED;
-          return (
-            <button key={day} onClick={()=>setSel(day)} style={{background:on?t.GOLD+"14":t.CARD,border:"1px solid "+(on?t.GOLD:t.BORDER),borderRadius:9,padding:"8px 2px",cursor:"pointer",textAlign:"center",opacity:fut?0.45:1,minWidth:0}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:M,display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
-                {DAY[dObj(day).getDay()]}
-                {dl!==null&&<span style={{width:5,height:5,borderRadius:"50%",background:dl>=0?t.GREEN:t.RED,display:"inline-block"}}/>}
-              </div>
-              <div style={{fontSize:19,color:s?c:t.MUTED2,fontFamily:S,lineHeight:1.3}}>{s||"-"}</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:M}}>{dObj(day).getDate()}</div>
-            </button>
-          );
-        })}
-      </div>
-
-      <Card style={{marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-        <div>
-          <div style={{fontSize:21,color:t.TEXT,fontFamily:S}}>{DAYFULL[dObj(d).getDay()]+" "+dObj(d).getDate()+" "+MON[dObj(d).getMonth()]}</div>
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginTop:2}}>{isFuture?"Still to come":d===today?(subLine||"Today - updates as your day happens"):(subLine||"No workout or weigh-in logged")}</div>
-        </div>
-        <div style={{textAlign:"right"}}>
-          <div style={{fontSize:38,color:sc?t.GOLD:t.MUTED2,fontFamily:S,lineHeight:1}}>{sc||"-"}</div>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:M}}>Daily score</div>
-        </div>
-      </Card>
-
-      {isFuture?null:!hasAny?(
-        <Card style={{textAlign:"center",padding:24}}>{muted("Nothing recorded for this day")}</Card>
-      ):(
-        <>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:10}}>
-            {tile("Tasks",snap?snap.td.length+"/"+tTotal:tasksDone(d),t.TEXT,snap?(tTotal?Math.round(snap.td.length/tTotal*100)+"% complete":"No tasks"):"completed")}
-            {tile("Net worth",delta===null?"-":signed(delta),delta===null?t.MUTED:delta>=0?t.GREEN:t.RED,snap?money(snap.nw)+" total":"Not recorded")}
-            {tile("Spent",money(spent.total),t.TEXT,spent.top?"Mostly "+spent.top.toLowerCase():"No spending logged")}
-            {tile("Habits",habitRows.length?hDone+"/"+habitRows.length:"-",t.TEXT,habitRows.length?(hDone===habitRows.length?"Clean sweep":(habitRows.length-hDone)+" missed"):"No habits set")}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))",gap:10}}>
-            <Card>
-              {label("Tasks")}
-              {snap?(
-                tTotal?[...snap.td.map(x=>[x,1]),...snap.to.map(x=>[x,0])].map((x,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
-                    <div style={{width:13,height:13,borderRadius:"50%",flexShrink:0,border:"1px solid "+(x[1]?t.GOLD:t.BORDER2),background:x[1]?t.GOLD:"transparent"}}/>
-                    <span style={{fontSize:12,fontFamily:M,color:x[1]?t.TEXT:t.MUTED}}>{x[0]}</span>
-                  </div>
-                )):muted("No tasks for this day")
-              ):muted(tasksDone(d)+" tasks completed. Task names are recorded from "+(firstSnap?fmtDateNum(firstSnap):"today")+" onwards.")}
-            </Card>
-            <Card>
-              {label("Supplements")}
-              <div style={{marginBottom:8}}>
-                {snap?((snap.st.length+snap.sm.length)?[...snap.st.map((n,i)=>chip(n,true,"s"+i)),...snap.sm.map((n,i)=>chip(n,false,"m"+i))]:muted("None set")):muted(((hist[d]&&hist[d].supps)||0)+" taken")}
-              </div>
-              {label("Habits")}
-              <div style={{marginBottom:8}}>{habitRows.length?habitRows.map((h,i)=>chip(h[0],h[1],"h"+i)):muted("No habits set")}</div>
-              {label("Goals")}
-              {goalsDone.length?goalsDone.map((g,i)=>(
-                <span key={i} style={{display:"inline-block",fontSize:10,padding:"4px 9px",borderRadius:12,margin:"0 6px 6px 0",fontFamily:M,background:t.GOLD+"18",color:t.GOLD,border:"1px solid "+t.GOLD+"44"}}>{"Completed: "+g.title}</span>
-              )):muted("No goals completed")}
-            </Card>
-            <Card>
-              {label("Reading")}
-              {reading.length?reading.map((b,i)=>{
-                const pct=b.tot?Math.min(Math.round(b.c/b.tot*100),100):0;
-                return (
-                  <div key={i} style={{marginBottom:i<reading.length-1?10:0}}>
-                    <div style={{fontSize:12,color:t.TEXT,fontFamily:M,marginBottom:5}}>{b.t}{b.tot&&b.c>=b.tot?<span style={{color:t.GREEN}}>{" - finished"}</span>:null}</div>
-                    <div style={{height:4,background:t.BORDER,borderRadius:2,marginBottom:5}}><div style={{height:4,width:pct+"%",background:t.GOLD,borderRadius:2}}/></div>
-                    {muted((b.c-b.s)+" pages read - p."+b.c+(b.tot?" of "+b.tot:""))}
-                  </div>
-                );
-              }):muted("No reading logged")}
-            </Card>
-            <Card>
-              {label("Journal")}
-              {jEntry&&jEntry.text?(
-                <div style={{fontSize:14,color:t.TEXT,fontFamily:S,fontStyle:"italic",lineHeight:1.6,whiteSpace:"pre-wrap"}}>{jEntry.text.length>320?jEntry.text.slice(0,320)+"...":jEntry.text}</div>
-              ):muted("No journal entry")}
-            </Card>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade,authToken}){
+function WeeklyPage({profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade,authToken}){
   const t=T();
   const isMobile=useIsMobile();
   const[aiReview,setAiReview]=useState("");
@@ -7055,7 +6879,6 @@ function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habit
           </button>
         </div>
       </div>
-      <DailySnapshots last7={last7} dailySnaps={dailySnaps} history={history} habits={habits} habitLog={habitLog} completed={completed} transactions={transactions} workouts={workouts} bodyLog={bodyLog} journal={journal}/>
       <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:10,marginBottom:14}}>
         <StatCard label="Avg Score" value={avgScore+"/100"} color={avgScore>=80?t.GREEN:avgScore>=60?t.GOLD:avgScore>=40?t.BLUE:t.RED}/>
         <StatCard label="Days Active" value={daysActive+"/7"} color={t.BLUE}/>
@@ -11382,7 +11205,7 @@ function App(){
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
-          {page==="weekly"&&<WeeklyPage dailySnaps={dailySnaps} completed={completed} transactions={transactions} profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
+          {page==="weekly"&&<WeeklyPage profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="learn"/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="services"/>:<ServicesPage services={services} setServices={setServices}/>)}
