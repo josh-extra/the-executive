@@ -3331,79 +3331,6 @@ function TickerAutocomplete({value,onChange,onSelect,placeholder,style}){
   );
 }
 
-// Balance history for a card: trend chart, latest update, collapsible earlier updates
-function BalanceHistory({log,color,gradId,labelFor,onDelete,emptyText}){
-  const t=T();
-  const M="'Montserrat',sans-serif";
-  const[open,setOpen]=useState(false);
-  const[confirmKey,setConfirmKey]=useState(null);
-  const sorted=[...(log||[])].sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||((b.id||0)-(a.id||0)));
-  if(!sorted.length)return <div style={{textAlign:"center",padding:"10px 0",color:t.MUTED,fontFamily:M,fontSize:11}}>{emptyText}</div>;
-  // Change is worked out from the entry before it, so it stays right after a delete
-  const chg=i=>i<sorted.length-1?(parseFloat(sorted[i].balance)||0)-(parseFloat(sorted[i+1].balance)||0):(parseFloat(sorted[i].change)||0);
-  const keyOf=(e,i)=>String(e.id||"")+"_"+e.date+"_"+i;
-  const asc=[...sorted].reverse().slice(-12);
-  const W=280,H=70,pad=6;
-  const vals=asc.map(e=>parseFloat(e.balance)||0);
-  const mn=Math.min(...vals)*0.98,mx=Math.max(...vals)*1.01;
-  const px=i=>pad+(i/(asc.length-1||1))*(W-pad*2);
-  const py=v=>H-pad-(((v-mn)/(mx-mn||1))*(H-pad*2));
-  const pts=asc.map((e,i)=>px(i)+","+py(parseFloat(e.balance)||0)).join(" ");
-  const row=(e,i)=>{
-    const k=keyOf(e,i),c=chg(i);
-    return (
-      <div key={k} style={{borderTop:i>0?"1px solid "+t.BORDER:"none"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",gap:10}}>
-          <div style={{minWidth:0}}>
-            <div style={{fontSize:12,color:t.TEXT,fontFamily:M}}>{labelFor(e)}</div>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginTop:1}}>
-              {new Date(e.date+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})+(e.note?" - "+e.note:"")}
-              {onDelete&&confirmKey!==k&&<button onClick={()=>setConfirmKey(k)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:M,padding:"0 0 0 8px",textDecoration:"underline"}}>Delete</button>}
-            </div>
-          </div>
-          <div style={{textAlign:"right",flexShrink:0}}>
-            <div style={{fontSize:13,color:color,fontFamily:M,fontWeight:700}}>{fmt(parseFloat(e.balance)||0)}</div>
-            {c!==0&&<div style={{fontSize:10,color:c>0?t.GREEN:t.RED,fontFamily:M}}>{(c>0?"+":"")+fmt(c)}</div>}
-          </div>
-        </div>
-        {confirmKey===k&&(
-          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",background:t.RED+"14",border:"1px solid "+t.RED+"44",borderRadius:6,padding:"6px 9px",marginBottom:7}}>
-            <span style={{flex:1,fontSize:10,color:t.TEXT,fontFamily:M}}>Delete this entry?</span>
-            <button onClick={()=>{setConfirmKey(null);onDelete(e);}} style={{background:t.RED+"22",border:"1px solid "+t.RED+"66",borderRadius:5,padding:"3px 10px",color:t.RED,cursor:"pointer",fontSize:10,fontFamily:M,fontWeight:600}}>Delete</button>
-            <button onClick={()=>setConfirmKey(null)} style={{background:"none",border:"1px solid "+t.BORDER2,borderRadius:5,padding:"3px 10px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:M}}>Cancel</button>
-          </div>
-        )}
-      </div>
-    );
-  };
-  return (
-    <div>
-      {asc.length>=2&&(
-        <div style={{marginBottom:12}}>
-          <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:6}}>Balance History</div>
-          <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H}}>
-            <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity=".25"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
-            <polygon points={pts+" "+px(asc.length-1)+","+H+" "+px(0)+","+H} fill={"url(#"+gradId+")"}/>
-            <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round"/>
-            <circle cx={px(asc.length-1)} cy={py(vals[vals.length-1])} r="3" fill={color}/>
-          </svg>
-        </div>
-      )}
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:M,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Latest Update</div>
-      {row(sorted[0],0)}
-      {sorted.length>1&&(
-        <div style={{borderTop:"1px solid "+t.BORDER}}>
-          <button onClick={()=>{setOpen(o=>!o);setConfirmKey(null);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:M,padding:"8px 0 0",display:"flex",alignItems:"center",gap:6}}>
-            <svg width="10" height="10" viewBox="0 0 10 10" style={{transform:open?"rotate(180deg)":"none"}}><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke={t.MUTED} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            {open?"Hide history":"Show history ("+(sorted.length-1)+" earlier)"}
-          </button>
-          {open&&<div style={{marginTop:4}}>{sorted.slice(1).map((e,i)=>row(e,i+1))}</div>}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
@@ -3982,16 +3909,28 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
               </div>
             </div>
           )}
-          <BalanceHistory log={profile.cashLog||[]} color={t.BLUE} gradId="cashg" emptyText="Tap + Update Balance whenever your savings change"
-            labelFor={()=>"Balance Update"}
-            onDelete={e=>{
-              if(!onUpdateProfile)return;
-              onUpdateProfile(p=>{
-                const next=((p&&p.cashLog)||[]).filter(x=>!(x===e||(e.id&&x.id===e.id)));
-                const latest=[...next].sort((x,y)=>String(y.date||"").localeCompare(String(x.date||""))||((y.id||0)-(x.id||0)))[0];
-                return {...p,cashLog:next,...(latest?{cashSavings:String(latest.balance)}:{})};
-              });
-            }}/>
+          {(profile.cashLog||[]).length>0?(
+            <div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>History</div>
+              {(profile.cashLog||[]).slice(0,5).map((e,i)=>(
+                <div key={e.id||i}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>Balance Update</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})+(e.note?" - "+e.note:"")}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:13,color:t.BLUE,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(e.balance)}</div>
+                      {e.change!==0&&<div style={{fontSize:10,color:e.change>0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{(e.change>0?"+":"")+fmt(e.change)}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ):(
+            <div style={{textAlign:"center",padding:"8px 0",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Tap + Update Balance whenever your savings change</div>
+          )}
         </Card>
 
         {/* ── SUPERANNUATION ── */}
@@ -4055,14 +3994,53 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
             </div>
           )}
 
-          <BalanceHistory log={superLog} color={t.PURPLE} gradId="sg" emptyText="Tap + Update Balance to track your super growth over time"
-            labelFor={e=>e.type==="balance"?"Balance Update":e.type==="contribution"?"Personal Contribution":e.type==="employer"?"Employer Contribution":"Investment Growth"}
-            onDelete={e=>{
-              const next=(superLog||[]).filter(x=>x!==e);
-              setSuperLog(next);
-              const latest=[...next].sort((x,y)=>String(y.date||"").localeCompare(String(x.date||""))||((y.id||0)-(x.id||0)))[0];
-              if(latest&&onUpdateProfile)onUpdateProfile(p=>({...p,superBalance:String(latest.balance)}));
-            }}/>
+          {/* Balance history chart */}
+          {superLog.length>=2&&(()=>{
+            const entries=[...superLog].sort((a,b)=>a.date.localeCompare(b.date)).slice(-12);
+            const vals=entries.map(e=>e.balance);
+            const mn=Math.min(...vals)*0.98, mx=Math.max(...vals)*1.01;
+            const W=280,H=70,pad=6;
+            const px=i=>pad+(i/(entries.length-1||1))*(W-pad*2);
+            const py=v=>H-pad-(((v-mn)/(mx-mn||1))*(H-pad*2));
+            const pts=entries.map((e,i)=>`${px(i)},${py(e.balance)}`).join(" ");
+            return (
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Balance History</div>
+                <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:H}}>
+                  <defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={t.PURPLE} stopOpacity=".25"/><stop offset="100%" stopColor={t.PURPLE} stopOpacity="0"/></linearGradient></defs>
+                  <polygon points={`${pts} ${px(entries.length-1)},${H} ${px(0)},${H}`} fill="url(#sg)"/>
+                  <polyline points={pts} fill="none" stroke={t.PURPLE} strokeWidth="1.5" strokeLinejoin="round"/>
+                  <circle cx={px(entries.length-1)} cy={py(entries[entries.length-1].balance)} r="3" fill={t.PURPLE}/>
+                </svg>
+              </div>
+            );
+          })()}
+
+          {/* Log entries */}
+          {superLog.length>0&&(
+            <div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>History</div>
+              {superLog.slice(0,5).map((e,i)=>(
+                <div key={e.id||i}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{e.type==="balance"?"Balance Update":e.type==="contribution"?"Personal Contribution":e.type==="employer"?"Employer Contribution":"Investment Growth"}</div>
+                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})}{e.note?" · "+e.note:""}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:13,color:t.PURPLE,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(e.balance)}</div>
+                      {e.change!==0&&<div style={{fontSize:10,color:e.change>0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{(e.change>0?"+":"")+fmt(e.change)}</div>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {superLog.length===0&&(
+            <div style={{textAlign:"center",padding:"12px 0",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Tap + Update Balance to track your super growth over time</div>
+          )}
         </Card>
 
       </div>
