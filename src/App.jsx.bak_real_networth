@@ -3346,8 +3346,6 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
   const[editCryptoIdx,setEditCryptoIdx]=useState(null);
   const[editCryptoForm,setEditCryptoForm]=useState({});
   const[showSuperAdd,setShowSuperAdd]=useState(false);
-  const[showCashAdd,setShowCashAdd]=useState(false);
-  const[cashForm,setCashForm]=useState({balance:"",date:todayStr(),note:""});
   const[superForm,setSuperForm]=useState({balance:"",type:"balance",date:todayStr(),note:""});
   const[superNewBal,setSuperNewBal]=useState(null);
   const saveShareEdit=(id)=>{
@@ -3372,12 +3370,9 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
   const hasDebtTab=!!(debtList&&debtList.length);
   const debtTabSum=types=>(debtList||[]).filter(d=>types.indexOf(d.type||"Other")>=0&&!(properties||[]).some(p=>(p.linkedDebtIds||[]).some(x=>idEq(x,d.id)))).reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0);
   const OTHER_LOAN_TYPES=["Mortgage","Student Loan","Business Loan","Other"];
-  const cashManual=parseFloat(profile.cashSavings)||0;
-  const cashOffset=parseFloat(profile.offsetCash)||0;
-  const cashTotal=cashManual+cashOffset;
   const assets=[
     {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:propertyTotal},
-    {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:cashTotal},
+    {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:parseFloat(profile.cashSavings)||0},
     {type:"crypto",value:parseFloat(profile.cryptoValue)||0},
     {type:"commodities",value:commodityPortfolio?.totalValue||0},
     {type:"alternative",value:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0)}
@@ -3408,7 +3403,7 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
           </div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>{"Target: "+fmt(nwT)}</div>
         </div>
-        
+        <button onClick={()=>setShowRecalibrate(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Recalibrate</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:14}}>
         <Card>
@@ -3429,7 +3424,7 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
               {l:"Property",asset:propertyTotal,debt:mortgageTotal,c:"#7A9E7E"},
               {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:hasDebtTab?debtTabSum(["Investment Loan"]):(parseFloat(profile.investLoanDebt)||0),c:t.GOLD},
               {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
-              {l:"Cash",asset:cashTotal,debt:0,c:"#7EB8C9"},
+              {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:0,c:"#7EB8C9"},
               {l:"Crypto",asset:parseFloat(profile.cryptoValue)||0,debt:0,c:t.PURPLE},
               {l:"Commodities",asset:commodityPortfolio?.totalValue||0,debt:0,c:"#D9A66C"},
               {l:"Alternative Assets",asset:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0),debt:0,c:"#8C8C9E"},
@@ -3862,77 +3857,6 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
           <AddAltAssetForm onAdd={a=>setAltAssets(as=>[...(as||[]),{...a,id:Date.now(),updatedAt:todayStr()}])}/>
         </Card>
 
-        {/* CASH AND SAVINGS */}
-        <Card style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <SectionLabel>Cash and Savings</SectionLabel>
-            <button onClick={()=>setShowCashAdd(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"5px 11px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>+ Update Balance</button>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:12}}>
-            {[
-              {l:"Bank Accounts",v:fmt(cashManual),c:t.BLUE,s:"Everyday and savings"},
-              {l:"Offset Accounts",v:fmt(cashOffset),c:t.GREEN,s:"From your Debt tab"},
-              {l:"Total Cash",v:fmt(cashTotal),c:t.GOLD,s:"Counted in net worth"},
-            ].map(s=>(
-              <div key={s.l} style={{background:t.CARD2,borderRadius:6,padding:"8px",textAlign:"center"}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.l}</div>
-                <div style={{fontSize:14,color:s.c,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{s.v}</div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{s.s}</div>
-              </div>
-            ))}
-          </div>
-          {showCashAdd&&(
-            <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
-              <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Update Bank Accounts</div>
-              <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <div style={{flex:2}}>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Total across your bank accounts ($)</div>
-                  <Inp type="number" value={cashForm.balance} onChange={e=>setCashForm(f=>({...f,balance:e.target.value}))} placeholder={String(cashManual||0)}/>
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Date</div>
-                  <Inp type="date" value={cashForm.date} onChange={e=>setCashForm(f=>({...f,date:e.target.value}))}/>
-                </div>
-              </div>
-              <Inp value={cashForm.note} onChange={e=>setCashForm(f=>({...f,note:e.target.value}))} placeholder="Note (optional)" style={{marginBottom:8}}/>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10,lineHeight:1.5}}>Don't include money in offset accounts - it's added automatically from the offset balance on your Debt tab.</div>
-              <div style={{display:"flex",gap:7}}>
-                <Btn onClick={()=>{
-                  if(cashForm.balance==="")return;
-                  const amount=parseFloat(cashForm.balance)||0;
-                  const entry={id:Date.now(),date:cashForm.date||todayStr(),balance:amount,change:amount-cashManual,note:cashForm.note};
-                  if(onUpdateProfile)onUpdateProfile(p=>({...p,cashSavings:String(amount),cashLog:[entry,...((p&&p.cashLog)||[])].slice(0,60)}));
-                  setCashForm({balance:"",date:todayStr(),note:""});
-                  setShowCashAdd(false);
-                }} style={{fontSize:11}}>Save</Btn>
-                <Btn onClick={()=>setShowCashAdd(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
-              </div>
-            </div>
-          )}
-          {(profile.cashLog||[]).length>0?(
-            <div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>History</div>
-              {(profile.cashLog||[]).slice(0,5).map((e,i)=>(
-                <div key={e.id||i}>
-                  {i>0&&<Divider/>}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
-                    <div>
-                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>Balance Update</div>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{new Date(e.date+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"})+(e.note?" - "+e.note:"")}</div>
-                    </div>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:13,color:t.BLUE,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(e.balance)}</div>
-                      {e.change!==0&&<div style={{fontSize:10,color:e.change>0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{(e.change>0?"+":"")+fmt(e.change)}</div>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ):(
-            <div style={{textAlign:"center",padding:"8px 0",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Tap + Update Balance whenever your savings change</div>
-          )}
-        </Card>
-
         {/* ── SUPERANNUATION ── */}
         <Card style={{marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -3985,7 +3909,11 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
                   const prev=parseFloat(profile.superBalance)||0;
                   const diff=amount-prev;
                   setSuperLog(sl=>[{id:Date.now(),date:superForm.date,balance:amount,amount:Math.abs(diff),change:diff,type:superForm.type,note:superForm.note},...sl]);
-                  if(onUpdateProfile)onUpdateProfile(p=>({...p,superBalance:String(amount)}));
+                  // Update profile balance
+                  profile.superBalance=String(amount);
+                  const tA=(parseFloat(profile.shareValue)||0)+propertyTotal+(parseFloat(profile.cashSavings)||0)+amount+(parseFloat(profile.cryptoValue)||0);
+                  const tD=mortgageTotal+(parseFloat(profile.investLoanDebt)||0)+(parseFloat(profile.carDebt)||0)+(parseFloat(profile.creditCardDebt)||0)+(parseFloat(profile.personalDebt)||0);
+                  if(onUpdateProfile)onUpdateProfile({...profile,superBalance:String(amount),totalAssets:tA,netWorth:tA-tD});
                   setSuperForm({balance:"",type:"balance",date:todayStr(),note:""});
                   setShowSuperAdd(false);
                 }} style={{fontSize:11}}>Save</Btn>
@@ -7340,7 +7268,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
   const lastMsgIsToday=lastMsgOverall&&lastMsgOverall.timestamp?new Date(lastMsgOverall.timestamp).toDateString()===new Date().toDateString():false;
   const showPrompts=msgs.length===1||!lastMsgIsToday;
 
-  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome (stated): "+fmt(parseFloat(profile.annualIncome)||0)+(profile.recordedIncome12m?" | Income recorded last 12m: "+fmt(profile.recordedIncome12m):"")+" | Cash: "+fmt((parseFloat(profile.cashSavings)||0)+(parseFloat(profile.offsetCash)||0))+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
+  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome: "+fmt(parseFloat(profile.annualIncome)||0)+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
 
   const send=async text=>{
     const q=text||input.trim();if(!q||loading)return;setInput("");
@@ -7534,7 +7462,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
   const save=()=>{
     const tA=["shareValue","cashSavings","superBalance","cryptoValue"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+propertyTotal;
     const tD=["investLoanDebt","carDebt","creditCardDebt","personalDebt"].reduce((s,k)=>s+(parseFloat(form[k])||0),0)+mortgageTotal;
-    setProfile(p=>({...p,...form,cashSavings:p.cashSavings,superBalance:p.superBalance,cashLog:p.cashLog}));setSaved(true);setTimeout(()=>setSaved(false),2000);
+    setProfile({...form,totalAssets:tA,totalDebt:tD,netWorth:tA-tD});setSaved(true);setTimeout(()=>setSaved(false),2000);
   };
   const HEALTH_GOALS=["Build Muscle","Lose Fat","Improve Sleep","Boost Testosterone","Increase Energy","Improve HRV","Reduce Stress","Longevity"];
   const RISK_OPTS=["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"];
@@ -7653,20 +7581,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Finances</SectionLabel>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[["annualIncome","Annual Income","Gross, before tax"],["netWorthTarget","Net Worth Target","e.g. 3000000"]].map(([k,l,ph])=>(
-            <div key={k} style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",minWidth:110,flexShrink:0}}>{l}</div>
-              <Inp type="number" value={form[k]||""} onChange={e=>setForm(x=>({...x,[k]:e.target.value}))} placeholder={ph} style={{flex:1,padding:"7px 10px",fontSize:12}}/>
-            </div>
-          ))}
-          {(()=>{
-            const cut=daysAgoStr(365);
-            const rec=Math.round((transactions||[]).filter(x=>x.type==="income"&&x.date>=cut).reduce((s,x)=>s+Math.abs(parseFloat(x.amount)||0),0));
-            return <div style={{fontSize:11,color:rec?t.TEXT:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{rec?"Recorded in Cash Flow (last 12 months): "+fmt(rec):"Income you record in Cash Flow will show here for comparison"}</div>;
-          })()}
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.6}}>Income is used for tax estimates, forecasts and AI advice. Your net worth is calculated automatically from your property, loans, investments, super and cash.</div>
-        </div>
+        <button onClick={onRecalibrate} style={{width:"100%",background:t.GOLD+"10",border:"1px solid "+t.GOLD+"33",borderRadius:7,padding:"11px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textAlign:"left"}}>Recalibrate Financial Figures</button>
       </Card>
 
       {/* ── Subscription / Billing ── */}
@@ -11068,18 +10983,12 @@ function App(){
   const livePropertyValue=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
   // Linked property loans are already in the Debt tab total - only add unlinked ones
   const livePropertyDebt=unlinkedPropertyDebt(properties,debts);
-  // Offset account balances (Debt tab) are your cash too
-  const liveOffsetCash=(debts||[]).reduce((s,d)=>s+Math.max(parseFloat(d.offsetBalance)||0,0),0);
-  // Income actually recorded in Cash Flow over the last 12 months
-  const recordedIncome12m=(()=>{const cut=daysAgoStr(365);return Math.round((transactions||[]).filter(x=>x.type==="income"&&x.date>=cut).reduce((s,x)=>s+Math.abs(parseFloat(x.amount)||0),0));})();
-  const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+liveOffsetCash+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
+  const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
   const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0)||((properties||[]).length>0);
   const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
-  // Without a Debt tab yet, fall back to the original setup figures (never a stale stored total)
-  const legacyDebtTotal=profile?legacyProfileDebts(activeProfile).filter(d=>d.id!=="mortgageDebt").reduce((s,d)=>s+d.balance,0):(parseFloat(activeProfile?.totalDebt)||0);
-  const effectiveTotalDebt=(liveDebtTotal!==null?Math.round(liveDebtTotal):legacyDebtTotal)+livePropertyDebt;
-  const liveProfile=activeProfile?((hasLiveData||!!profile)
-    ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,offsetCash:liveOffsetCash,recordedIncome12m,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
+  const effectiveTotalDebt=(liveDebtTotal!==null?Math.round(liveDebtTotal):(parseFloat(activeProfile?.totalDebt)||0))+livePropertyDebt;
+  const liveProfile=activeProfile?(hasLiveData
+    ?{...activeProfile,shareValue:liveShareValue,cryptoValue:liveCryptoValue,totalAssets:liveAssets,totalDebt:effectiveTotalDebt,netWorth:liveAssets-effectiveTotalDebt}
     :{...activeProfile,totalDebt:effectiveTotalDebt,netWorth:(parseFloat(activeProfile.totalAssets)||0)-effectiveTotalDebt}
   ):activeProfile;
   const nwHistoryFull={...nwHistory,[monthStr()]:liveProfile?.netWorth||0};
@@ -11426,7 +11335,7 @@ function App(){
       )}
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
-      
+      {showRecalibrate&&<RecalibrateModal profile={activeProfile} properties={properties} onSave={p=>{setProfile(p);setShowRecalibrate(false);}} onClose={()=>setShowRecalibrate(false)}/>}
       {showAuth&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
