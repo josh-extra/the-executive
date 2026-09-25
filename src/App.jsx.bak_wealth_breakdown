@@ -3366,10 +3366,6 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
   const nwHistFull={...nwHistory,[monthStr()]:nw};
   const propertyTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
   const mortgageTotal=(properties||[]).reduce((s,p)=>s+propertyLoanBalance(p,debtList),0);
-  // Live Debt tab balances by loan type (loans linked to a property are counted in the Property row)
-  const hasDebtTab=!!(debtList&&debtList.length);
-  const debtTabSum=types=>(debtList||[]).filter(d=>types.indexOf(d.type||"Other")>=0&&!(properties||[]).some(p=>(p.linkedDebtIds||[]).some(x=>idEq(x,d.id)))).reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0);
-  const OTHER_LOAN_TYPES=["Mortgage","Student Loan","Business Loan","Other"];
   const assets=[
     {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:propertyTotal},
     {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:parseFloat(profile.cashSavings)||0},
@@ -3422,16 +3418,15 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Net Equity Breakdown</div>
             {[
               {l:"Property",asset:propertyTotal,debt:mortgageTotal,c:"#7A9E7E"},
-              {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:hasDebtTab?debtTabSum(["Investment Loan"]):(parseFloat(profile.investLoanDebt)||0),c:t.GOLD},
+              {l:"Shares",asset:parseFloat(profile.shareValue)||0,debt:parseFloat(profile.investLoanDebt)||0,c:t.GOLD},
               {l:"Super",asset:parseFloat(profile.superBalance)||0,debt:0,c:t.BLUE},
               {l:"Cash",asset:parseFloat(profile.cashSavings)||0,debt:0,c:"#7EB8C9"},
               {l:"Crypto",asset:parseFloat(profile.cryptoValue)||0,debt:0,c:t.PURPLE},
               {l:"Commodities",asset:commodityPortfolio?.totalValue||0,debt:0,c:"#D9A66C"},
               {l:"Alternative Assets",asset:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0),debt:0,c:"#8C8C9E"},
-              {l:"Credit Cards",asset:0,debt:hasDebtTab?debtTabSum(["Credit Card"]):(parseFloat(profile.creditCardDebt)||0),c:t.RED},
-              {l:"Personal Loans",asset:0,debt:hasDebtTab?debtTabSum(["Personal Loan"]):(parseFloat(profile.personalDebt)||0),c:t.RED},
-              {l:"Car Finance",asset:0,debt:hasDebtTab?debtTabSum(["Car Finance"]):(parseFloat(profile.carDebt)||0),c:t.RED},
-              {l:"Other Loans",asset:0,debt:hasDebtTab?debtTabSum(OTHER_LOAN_TYPES):0,c:t.RED},
+              {l:"Credit Cards",asset:0,debt:parseFloat(profile.creditCardDebt)||0,c:t.RED},
+              {l:"Personal Loans",asset:0,debt:parseFloat(profile.personalDebt)||0,c:t.RED},
+              {l:"Car Finance",asset:0,debt:parseFloat(profile.carDebt)||0,c:t.RED},
             ].filter(r=>r.asset>0||r.debt>0).map(r=>{
               const equity=r.asset-r.debt;
               return (
