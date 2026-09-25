@@ -4043,6 +4043,23 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
           )}
         </Card>
 
+        <Card>
+          <SectionLabel>Liabilities</SectionLabel>
+          {debts.map((d,i)=>(
+            <div key={(d.id||d.l)+"_"+i}>
+              {i>0&&<Divider/>}
+              <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0"}}>
+                <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{d.l}</span>
+                <span style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"-"+fmt(d.v!=null?d.v:parseFloat(profile[d.k]))}</span>
+              </div>
+            </div>
+          ))}
+          <Divider/>
+          <div style={{display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Total Debt</span>
+            <span style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{"-"+fmt(profile.totalDebt||0)}</span>
+          </div>
+        </Card>
       </div>
     </div>
   );
