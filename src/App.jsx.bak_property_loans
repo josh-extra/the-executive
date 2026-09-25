@@ -136,35 +136,17 @@ const sortPaymentsDesc=ps=>[...(ps||[])].sort((a,b)=>String(b.date||"").localeCo
 // Records every scheduled repayment that has fallen due, splitting each one into
 // interest (charged at the loan's rate for that period) and principal. Only the
 // principal reduces the balance - the same as a real loan statement.
-// ---- Property <-> Debt tab links ----
-const idEq=(a,b)=>String(a)===String(b);
-// Debt tab loans linked to a property
-function linkedLoans(p,debts){const ids=(p&&p.linkedDebtIds)||[];return (debts||[]).filter(d=>ids.some(x=>idEq(x,d.id)));}
-// What's owed on a property: its linked loans if any, otherwise its own mortgage field
-function propertyLoanBalance(p,debts){const l=linkedLoans(p,debts);return l.length?l.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):(parseFloat(p&&p.mortgageBalance)||0);}
-// Property mortgages NOT on the Debt tab (net worth adds these separately)
-function unlinkedPropertyDebt(properties,debts){return (properties||[]).reduce((s,p)=>s+(linkedLoans(p,debts).length?0:(parseFloat(p.mortgageBalance)||0)),0);}
-const LOAN_PER_YEAR={weekly:52,fortnightly:26,monthly:12,quarterly:4,annually:1};
-const FREQ_SHORT={weekly:"/wk",fortnightly:"/fn",monthly:"/mo",quarterly:"/qtr",annually:"/yr"};
-const loanAnnualRepayment=d=>(parseFloat(d.minPayment)||0)*(LOAN_PER_YEAR[d.frequency||"monthly"]||12);
-// Debts still held on the profile from before the Debt tab existed
-function legacyProfileDebts(profile){
-  return [{k:"mortgageDebt",name:"Mortgage",type:"Mortgage"},{k:"investLoanDebt",name:"Investment Loan",type:"Investment Loan"},{k:"carDebt",name:"Car Finance",type:"Car Finance"},{k:"creditCardDebt",name:"Credit Card",type:"Credit Card"},{k:"personalDebt",name:"Personal Loan",type:"Personal Loan"}]
-    .filter(d=>parseFloat((profile||{})[d.k])>0)
-    .map(d=>({id:d.k,name:d.name,type:d.type,balance:parseFloat(profile[d.k]),rate:"",minPayment:"",startDate:"",endDate:"",lender:"",notes:"",payments:[],originalBalance:parseFloat(profile[d.k])}));
-}
 function applyScheduledRepayments(d,today){
   const payment=parseFloat(d.minPayment)||0;
   let bal=parseFloat(d.balance)||0;
   if(!d.nextPaymentDate||d.nextPaymentDate>today||payment<=0||bal<=0)return d;
   const freq=d.frequency||"monthly";
   const rate=parseFloat(d.rate)||0;
-  const offset=parseFloat(d.offsetBalance)||0;
   const anchor=d.payDay||parseInt(String(d.nextPaymentDate).slice(8,10),10)||1;
   let next=d.nextPaymentDate;
   const added=[];let safety=0;
   while(next<=today&&bal>0&&safety<120){
-    const interest=Math.round(Math.max(bal-offset,0)*(rate/100)*((DEBT_PERIOD_DAYS[freq]||365/12)/365)*100)/100;
+    const interest=Math.round(bal*(rate/100)*((DEBT_PERIOD_DAYS[freq]||365/12)/365)*100)/100;
     const principal=Math.round(Math.max(Math.min(payment-interest,bal),0)*100)/100;
     bal=Math.round((bal-principal)*100)/100;
     added.push({id:"auto_"+next,date:next,amount:Math.round(Math.min(payment,principal+interest)*100)/100,interest,principal,balance:bal,auto:true});
@@ -2884,7 +2866,7 @@ function AllocationChart({assets,profile}){
   );
 }
 
-function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,addLoan,takenIds}){
+function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue}){
   const t=T();
   const isMobile=useIsMobile();
   const[form,setForm]=useState({...property});
@@ -2893,23 +2875,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,a
   const upd=(k,v)=>setForm(f=>({...f,[k]:v}));
   const save=()=>onUpdate({...form,currentValue:parseFloat(form.currentValue)||0,mortgageBalance:parseFloat(form.mortgageBalance)||0,interestRate:form.interestRate?parseFloat(form.interestRate):null,weeklyRepayment:parseFloat(form.weeklyRepayment)||0,loanTermYears:form.loanTermYears?parseFloat(form.loanTermYears):null,rentalIncome:parseFloat(form.rentalIncome)||0,purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null,managementFeePct:form.managementFeePct?parseFloat(form.managementFeePct):null,ratesAnnual:parseFloat(form.ratesAnnual)||0,waterAnnual:parseFloat(form.waterAnnual)||0,insuranceAnnual:parseFloat(form.insuranceAnnual)||0,maintenanceAnnual:parseFloat(form.maintenanceAnnual)||0});
   const value=parseFloat(property.currentValue)||0;
-  const M="'Montserrat',sans-serif";
-  const loans=linkedLoans(property,debts);
-  const linkedIds=property.linkedDebtIds||[];
-  const PROPERTY_LOAN_TYPES=["Mortgage","Investment Loan","Business Loan","Other"];
-  const unlinkedLoans=(debts||[]).filter(d=>PROPERTY_LOAN_TYPES.indexOf(d.type||"Other")>=0&&!linkedIds.some(x=>idEq(x,d.id))&&!(takenIds||[]).some(x=>idEq(x,d.id)));
-  const linkIds=ids=>{onUpdate({linkedDebtIds:ids,mortgageBalance:0});setForm(f=>({...f,linkedDebtIds:ids,mortgageBalance:0}));};
-  const moveToDebt=()=>{
-    const bal=parseFloat(form.mortgageBalance)||parseFloat(property.mortgageBalance)||0;
-    if(!bal||!addLoan)return;
-    const id=Date.now();
-    addLoan({id,name:(property.nickname||"Property")+" Mortgage",type:property.type==="investment"?"Investment Loan":"Mortgage",
-      balance:bal,originalBalance:bal,rate:(form.interestRate||property.interestRate)?parseFloat(form.interestRate||property.interestRate):"",
-      minPayment:parseFloat(form.weeklyRepayment||property.weeklyRepayment)||0,frequency:"weekly",nextPaymentDate:"",offsetBalance:"",
-      startDate:"",endDate:"",lender:"",notes:"",payments:[]});
-    linkIds([...linkedIds,id]);
-  };
-  const mortgage=propertyLoanBalance(property,debts);
+  const mortgage=parseFloat(property.mortgageBalance)||0;
   const equity=value-mortgage;
   const lvr=value>0?(mortgage/value)*100:0;
   const rentMult={weekly:52,fortnightly:26,monthly:12}[property.rentalFrequency||"weekly"]||52;
@@ -2923,7 +2889,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,a
   const totalAnnualExpenses=managementFeeAnnual+ratesAnnual+waterAnnual+insuranceAnnual+maintenanceAnnual;
   const netAnnualIncome=annualRent-totalAnnualExpenses;
   const netYield=value>0?(netAnnualIncome/value)*100:0;
-  const annualRepayment=loans.length?loans.reduce((s,d)=>s+loanAnnualRepayment(d),0):(parseFloat(property.weeklyRepayment)||0)*52;
+  const annualRepayment=(parseFloat(property.weeklyRepayment)||0)*52;
   const annualCashFlow=netAnnualIncome-annualRepayment;
   const history=(property.valueHistory||[]).map(h=>h.value);
   const logValue=()=>{
@@ -2991,31 +2957,8 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,a
       </Card>
 
       <Card style={{marginBottom:16}}>
-        <SectionLabel>Loans</SectionLabel>
-        {loans.length>0?(
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {loans.map(d=>(
-              <div key={d.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"9px 11px",background:t.CARD2,borderRadius:7,border:"1px solid "+t.BORDER}}>
-                <div style={{minWidth:0}}>
-                  <div style={{fontSize:12,color:t.TEXT,fontFamily:M,fontWeight:600}}>{d.name}</div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginTop:2}}>{[(d.rate!==""&&d.rate!=null?d.rate+"% p.a.":null),(parseFloat(d.minPayment)?fmt(parseFloat(d.minPayment))+(FREQ_SHORT[d.frequency||"monthly"]||""):null),(parseFloat(d.offsetBalance)>0?"Offset "+fmt(parseFloat(d.offsetBalance)):null),(d.nextPaymentDate?"Next "+fmtDateNum(d.nextPaymentDate):"No payment date set")].filter(Boolean).join("  |  ")}</div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-                  <div style={{fontSize:13,color:t.RED,fontFamily:M,fontWeight:700}}>{"-"+fmt(parseFloat(d.balance)||0)}</div>
-                  <button onClick={()=>linkIds(linkedIds.filter(x=>!idEq(x,d.id)))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:M,padding:0}}>Unlink</button>
-                </div>
-              </div>
-            ))}
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:M}}>Balances update automatically with each repayment. Change the rate, repayments or offset on the Debt tab.</div>
-          </div>
-        ):(
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {(parseFloat(form.mortgageBalance)||0)>0&&addLoan&&(
-              <div style={{padding:"10px 12px",background:t.GOLD+"12",border:"1px solid "+t.GOLD+"44",borderRadius:7,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-                <div style={{fontSize:11,color:t.TEXT,fontFamily:M,flex:1,minWidth:180,lineHeight:1.5}}>This mortgage isn't being tracked. Move it to the Debt tab so repayments and interest are recorded automatically.</div>
-                <Btn onClick={moveToDebt} style={{fontSize:11}}>Move to Debt tab</Btn>
-              </div>
-            )}
+        <SectionLabel>Mortgage</SectionLabel>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(2,minmax(0,1fr))",gap:8}}>
             <Inp type="number" value={form.mortgageBalance||""} onChange={e=>upd("mortgageBalance",e.target.value)} placeholder="Balance Owing"/>
             <Inp type="number" value={form.interestRate||""} onChange={e=>upd("interestRate",e.target.value)} placeholder="Interest Rate %"/>
@@ -3024,16 +2967,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,a
             <Inp type="number" value={form.weeklyRepayment||""} onChange={e=>upd("weeklyRepayment",e.target.value)} placeholder="Weekly Repayment"/>
             <Inp type="number" value={form.loanTermYears||""} onChange={e=>upd("loanTermYears",e.target.value)} placeholder="Loan Term (years)"/>
           </div>
-          </div>
-        )}
-        {unlinkedLoans.length>0&&(
-          <div style={{marginTop:10}}>
-            <Sel value="" onChange={e=>{const d=unlinkedLoans.find(x=>String(x.id)===e.target.value);if(d)linkIds([...linkedIds,d.id]);}}>
-              <option value="">{loans.length?"Link another loan...":"Link a loan from your Debt tab..."}</option>
-              {unlinkedLoans.map(d=><option key={d.id} value={String(d.id)}>{d.name+" - "+fmt(parseFloat(d.balance)||0)}</option>)}
-            </Sel>
-          </div>
-        )}
+        </div>
       </Card>
 
       {form.type==="investment"&&(
@@ -3087,7 +3021,7 @@ function PropertyDetail({property,onBack,onUpdate,onDelete,onUpdateValue,debts,a
   );
 }
 
-function PropertyPage({properties,setProperties,debts,addLoan}){
+function PropertyPage({properties,setProperties}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -3101,8 +3035,6 @@ function PropertyPage({properties,setProperties,debts,addLoan}){
 
   if(selected){
     return <PropertyDetail
-      debts={debts} addLoan={addLoan}
-      takenIds={(properties||[]).filter(p=>p.id!==selected.id).reduce((a,p)=>a.concat(p.linkedDebtIds||[]),[])}
       property={selected}
       onBack={()=>setSelectedId(null)}
       onUpdate={updates=>setProperties(ps=>ps.map(p=>p.id===selected.id?{...p,...updates}:p))}
@@ -3114,12 +3046,6 @@ function PropertyPage({properties,setProperties,debts,addLoan}){
   const addProperty=()=>{
     if(!form.nickname||!form.currentValue)return;
     const v=parseFloat(form.currentValue)||0;
-    // A mortgage entered here becomes a tracked loan on the Debt tab, linked to this property
-    const mb=parseFloat(form.mortgageBalance)||0;
-    const loanId=mb>0&&addLoan?Date.now()+1:null;
-    if(loanId)addLoan({id:loanId,name:form.nickname+" Mortgage",type:form.type==="investment"?"Investment Loan":"Mortgage",
-      balance:mb,originalBalance:mb,rate:form.interestRate?parseFloat(form.interestRate):"",minPayment:parseFloat(form.weeklyRepayment)||0,
-      frequency:"weekly",nextPaymentDate:"",offsetBalance:"",startDate:"",endDate:"",lender:"",notes:"",payments:[]});
     setProperties(ps=>[...ps,{
       id:Date.now(),
       nickname:form.nickname,
@@ -3128,8 +3054,7 @@ function PropertyPage({properties,setProperties,debts,addLoan}){
       currentValue:v,
       purchasePrice:form.purchasePrice?parseFloat(form.purchasePrice):null,
       purchaseDate:form.purchaseDate||null,
-      mortgageBalance:loanId?0:mb,
-      linkedDebtIds:loanId?[loanId]:[],
+      mortgageBalance:parseFloat(form.mortgageBalance)||0,
       interestRate:form.interestRate?parseFloat(form.interestRate):null,
       weeklyRepayment:parseFloat(form.weeklyRepayment)||0,
       loanTermYears:form.loanTermYears?parseFloat(form.loanTermYears):null,
@@ -3147,7 +3072,7 @@ function PropertyPage({properties,setProperties,debts,addLoan}){
   };
 
   const totalValue=safeProps.reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
-  const totalMortgage=safeProps.reduce((s,p)=>s+propertyLoanBalance(p,debts),0);
+  const totalMortgage=safeProps.reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const totalEquity=totalValue-totalMortgage;
 
   return(
@@ -3168,7 +3093,7 @@ function PropertyPage({properties,setProperties,debts,addLoan}){
         {safeProps.length===0&&<div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center",padding:"20px 0"}}>No properties added yet</div>}
         {safeProps.map((p,i)=>{
           const v=parseFloat(p.currentValue)||0;
-          const m=propertyLoanBalance(p,debts);
+          const m=parseFloat(p.mortgageBalance)||0;
           const eq=v-m;
           return(
             <div key={p.id}>
@@ -3331,7 +3256,7 @@ function TickerAutocomplete({value,onChange,onSelect,placeholder,style}){
   );
 }
 
-function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
+function WealthPage({profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -3365,7 +3290,7 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
   const nw=profile.netWorth||0,nwT=Number(profile.netWorthTarget||3000000);
   const nwHistFull={...nwHistory,[monthStr()]:nw};
   const propertyTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
-  const mortgageTotal=(properties||[]).reduce((s,p)=>s+propertyLoanBalance(p,debtList),0);
+  const mortgageTotal=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const assets=[
     {type:"shares",value:parseFloat(profile.shareValue)||0},{type:"property",value:propertyTotal},
     {type:"super",value:parseFloat(profile.superBalance)||0},{type:"cash",value:parseFloat(profile.cashSavings)||0},
@@ -3373,10 +3298,7 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
     {type:"commodities",value:commodityPortfolio?.totalValue||0},
     {type:"alternative",value:(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0)}
   ];
-  const debts=(debtList&&debtList.length)?[
-    ...debtList.filter(d=>parseFloat(d.balance)>0).map(d=>({id:d.id,l:d.name||d.type||"Loan",v:parseFloat(d.balance)||0})),
-    ...(unlinkedPropertyDebt(properties,debtList)>0?[{l:"Property mortgages (not on Debt tab)",v:unlinkedPropertyDebt(properties,debtList)}]:[])
-  ]:[{l:"Mortgage",v:mortgageTotal},{l:"Investment Loan",k:"investLoanDebt"},{l:"Car Finance",k:"carDebt"},{l:"Credit Cards",k:"creditCardDebt"},{l:"Personal Loans",k:"personalDebt"}].filter(d=>d.v>0||parseFloat(profile[d.k])>0);
+  const debts=[{l:"Mortgage",v:mortgageTotal},{l:"Investment Loan",k:"investLoanDebt"},{l:"Car Finance",k:"carDebt"},{l:"Credit Cards",k:"creditCardDebt"},{l:"Personal Loans",k:"personalDebt"}].filter(d=>d.v>0||parseFloat(profile[d.k])>0);
   const safeH=holdings||[];
   const sP=portfolio||{prices:{},totalValue:0,totalGain:0,totalGainPct:0,dayChange:0,lastUpdated:null,refresh:()=>{}};
   const addH=()=>{
@@ -3969,7 +3891,7 @@ function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibra
         <Card>
           <SectionLabel>Liabilities</SectionLabel>
           {debts.map((d,i)=>(
-            <div key={(d.id||d.l)+"_"+i}>
+            <div key={d.l}>
               {i>0&&<Divider/>}
               <div style={{display:"flex",justifyContent:"space-between",padding:"7px 0"}}>
                 <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{d.l}</span>
@@ -4169,7 +4091,7 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
   const[extra,setExtra]=useState(500);
   const[strategy,setStrategy]=useState("avalanche");
   const[confirmDel,setConfirmDel]=useState(null);
-  const emptyForm={name:"",type:"Mortgage",originalBalance:"",balance:"",rate:"",minPayment:"",frequency:"monthly",nextPaymentDate:"",offsetBalance:"",startDate:"",endDate:"",lender:"",notes:""};
+  const emptyForm={name:"",type:"Mortgage",originalBalance:"",balance:"",rate:"",minPayment:"",frequency:"monthly",nextPaymentDate:"",startDate:"",endDate:"",lender:"",notes:""};
   const[form,setForm]=useState(emptyForm);
 
   const DEBT_TYPES=["Mortgage","Investment Loan","Car Finance","Credit Card","Personal Loan","Student Loan","Business Loan","Other"];
@@ -4193,19 +4115,17 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
   const totalMinPayment=allDebts.reduce((s,d)=>s+debtMonthlyEq(d),0);
 
   // Payoff calc
-  const calcPayoff=(bal,rate,payment,offset)=>{
+  const calcPayoff=(bal,rate,payment)=>{
     if(!payment||payment<=0)return null;
-    const r=(parseFloat(rate)||0)/100/12;
-    const b=parseFloat(bal)||0;
+    const r=parseFloat(rate)/100/12;
+    const b=parseFloat(bal);
     if(r===0)return Math.ceil(b/payment);
-    const o=Math.min(Math.max(parseFloat(offset)||0,0),b);
-    const bp=b-o; // interest is only charged on the part not covered by the offset
-    if(payment<=bp*r)return null; // interest only
-    return Math.ceil(Math.log((payment+r*o)/(payment-r*bp))/Math.log(1+r));
+    if(payment<=b*r)return null; // interest only
+    return Math.ceil(Math.log(payment/(payment-b*r))/Math.log(1+r));
   };
 
-  const calcTotalInterest=(bal,rate,payment,offset)=>{
-    const months=calcPayoff(bal,rate,payment,offset);
+  const calcTotalInterest=(bal,rate,payment)=>{
+    const months=calcPayoff(bal,rate,payment);
     if(!months)return null;
     return Math.round(payment*months-parseFloat(bal));
   };
@@ -4237,7 +4157,6 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
         minPayment:parseFloat(form.minPayment)||0,
         frequency:form.frequency||"monthly",
         nextPaymentDate:form.nextPaymentDate||"",
-        offsetBalance:form.offsetBalance===""||form.offsetBalance==null?"":parseFloat(form.offsetBalance)||0,
       }:d));
     } else {
       const newDebt={
@@ -4247,7 +4166,6 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
         minPayment:parseFloat(form.minPayment)||0,
         frequency:form.frequency||"monthly",
         nextPaymentDate:form.nextPaymentDate||"",
-        offsetBalance:form.offsetBalance===""||form.offsetBalance==null?"":parseFloat(form.offsetBalance)||0,
         startDate:form.startDate,endDate:form.endDate,
         lender:form.lender,notes:form.notes,
         payments:[]
@@ -4266,7 +4184,6 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
       rate:d.rate||"",minPayment:d.minPayment||"",
       frequency:d.frequency||"monthly",
       nextPaymentDate:d.nextPaymentDate||"",
-      offsetBalance:d.offsetBalance||"",
       startDate:d.startDate||"",endDate:d.endDate||"",
       lender:d.lender||"",notes:d.notes||""
     });
@@ -4407,12 +4324,6 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>Where it sits right now</div>
               </div>
             </div>
-            {(form.type==="Mortgage"||form.type==="Investment Loan")&&(
-              <div>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Offset Account Balance (optional)</div>
-                <Inp type="number" value={form.offsetBalance||""} onChange={e=>setForm(f=>({...f,offsetBalance:e.target.value}))} placeholder="Money sitting in your offset account"/>
-              </div>
-            )}
             <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Interest Rate (%)</div>
@@ -4466,8 +4377,8 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
         const bal=parseFloat(d.balance||0);
         const monthlyPayment=debtMonthlyEq(d)+(idx===0?extra:0);
         const payment=monthlyPayment;
-        const months=calcPayoff(bal,d.rate,payment,d.offsetBalance);
-        const totalInt=calcTotalInterest(bal,d.rate,payment,d.offsetBalance);
+        const months=calcPayoff(bal,d.rate,payment);
+        const totalInt=calcTotalInterest(bal,d.rate,payment);
         const pct=totalDebt>0?Math.round(bal/totalDebt*100):0;
         const paidOff=d.originalBalance?Math.round((1-bal/d.originalBalance)*100):0;
         const isExpanded=!!expanded[d.id];
@@ -4486,8 +4397,6 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
                   <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{d.type}</span>
                   {d.lender&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{d.lender}</span>}
                   <span style={{fontSize:10,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{(d.rate||0)+"%"+" p.a."}</span>
-                  {parseFloat(d.offsetBalance)>0&&<span style={{fontSize:10,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>{"Offset "+fmt(parseFloat(d.offsetBalance))}</span>}
-                  {(properties||[]).filter(p=>(p.linkedDebtIds||[]).some(x=>idEq(x,d.id))).map(p=><span key={"lp"+p.id} style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"Linked to "+(p.nickname||"property")}</span>)}
                   {!d.nextPaymentDate&&parseFloat(d.balance)>0&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>No payment date - tap Edit to track repayments automatically</span>}
                   {d.nextPaymentDate&&d.minPayment&&<span style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>{"Next: "+fmtDateNum(d.nextPaymentDate)+" · -"+fmt(d.minPayment)}</span>}
                 </div>
@@ -10976,8 +10885,7 @@ function App(){
   const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
   const liveAltValue=(altAssets||[]).reduce((s,a)=>s+(parseFloat(a.currentValue)||0),0);
   const livePropertyValue=(properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0);
-  // Linked property loans are already in the Debt tab total - only add unlinked ones
-  const livePropertyDebt=unlinkedPropertyDebt(properties,debts);
+  const livePropertyDebt=(properties||[]).reduce((s,p)=>s+(parseFloat(p.mortgageBalance)||0),0);
   const liveAssets=livePropertyValue+(parseFloat(activeProfile?.cashSavings)||0)+(parseFloat(activeProfile?.superBalance)||0)+liveCryptoValue+liveShareValue+liveCommodityValue+liveAltValue;
   const hasLiveData=(holdings.length>0&&portfolio.totalValue>0)||(cryptoHoldings.length>0&&cryptoPortfolio.totalValue>0)||(commodityHoldings.length>0&&commodityPortfolio.totalValue>0)||((altAssets||[]).length>0)||((properties||[]).length>0);
   const liveDebtTotal=debts?.length?debts.reduce((s,d)=>s+Math.max(parseFloat(d.balance)||0,0),0):null;
@@ -11379,8 +11287,8 @@ function App(){
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
-          {page==="wealth"&&<WealthPage debtList={debts} profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
-          {page==="property"&&<PropertyPage properties={properties} setProperties={setProperties} debts={debts} addLoan={d=>setDebts(ds=>[...((ds&&ds.length)?ds:legacyProfileDebts(profile||{})),d])}/>}
+          {page==="wealth"&&<WealthPage profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
+          {page==="property"&&<PropertyPage properties={properties} setProperties={setProperties}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
