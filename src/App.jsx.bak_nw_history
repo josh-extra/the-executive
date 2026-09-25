@@ -3404,122 +3404,7 @@ function BalanceHistory({log,color,gradId,labelFor,onDelete,emptyText}){
   );
 }
 
-// Net worth history: daily snapshots (monthly history before they began),
-// range toggles, tap-for-value, month stats, next milestone and target pace
-function NetWorthHistory({dailySnaps,nwHistory,nw,nwT}){
-  const t=T();
-  const M="'Montserrat',sans-serif",S="'Cormorant Garamond',Georgia,serif";
-  const today=todayStr();
-  const snaps=dailySnaps||{};
-  const snapKeys=Object.keys(snaps).filter(k=>snaps[k]&&typeof snaps[k].nw==="number").sort();
-  const firstSnap=snapKeys[0]||today;
-  // Monthly history (mid-month points) for months before daily snapshots started
-  const monthly=Object.keys(nwHistory||{}).sort().map(k=>({d:k+"-15",v:parseFloat(nwHistory[k])||0})).filter(p=>p.d.slice(0,7)<firstSnap.slice(0,7)&&p.v!==0);
-  const series=[...monthly,...snapKeys.filter(k=>k<today).map(k=>({d:k,v:snaps[k].nw})),{d:today,v:Math.round(nw)}];
-  const RANGES=[["1M",30],["3M",90],["1Y",365],["All",0]];
-  const inRange=n=>n?series.filter(p=>p.d>=daysAgoStr(n)):series;
-  const[range,setRange]=useState(()=>{const r=RANGES.find(([,n])=>n&&inRange(n).length>=2);return r?r[0]:"All";});
-  const[hov,setHov]=useState(null);
-  const pts=inRange((RANGES.find(r=>r[0]===range)||RANGES[3])[1]);
-  const fmtD=d=>new Date(d+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"});
-  const signed=v=>(v<0?"-":"+")+fmt(Math.abs(v));
-  // Chart geometry
-  const W=480,H=120,pad=6;
-  const vals=pts.map(p=>p.v);
-  const mn=Math.min(...vals),mx=Math.max(...vals);
-  const span=(mx-mn)||Math.max(Math.abs(mx)*0.02,1);
-  const px=i=>pad+(pts.length>1?i/(pts.length-1):0.5)*(W-pad*2);
-  const py=v=>H-pad-((v-mn)/span)*(H-pad*2)-(mx===mn?(H-pad*2)/2:0);
-  const line=pts.map((p,i)=>px(i)+","+py(p.v)).join(" ");
-  const rangeChange=pts.length>1?pts[pts.length-1].v-pts[0].v:null;
-  const pick=e=>{
-    if(pts.length<2)return;
-    const r=e.currentTarget.getBoundingClientRect();
-    const x=((e.clientX-r.left)/r.width)*W;
-    setHov(Math.max(0,Math.min(pts.length-1,Math.round((x-pad)/(W-pad*2)*(pts.length-1)))));
-  };
-  // This month
-  const monthStart=today.slice(0,8)+"01";
-  const before=series.filter(p=>p.d<monthStart).pop();
-  const firstThisMonth=series.find(p=>p.d>=monthStart);
-  const monthBase=before||firstThisMonth;
-  const monthChange=monthBase&&monthBase.d!==today?Math.round(nw)-monthBase.v:null;
-  const adKeys=snapKeys.filter(k=>typeof snaps[k].a==="number"&&typeof snaps[k].d==="number");
-  const adBase=adKeys.filter(k=>k<monthStart).pop()||adKeys.find(k=>k>=monthStart);
-  const adNow=adKeys[adKeys.length-1];
-  const assetsChange=adBase&&adNow&&adBase!==adNow?snaps[adNow].a-snaps[adBase].a:null;
-  const debtChange=adBase&&adNow&&adBase!==adNow?snaps[adBase].d-snaps[adNow].d:null;
-  // Next milestone
-  const STEPS=[0,50e3,100e3,250e3,500e3,750e3,1e6,1.5e6,2e6,2.5e6,3e6,4e6,5e6,7.5e6,10e6,15e6,20e6,25e6,50e6,100e6];
-  const next=STEPS.find(s=>s>nw);
-  const prev=[...STEPS].reverse().find(s=>s<=nw);
-  const msPct=next!==undefined&&prev!==undefined?Math.round((nw-prev)/((next-prev)||1)*100):100;
-  // Pace to target: needs 90+ days of history
-  const firstD=series[0]&&series[0].d;
-  const daysSpan=firstD?Math.round((new Date(today+"T12:00:00")-new Date(firstD+"T12:00:00"))/864e5):0;
-  let paceText=null;
-  if(nw>=nwT)paceText="Target reached";
-  else if(daysSpan>=90){
-    const base=series.find(p=>p.d>=daysAgoStr(Math.min(daysSpan,365)))||series[0];
-    const baseDays=Math.max(Math.round((new Date(today+"T12:00:00")-new Date(base.d+"T12:00:00"))/864e5),1);
-    const perDay=(nw-base.v)/baseDays;
-    if(perDay>0){const yr=new Date().getFullYear()+Math.ceil((nwT-nw)/perDay/365.25);paceText=yr>2100?"At this pace: 2100+":"At this pace: "+yr;}
-    else paceText="Not growing over the last year";
-  }
-  const stat=(l,v,c)=>(
-    <div style={{background:t.CARD2,borderRadius:7,padding:"8px 10px"}}>
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:2}}>{l}</div>
-      <div style={{fontSize:13,fontWeight:600,fontFamily:M,color:c}}>{v}</div>
-    </div>
-  );
-  const hp=hov!==null&&pts[hov]?pts[hov]:null;
-  return (
-    <Card>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
-        <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:M}}>Net Worth History</div>
-        <div style={{display:"flex",gap:4}}>
-          {RANGES.map(([k])=>(
-            <button key={k} onClick={()=>{setRange(k);setHov(null);}} style={{background:range===k?t.GOLD+"14":"none",border:"1px solid "+(range===k?t.GOLD:t.BORDER2),borderRadius:5,color:range===k?t.GOLD:t.MUTED,fontSize:10,padding:"3px 8px",cursor:"pointer",fontFamily:M}}>{k}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
-        <span style={{fontSize:26,color:t.TEXT,fontFamily:S}}>{fmt(hp?hp.v:nw)}</span>
-        {!hp&&rangeChange!==null&&<span style={{fontSize:12,fontWeight:600,fontFamily:M,color:rangeChange>=0?t.GREEN:t.RED}}>{signed(rangeChange)+" ("+range+")"}</span>}
-      </div>
-      <div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginBottom:6}}>{hp?fmtD(hp.d):pts.length>1?"Tap the chart to see any day":"Your chart fills in as each day is recorded"}</div>
-      <svg viewBox={"0 0 "+W+" "+H} style={{width:"100%",height:H,cursor:pts.length>1?"crosshair":"default",display:"block"}} onMouseMove={pick} onClick={pick} onMouseLeave={()=>setHov(null)}>
-        <defs><linearGradient id="nwhg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={t.GOLD} stopOpacity=".28"/><stop offset="100%" stopColor={t.GOLD} stopOpacity="0"/></linearGradient></defs>
-        {pts.length>1&&<polygon points={line+" "+px(pts.length-1)+","+H+" "+px(0)+","+H} fill="url(#nwhg)"/>}
-        {pts.length>1&&<polyline points={line} fill="none" stroke={t.GOLD} strokeWidth="1.6" strokeLinejoin="round"/>}
-        <circle cx={px(pts.length-1)} cy={py(pts[pts.length-1].v)} r="3.5" fill={t.GOLD}/>
-        {hp&&<line x1={px(hov)} x2={px(hov)} y1="0" y2={H} stroke={t.MUTED} strokeDasharray="3 3"/>}
-        {hp&&<circle cx={px(hov)} cy={py(hp.v)} r="3" fill={t.TEXT}/>}
-      </svg>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:6,margin:"12px 0"}}>
-        {stat("This month",monthChange===null?"-":signed(monthChange),monthChange===null?t.MUTED:monthChange>=0?t.GREEN:t.RED)}
-        {stat("Assets",assetsChange===null?"-":signed(assetsChange),assetsChange===null?t.MUTED:assetsChange>=0?t.GREEN:t.RED)}
-        {stat(debtChange!==null&&debtChange<0?"New debt":"Debt paid down",debtChange===null?"-":fmt(Math.abs(debtChange)),debtChange===null?t.MUTED:debtChange>=0?t.GREEN:t.RED)}
-      </div>
-      {next!==undefined&&(
-        <div style={{marginBottom:10}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-            <span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>{"Next milestone: "+fmt(next)}</span>
-            <span style={{fontSize:10,color:t.GOLD,fontFamily:M}}>{fmt(next-nw)+" to go"}</span>
-          </div>
-          <PB value={Math.max(0,Math.min(msPct,100))} color={t.GOLD} height={4}/>
-        </div>
-      )}
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,gap:8}}>
-        <span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>{Math.max(0,Math.min(Math.round(nw/nwT*100),100))+"% of "+fmt(nwT)+" target"}</span>
-        <span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>{paceText||"Pace shows after 3 months"}</span>
-      </div>
-      <PB value={Math.max(0,Math.min(Math.round(nw/nwT*100),100))} color={t.MUTED} height={4}/>
-    </Card>
-  );
-}
-
-function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
+function WealthPage({debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -3599,7 +3484,17 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
         
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:14,marginBottom:14}}>
-        <NetWorthHistory dailySnaps={dailySnaps} nwHistory={nwHistory} nw={nw} nwT={nwT}/>
+        <Card>
+          <SectionLabel>Net Worth History</SectionLabel>
+          <SparkLine data={nwVals} color={t.GOLD} height={60} labels={nwLabels2}/>
+          <div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{Math.min(Math.round(nw/nwT*100),100)+"% of target"}</span>
+              <span style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>{fmt(nwT-nw)+" to go"}</span>
+            </div>
+            <PB value={Math.min(Math.round(nw/nwT*100),100)} color={t.GOLD} height={4}/>
+          </div>
+        </Card>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           <Card style={{padding:"12px 14px"}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Net Equity Breakdown</div>
@@ -11197,8 +11092,6 @@ function App(){
   // Daily snapshot recorder - keeps today's snapshot current as things change.
   // Previous days are never touched, so the midnight reset can't erase them.
   const snapNW=Math.round(liveProfile?.netWorth||0);
-  const snapA=Math.round(liveProfile?.totalAssets||0);
-  const snapD=Math.round(liveProfile?.totalDebt||0);
   useEffect(()=>{
     if(!hydrated||!profile)return;
     const today=todayStr();
@@ -11218,8 +11111,6 @@ function App(){
       });
       const next={
         nw:snapNW,
-        a:snapA,
-        d:snapD,
         td:tt.filter(x=>x.done).map(x=>x.text),
         to:tt.filter(x=>!x.done).map(x=>x.text),
         st:(supplements||[]).filter(s=>s.taken).map(s=>s.name),
@@ -11232,7 +11123,7 @@ function App(){
       if(keys.length>400)keys.slice(0,keys.length-400).forEach(k=>{delete out[k];});
       return out;
     });
-  },[hydrated,profile,tasks,supplements,books,snapNW,snapA,snapD]);
+  },[hydrated,profile,tasks,supplements,books,snapNW]);
 
   if(splash){
     return (
@@ -11589,7 +11480,7 @@ function App(){
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
-          {page==="wealth"&&<WealthPage dailySnaps={dailySnaps} debtList={debts} profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
+          {page==="wealth"&&<WealthPage debtList={debts} profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
           {page==="property"&&<PropertyPage properties={properties} setProperties={setProperties} debts={debts} addLoan={d=>setDebts(ds=>[...((ds&&ds.length)?ds:legacyProfileDebts(profile||{})),d])}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
