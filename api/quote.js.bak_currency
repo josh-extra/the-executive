@@ -37,19 +37,6 @@ export default async function handler(req, res) {
   const symbol = CRYPTO_MAP[cleaned] || INDEX_MAP[cleaned] || rawSymbol;
   const yahooSymbol = YAHOO_CRYPTO_MAP[cleaned] || symbol;
 
-  // Which currency a symbol is quoted in, when the data source doesn't say
-  const guessCcy = (sym) => {
-    const s = String(sym || "").toUpperCase();
-    if (s.startsWith("BINANCE:") || s.endsWith("USDT") || /-USD$/.test(s)) return "USD";
-    if (s.endsWith("=X")) return s.replace("=X", "").length === 6 ? s.slice(3, 6) : "USD";
-    if (s === "^AXJO" || s === "^AORD") return "AUD";
-    const SUFFIX = { ".AX": "AUD", ".L": "GBP", ".TO": "CAD", ".V": "CAD", ".NZ": "NZD", ".SI": "SGD", ".DE": "EUR", ".F": "EUR", ".PA": "EUR", ".AS": "EUR", ".MI": "EUR", ".MC": "EUR", ".HK": "HKD", ".T": "JPY" };
-    for (const k in SUFFIX) if (s.endsWith(k)) return SUFFIX[k];
-    return "USD";
-  };
-  // London prices come back in pence (GBp) - convert to pounds
-  const normaliseCcy = (price, prev, ccy) => (ccy === "GBp" || ccy === "GBX") ? [price / 100, prev / 100, "GBP"] : [price, prev, ccy];
-
   const FH_KEY = process.env.FINNHUB_API_KEY;
   if (!FH_KEY) {
     console.error("FINNHUB_API_KEY not set - skipping Finnhub, falling through to Yahoo");
@@ -63,7 +50,7 @@ export default async function handler(req, res) {
     });
     const j = await r.json();
     if (j.c && j.c !== 0) {
-      return res.status(200).json({ price: j.c, change: j.d, pct: j.dp, prev: j.pc, currency: guessCcy(symbol), source: "finnhub" });
+      return res.status(200).json({ price: j.c, change: j.d, pct: j.dp, prev: j.pc, source: "finnhub" });
     }
   } catch(e) {}
   }
@@ -80,8 +67,9 @@ export default async function handler(req, res) {
     const j = await r.json();
     const meta = j?.chart?.result?.[0]?.meta;
     if (meta?.regularMarketPrice) {
-      const [price, prev, currency] = normaliseCcy(meta.regularMarketPrice, meta.chartPreviousClose || meta.regularMarketPrice, meta.currency || guessCcy(yahooSymbol));
-      return res.status(200).json({ price, change: price - prev, pct: ((price - prev) / prev) * 100, prev, currency, source: "yahoo" });
+      const price = meta.regularMarketPrice;
+      const prev = meta.chartPreviousClose || price;
+      return res.status(200).json({ price, change: price - prev, pct: ((price - prev) / prev) * 100, prev, source: "yahoo" });
     }
   } catch(e) {}
 
@@ -101,7 +89,7 @@ export default async function handler(req, res) {
       if (price) {
         const change = price - prev;
         const pct = prev ? (change / prev) * 100 : 0;
-        return res.status(200).json({ price, change, pct, prev, currency: "AUD", source: "asx" });
+        return res.status(200).json({ price, change, pct, prev, source: "asx" });
       }
     } catch(e) {}
 
@@ -120,8 +108,9 @@ export default async function handler(req, res) {
       const j = await r.json();
       const meta = j?.chart?.result?.[0]?.meta;
       if (meta?.regularMarketPrice) {
-        const [price, prev, currency] = normaliseCcy(meta.regularMarketPrice, meta.chartPreviousClose || meta.regularMarketPrice, meta.currency || "AUD");
-        return res.status(200).json({ price, change: price - prev, pct: ((price - prev) / prev) * 100, prev, currency, source: "yahoo-au" });
+        const price = meta.regularMarketPrice;
+        const prev = meta.chartPreviousClose || price;
+        return res.status(200).json({ price, change: price - prev, pct: ((price - prev) / prev) * 100, prev, source: "yahoo-au" });
       }
     } catch(e) {}
   }

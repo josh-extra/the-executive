@@ -360,52 +360,6 @@ function quoteFetch(url){
   return result;
 }
 
-// ---- Currency conversion for holdings ----
-// Currency a symbol is quoted in (used if the price service doesn't say)
-function guessQuoteCurrency(sym){
-  const s=String(sym||"").toUpperCase();
-  if(s.startsWith("BINANCE:")||s.endsWith("USDT")||/-USD$/.test(s))return "USD";
-  const SUFFIX={".AX":"AUD",".L":"GBP",".TO":"CAD",".V":"CAD",".NZ":"NZD",".SI":"SGD",".DE":"EUR",".F":"EUR",".PA":"EUR",".AS":"EUR",".MI":"EUR",".MC":"EUR",".HK":"HKD",".T":"JPY"};
-  for(const k in SUFFIX)if(s.endsWith(k))return SUFFIX[k];
-  return "USD";
-}
-// Live exchange rates, refreshed every 10 minutes. The last good rate is saved
-// on the device so a failed fetch falls back to it. null = never had a rate.
-const FX_STORE="exec_fx";
-const _fxCache=(()=>{try{return JSON.parse(localStorage.getItem(FX_STORE)||"{}")||{};}catch{return{};}})();
-async function fxRate(from,to){
-  if(!from||!to||from===to)return 1;
-  const k=from+">"+to,c=_fxCache[k];
-  if(c&&Date.now()-c.at<600000)return c.rate;
-  try{
-    const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(from+to+"=X"));
-    const d=await r.json();
-    if(d&&d.price>0){
-      _fxCache[k]={rate:d.price,at:Date.now()};
-      try{localStorage.setItem(FX_STORE,JSON.stringify(_fxCache));}catch{}
-      return d.price;
-    }
-  }catch{}
-  return c&&c.rate>0?c.rate:null;
-}
-// A quote converted into the user's currency. price/change are in the user's
-// currency (so values and gains just work); nativePrice/currency keep the original.
-async function toLocalQuote(d,sym){
-  const cur=d.currency||guessQuoteCurrency(sym);
-  const to=L().currency;
-  const rate=await fxRate(cur,to);
-  // No rate at all: don't guess - leave the price empty so the holding is valued at what you paid
-  if(rate===null)return{price:null,change:null,pct:d.pct||0,nativePrice:d.price,currency:cur,fxMissing:true};
-  return{price:d.price*rate,change:(d.change||0)*rate,pct:d.pct||0,nativePrice:d.price,currency:cur,fxMissing:false};
-}
-// Per-unit price in the user's currency (converted at the live rate)
-function fmtPx(live){
-  if(!live||live.price==null)return "-";
-  const v=Number(live.price);
-  const dp=Math.abs(v)<1?4:2;
-  return L().symbol+v.toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:dp});
-}
-
 function useMarket(tickers){
   const safeT=tickers&&tickers.length?tickers:DEFAULT_TICKERS;
   const[prices,setPrices]=useState({});
@@ -465,11 +419,11 @@ function useCommodities(holdings){
       try{
         const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
         const d=await r.json();
-        if(d.price)results[h.ticker]=await toLocalQuote(d,h.ticker);
+        if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
     }));
     setPrices(results);setLastUpdated(new Date());setLoading(false);
-  },[safeH.map(h=>h.ticker).join(",")+"|"+L().currency]);
+  },[safeH.map(h=>h.ticker).join(",")]);
 
   useEffect(()=>{fetchPrices();const id=setInterval(fetchPrices,120000);return()=>clearInterval(id);},[fetchPrices]);
 
@@ -499,13 +453,13 @@ function usePortfolio(holdings){
       try{
         const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(h.ticker));
         const d=await r.json();
-        if(d.price)results[h.ticker]=await toLocalQuote(d,h.ticker);
+        if(d.price)results[h.ticker]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
     }));
     setPrices(results);
     setLastUpdated(new Date());
     setLoading(false);
-  },[safeH.map(h=>h.ticker).join(",")+"|"+L().currency]);
+  },[safeH.map(h=>h.ticker).join(",")]);
 
   useEffect(()=>{
     fetchPrices();
@@ -546,13 +500,13 @@ function useCrypto(holdings){
         const sym=key.includes("-")?key:key+"-USD";
         const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(sym));
         const d=await r.json();
-        if(d.price)results[key]=await toLocalQuote(d,sym);
+        if(d.price)results[key]={price:d.price,change:d.change||0,pct:d.pct||0};
       }catch{}
     }));
     setPrices(results);
     setLastUpdated(new Date());
     setLoading(false);
-  },[safeH.map(h=>h.ticker||h.symbol).join(",")+"|"+L().currency]);
+  },[safeH.map(h=>h.ticker||h.symbol).join(",")]);
 
   useEffect(()=>{
     fetchPrices();
@@ -1325,7 +1279,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtPx(portfolio.prices?.[h.ticker])}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>—</div>}
+                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"$"+lp.toFixed(2)}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>—</div>}
                     <div style={{fontSize:9,color:pct>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{pct>=0?"▲":"▼"}{Math.abs(pct).toFixed(2)+"%"}</div>
                   </div>
                 </div>
@@ -1348,7 +1302,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
                     </div>
                   </div>
                   <div style={{textAlign:"right"}}>
-                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtPx(cryptoPortfolio.prices?.[h.symbol||h.ticker])}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>—</div>}
+                    {lp?<div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"$"+lp.toFixed(2)}</div>:<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>—</div>}
                     <div style={{fontSize:9,color:pct>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{pct>=0?"▲":"▼"}{Math.abs(pct).toFixed(2)+"%"}</div>
                   </div>
                 </div>
@@ -2833,7 +2787,7 @@ function AddCommodityForm({commodityHoldings,setCommodityHoldings}){
                 <Inp type="number" value={form.qty} onChange={e=>setForm(f=>({...f,qty:e.target.value}))} placeholder="e.g. 10"/>
               </div>
               <div style={{flex:1,minWidth:80}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>{"Avg cost per unit, "+L().currency+" (optional)"}</div>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Avg cost (optional)</div>
                 <Inp type="number" value={form.avgCost} onChange={e=>setForm(f=>({...f,avgCost:e.target.value}))} placeholder="$0.00"/>
               </div>
               <Btn onClick={addPreset} disabled={!form.qty}>Add</Btn>
@@ -2863,7 +2817,7 @@ function AddCommodityForm({commodityHoldings,setCommodityHoldings}){
               <Inp value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} placeholder="oz, kg, tonne..."/>
             </div>
             <div style={{flex:1}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>{"Value / unit ("+L().currency+")"}</div>
+              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Value / unit ($)</div>
               <Inp type="number" value={form.avgCost} onChange={e=>setForm(f=>({...f,avgCost:e.target.value}))} placeholder="0.00"/>
             </div>
           </div>
@@ -3696,7 +3650,7 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
         {showAdd&&(
           <div style={{padding:12,background:t.CARD2,borderRadius:7,border:"1px solid "+t.BORDER,marginBottom:12}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:7}}>
-              {[["Ticker","ticker","BHP.AX"],["Shares","shares","100"],["Avg Cost ("+L().currency+")","avgCost","45.20"],["Label","name","BHP Group"]].map(([l,k,ph])=>(
+              {[["Ticker","ticker","BHP.AX"],["Shares","shares","100"],["Avg Cost","avgCost","45.20"],["Label","name","BHP Group"]].map(([l,k,ph])=>(
                 <div key={k}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{l}</div>
                   {k==="ticker"
@@ -3775,12 +3729,12 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
                     <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                       {livePrice?(
                         <>
-                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtPx(liveData)}</span>
+                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
                           {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
                           {dayChange!==null&&<span style={{fontSize:10,color:dayChange>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{"("+(dayChange>=0?"+":"")+fmt(dayChange)+" today)"}</span>}
                         </>
                       ):(
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{sP.loading?<Skeleton width={70} height={12}/>:(liveData&&liveData.fxMissing?"Exchange rate unavailable":"No live price")}</span>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{sP.loading?<Skeleton width={70} height={12}/>:"No live price"}</span>
                       )}
                       {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
@@ -3846,7 +3800,7 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
                     <Inp type="number" value={cAmount} onChange={e=>setCAmount(e.target.value)} placeholder="0.5" style={{fontSize:12,padding:"7px 9px"}}/>
                   </div>
                   <div>
-                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{"Avg Cost ("+L().currency+")"}</div>
+                    <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Avg Cost (AUD)</div>
                     <Inp type="number" value={cAvgCost} onChange={e=>setCAvgCost(e.target.value)} placeholder="Optional" style={{fontSize:12,padding:"7px 9px"}}/>
                   </div>
                 </div>
@@ -3915,11 +3869,11 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
                     <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                       {livePrice?(
                         <>
-                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtPx(liveData)}</span>
+                          <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{"$"+livePrice.toFixed(2)}</span>
                           {liveData.pct!==0&&<span style={{fontSize:10,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{(liveData.pct>=0?"+":"")+((liveData.pct)||0).toFixed(2)+"%"}</span>}
                         </>
                       ):(
-                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{cryptoPortfolio?.loading?<Skeleton width={70} height={12}/>:(liveData&&liveData.fxMissing?"Exchange rate unavailable":"No live price")}</span>
+                        <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{cryptoPortfolio?.loading?<Skeleton width={70} height={12}/>:"No live price"}</span>
                       )}
                       {h.avgCost&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"avg $"+(parseFloat(h.avgCost)||0).toFixed(2)}</span>}
                     </div>
@@ -3997,7 +3951,7 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
                         <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>{h.qty+" "+h.unit+(h.avgCost?" · avg $"+parseFloat(h.avgCost).toFixed(2)+"/"+h.unit:"")}</div>
                         {livePrice?(
                           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                            <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtPx(liveData)+"/"+h.unit}</span>
+                            <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>${parseFloat(livePrice).toFixed(2)}/{h.unit}</span>
                             {liveData?.pct!=null&&<span style={{fontSize:11,color:liveData.pct>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{liveData.pct>=0?"▲":"▼"} {Math.abs(liveData.pct).toFixed(2)}%</span>}
                           </div>
                         ):isCustom?(
