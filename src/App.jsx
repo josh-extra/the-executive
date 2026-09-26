@@ -3565,7 +3565,249 @@ function NetWorthHistory({dailySnaps,nwHistory,nw,nwT}){
   );
 }
 
-function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
+// ---- Share statement import (PDF -> holdings) ----
+// Exchange name/code -> Yahoo ticker suffix
+const EXCHANGE_SUFFIX={ASX:".AX",AU:".AX",CHIA:".AX",CXA:".AX",NZX:".NZ",NZ:".NZ",LSE:".L",LON:".L",TSX:".TO",TSXV:".V",SGX:".SI",XETRA:".DE",FRA:".F",EPA:".PA",AMS:".AS",HKEX:".HK",HKG:".HK",TSE:".T",NYSE:"",NASDAQ:"",US:"",ARCA:"",BATS:"",AMEX:""};
+const CCY_SUFFIX={AUD:".AX",NZD:".NZ",GBP:".L",CAD:".TO",SGD:".SI",HKD:".HK",JPY:".T"};
+function normaliseStatementTicker(raw,exchange,currency){
+  let s=String(raw||"").toUpperCase().trim().replace(/\s+/g,"");
+  s=s.replace(/^(ASX|NYSE|NASDAQ|LSE):/,"");
+  if(!s)return "";
+  if(/\.[A-Z]{1,3}$/.test(s))return s; // already has a suffix, e.g. VHY.AX
+  const ex=String(exchange||"").toUpperCase().replace(/[^A-Z]/g,"");
+  if(ex in EXCHANGE_SUFFIX)return s+EXCHANGE_SUFFIX[ex];
+  const cur=String(currency||"").toUpperCase();
+  if(cur in CCY_SUFFIX)return s+CCY_SUFFIX[cur];
+  return s;
+}
+// Weighted average cost from the statement's own transactions. Returns null when the
+// transactions don't account for the whole holding (e.g. units bought before the statement period).
+function avgCostFromTransactions(txs,units){
+  if(!txs||!txs.length||!(units>0))return null;
+  let u=0,cost=0;
+  [...txs].sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))).forEach(x=>{
+    const q=Math.abs(parseFloat(x.units)||0);
+    if(!q)return;
+    const px=parseFloat(x.price)||(Math.abs(parseFloat(x.amount)||0)/q);
+    if(x.type==="sell"){const avg=u>0?cost/u:0;u=Math.max(u-q,0);cost=avg*u;}
+    else{u+=q;cost+=q*px;}
+  });
+  if(!(u>0))return null;
+  if(Math.abs(u-units)>Math.max(0.01,units*0.001))return null;
+  return cost/u;
+}
+
+function ShareStatementImport({holdings,setHoldings,subscription,setShowUpgrade,onClose}){
+  const t=T();
+  const isMobile=useIsMobile();
+  const M="'Montserrat',sans-serif";
+  const fileRef=useRef(null);
+  const[state,setState]=useState("idle"); // idle | loading | review | error | done
+  const[error,setError]=useState("");
+  const[meta,setMeta]=useState({});
+  const[rows,setRows]=useState([]);
+  const[missing,setMissing]=useState([]);
+  const[formErr,setFormErr]=useState("");
+  const[doneCount,setDoneCount]=useState(0);
+  const userCcy=L().currency;
+  const safeH=holdings||[];
+  const num=v=>{const n=parseFloat(String(v).replace(/[^0-9.\-]/g,""));return isNaN(n)?null:n;};
+
+  const handleFile=async file=>{
+    if(!isPro(subscription)){setShowUpgrade&&setShowUpgrade(true);return;}
+    if(!file)return;
+    if(!String(file.type||"").includes("pdf")&&!/\.pdf$/i.test(file.name||"")){setState("error");setError("That isn't a PDF. Download the statement from your broker as a PDF and try again.");return;}
+    if(file.size>15*1024*1024){setState("error");setError("That PDF is too large (over 15MB).");return;}
+    setState("loading");setError("");setFormErr("");
+    try{
+      const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=()=>rej(new Error("Read failed"));r.readAsDataURL(file);});
+      const resp=await claudeFetch({model:"claude-haiku-4-5",max_tokens:4000,messages:[{role:"user",content:[
+        {type:"document",source:{type:"base64",media_type:"application/pdf",data:base64}},
+        {type:"text",text:"This is a share or ETF account statement from a broker. Extract the holdings and the share transactions. Return ONLY valid JSON, no markdown, no explanation, in exactly this shape:\n"+
+          "{\"broker\":\"broker or platform name\",\"asAt\":\"YYYY-MM-DD date the holdings are valued at\",\"holdings\":[{\"ticker\":\"ticker code only, e.g. VHY\",\"exchange\":\"ASX, NYSE, NASDAQ, LSE etc\",\"name\":\"security name, max 40 chars\",\"units\":number,\"currency\":\"AUD, USD etc\",\"avgPrice\":number or null,\"costBase\":number or null}],\"transactions\":[{\"date\":\"YYYY-MM-DD\",\"ticker\":\"ticker code\",\"type\":\"buy, sell or reinvest\",\"units\":number,\"price\":number or null,\"amount\":number or null}]}\n"+
+          "Rules:\n- holdings: every share or ETF held at the statement date with more than 0 units. Skip cash accounts.\n- ticker: the code only, taken from the statement (often shown in brackets after the name). Do not add exchange suffixes.\n- units: the exact quantity including decimals.\n- avgPrice: the average purchase price per unit ONLY if the statement shows it. costBase: the total cost ONLY if the statement shows it. Otherwise null. Never use the current market price for these.\n- transactions: every buy, sell and dividend reinvestment (DRP) listed, with units and price per unit. Use type reinvest for dividend reinvestments. Skip deposits, withdrawals, fees and cash distributions.\n- Numbers must be plain numbers without $ signs or commas. If there are no transactions, return an empty array."}
+      ]}]});
+      if(!resp.ok){
+        const err=await resp.json().catch(()=>({}));
+        setState("error");
+        setError(resp.status===403?"Executive subscription required.":resp.status===429?"Rate limit reached - try again in an hour.":err.error||"Server error ("+resp.status+").");
+        return;
+      }
+      const d=await resp.json();
+      const text=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").replace(/```json\s*/g,"").replace(/```\s*/g,"").trim();
+      const js=JSON.parse(text.slice(text.indexOf("{"),text.lastIndexOf("}")+1));
+      const found=(Array.isArray(js.holdings)?js.holdings:[]).filter(h=>h&&h.ticker&&num(h.units)>0);
+      if(!found.length){setState("error");setError("No share or ETF holdings were found in this PDF. Make sure it's a holdings or annual statement from your broker.");return;}
+      const txs=Array.isArray(js.transactions)?js.transactions:[];
+      const built=[];
+      for(let i=0;i<found.length;i++){
+        const h=found[i];
+        const code=String(h.ticker).toUpperCase().trim();
+        const ticker=normaliseStatementTicker(code,h.exchange,h.currency);
+        const units=num(h.units);
+        const cur=String(h.currency||"").toUpperCase()||guessQuoteCurrency(ticker);
+        let avg=null,source="";
+        if(num(h.avgPrice)>0){avg=num(h.avgPrice);source="statement";}
+        else if(num(h.costBase)>0){avg=num(h.costBase)/units;source="statement";}
+        else{
+          const mine=txs.filter(x=>String(x.ticker||"").toUpperCase().replace(/\..*$/,"")===code.replace(/\..*$/,""));
+          const a=avgCostFromTransactions(mine,units);
+          if(a){avg=a;source="transactions";}
+        }
+        let converted=false;
+        if(avg&&cur&&cur!==userCcy){
+          const rate=await fxRate(cur,userCcy);
+          if(rate){avg=avg*rate;converted=true;}else{avg=null;source="";}
+        }
+        const ex=safeH.find(x=>String(x.ticker).toUpperCase()===ticker);
+        const avgR=avg?Math.round(avg*1000)/1000:null;
+        let status="new";
+        if(ex){
+          const sameUnits=Math.abs((parseFloat(ex.shares)||0)-units)<0.0001;
+          const sameAvg=!avgR||Math.abs((parseFloat(ex.avgCost)||0)-avgR)<0.01;
+          status=sameUnits&&sameAvg?"same":"update";
+        }
+        built.push({key:ticker+"_"+i,ticker,name:String(h.name||code).slice(0,40),units:String(units),avg:avgR?String(avgR):"",source,converted,fromCcy:cur,existing:ex||null,status,checked:status!=="same",priceOk:null});
+      }
+      setRows(built);
+      setMeta({broker:String(js.broker||"").slice(0,40),asAt:/^\d{4}-\d{2}-\d{2}$/.test(js.asAt||"")?js.asAt:""});
+      setMissing(safeH.filter(x=>!built.some(r=>r.ticker===String(x.ticker).toUpperCase())));
+      setState("review");
+      // Check each ticker has a live price so it values correctly once imported
+      built.forEach(async r=>{
+        let ok=false;
+        try{const q=await quoteFetch("/api/quote?symbol="+encodeURIComponent(r.ticker));const qd=await q.json();ok=!!(qd&&qd.price>0);}catch{}
+        setRows(rs=>rs.map(x=>x.key===r.key?{...x,priceOk:ok}:x));
+      });
+    }catch(err){
+      setState("error");
+      setError(String(err&&err.message||"").includes("JSON")?"Couldn't read this statement's layout. Try a holdings statement or annual statement PDF.":"Something went wrong: "+(err&&err.message||"unknown error"));
+    }
+  };
+
+  const upd=(key,patch)=>{setRows(rs=>rs.map(r=>r.key===key?{...r,...patch}:r));setFormErr("");};
+  const chosen=rows.filter(r=>r.checked);
+  const confirm=()=>{
+    const bad=chosen.find(r=>!(num(r.units)>0)||!(num(r.avg)>0)||!r.ticker.trim());
+    if(bad){setFormErr("Enter units and an average price for "+(bad.ticker||"each holding")+", or untick it.");return;}
+    setHoldings(hs=>{
+      let next=[...(hs||[])];
+      chosen.forEach((r,i)=>{
+        const tk=r.ticker.trim().toUpperCase();
+        const idx=next.findIndex(x=>String(x.ticker).toUpperCase()===tk);
+        const vals={ticker:tk,shares:num(r.units),avgCost:Math.round(num(r.avg)*1000)/1000};
+        if(idx>=0)next[idx]={...next[idx],...vals,name:next[idx].name||r.name};
+        else next.push({id:Date.now()+i,...vals,name:r.name||tk});
+      });
+      return next;
+    });
+    setDoneCount(chosen.length);
+    setState("done");
+  };
+  const reset=()=>{setState("idle");setRows([]);setMissing([]);setError("");setFormErr("");};
+  const fmtDay=d=>d?new Date(d+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"";
+  const stale=meta.asAt&&meta.asAt<daysAgoStr(14);
+  const inp={background:t.CARD,border:"1px solid "+t.BORDER2,borderRadius:5,color:t.TEXT,fontSize:12,padding:"5px 7px",width:"100%",boxSizing:"border-box",fontFamily:M,outline:"none"};
+  const tag=(txt,c)=><span style={{fontSize:10,padding:"2px 8px",borderRadius:10,whiteSpace:"nowrap",color:c,border:"1px solid "+c+"55",background:c+"14",fontFamily:M}}>{txt}</span>;
+  const statusTag=r=>{
+    if(r.status==="new")return tag("New",t.GREEN);
+    if(r.status==="same")return tag("Already up to date",t.MUTED);
+    const eu=parseFloat(r.existing.shares)||0,nu=num(r.units)||0;
+    return tag(Math.abs(eu-nu)>=0.0001?(String(Math.round(eu*10000)/10000)+" to "+String(Math.round(nu*10000)/10000)+" units"):"Update avg price",t.GOLD);
+  };
+
+  return (
+    <div style={{marginBottom:12}}>
+      {state==="idle"&&(
+        <div onClick={()=>fileRef.current&&fileRef.current.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();handleFile(e.dataTransfer.files[0]);}}
+          style={{border:"1.5px dashed "+t.GOLD+"44",borderRadius:9,padding:"18px 14px",textAlign:"center",cursor:"pointer"}}>
+          <input ref={fileRef} type="file" accept="application/pdf" style={{display:"none"}} onChange={e=>{handleFile(e.target.files[0]);e.target.value="";}}/>
+          <div style={{fontSize:12,color:t.GOLD,fontFamily:M,fontWeight:600,marginBottom:3}}>Import holdings statement (PDF)</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:M}}>Drop a statement from CommSec, Betashares, Stake, SelfWealth, Pearler and others, or tap to browse</div>
+          <button onClick={e=>{e.stopPropagation();onClose&&onClose();}} style={{marginTop:8,background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:M,textDecoration:"underline"}}>Close</button>
+        </div>
+      )}
+      {state==="loading"&&(
+        <div style={{textAlign:"center",padding:"22px 0",background:t.CARD2,borderRadius:9}}>
+          <div style={{fontSize:12,color:t.GOLD,fontFamily:M,marginBottom:3}}>Reading your statement...</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:M}}>Finding your holdings, units and average prices</div>
+        </div>
+      )}
+      {state==="error"&&(
+        <div style={{padding:"12px 14px",background:t.RED+"12",border:"1px solid "+t.RED+"44",borderRadius:9,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div style={{fontSize:11,color:t.TEXT,fontFamily:M,flex:1,minWidth:180}}>{error}</div>
+          <Btn onClick={reset} variant="ghost" style={{fontSize:11}}>Try again</Btn>
+        </div>
+      )}
+      {state==="done"&&(
+        <div style={{padding:"12px 14px",background:t.GREEN+"12",border:"1px solid "+t.GREEN+"44",borderRadius:9,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+          <div style={{fontSize:11,color:t.GREEN,fontFamily:M}}>{doneCount+" "+(doneCount===1?"holding":"holdings")+" imported - live prices update shortly"}</div>
+          <button onClick={()=>{reset();onClose&&onClose();}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,fontFamily:M}}>Close</button>
+        </div>
+      )}
+      {state==="review"&&(
+        <div style={{background:t.CARD2,border:"1px solid "+t.GOLD+"33",borderRadius:9,padding:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",flexWrap:"wrap",gap:6,marginBottom:3}}>
+            <span style={{fontSize:13,color:t.TEXT,fontFamily:M,fontWeight:600}}>{rows.length+" "+(rows.length===1?"holding":"holdings")+" found"}</span>
+            {(meta.broker||meta.asAt)&&<span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>{[meta.broker,meta.asAt?"as at "+fmtDay(meta.asAt):""].filter(Boolean).join(" - ")}</span>}
+          </div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginBottom:stale?6:8,lineHeight:1.5}}>{"Check the figures, edit anything that looks off, then import. Average prices are per unit in "+userCcy+"."}</div>
+          {stale&&<div style={{fontSize:10,color:t.GOLD,fontFamily:M,marginBottom:8,lineHeight:1.5}}>{"This statement is as at "+fmtDay(meta.asAt)+". Any trades since then aren't included."}</div>}
+          {!isMobile&&(
+            <div style={{display:"grid",gridTemplateColumns:"20px minmax(0,1.5fr) minmax(0,0.9fr) minmax(0,0.9fr) minmax(0,1.1fr)",gap:8,padding:"0 0 4px"}}>
+              <span/><span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>Holding</span><span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>Units</span><span style={{fontSize:10,color:t.MUTED,fontFamily:M}}>Avg price</span><span/>
+            </div>
+          )}
+          {rows.map(r=>{
+            const needAvg=r.checked&&!(num(r.avg)>0);
+            const note=[r.source==="transactions"?"Avg price worked out from your buys and sells":r.source==="statement"?"Avg price from statement":"",r.converted?"converted from "+r.fromCcy+" at today's rate":""].filter(Boolean).join(", ");
+            const box=(
+              <input type="checkbox" checked={r.checked} onChange={e=>upd(r.key,{checked:e.target.checked})} style={{width:15,height:15,accentColor:t.GOLD,margin:0}}/>
+            );
+            const nameCol=(
+              <div style={{minWidth:0}}>
+                {r.priceOk===false?(
+                  <input value={r.ticker} onChange={e=>upd(r.key,{ticker:e.target.value.toUpperCase(),priceOk:null})} style={{...inp,width:110,fontWeight:600,borderColor:t.RED+"88"}}/>
+                ):<div style={{fontSize:12,color:t.TEXT,fontFamily:M,fontWeight:600}}>{r.ticker}</div>}
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:M,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.name}</div>
+                {r.priceOk===false&&<div style={{fontSize:10,color:t.RED,fontFamily:M}}>No live price found for this ticker - check it</div>}
+                {note&&<div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginTop:1}}>{note}</div>}
+              </div>
+            );
+            const unitsIn=<input value={r.units} inputMode="decimal" onChange={e=>upd(r.key,{units:e.target.value})} style={inp}/>;
+            const avgIn=<input value={r.avg} inputMode="decimal" placeholder="Required" onChange={e=>upd(r.key,{avg:e.target.value})} style={{...inp,borderColor:needAvg?t.RED+"99":t.BORDER2}}/>;
+            return isMobile?(
+              <div key={r.key} style={{borderTop:"1px solid "+t.BORDER,padding:"9px 0"}}>
+                <div style={{display:"grid",gridTemplateColumns:"20px minmax(0,1fr)",gap:8,alignItems:"start",marginBottom:6}}>
+                  <div style={{paddingTop:2}}>{box}</div>
+                  <div style={{minWidth:0}}>{nameCol}<div style={{marginTop:4}}>{statusTag(r)}</div></div>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:8,paddingLeft:28}}>
+                  <div><div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:2}}>Units</div>{unitsIn}</div>
+                  <div><div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:2}}>{"Avg price ("+userCcy+")"}</div>{avgIn}</div>
+                </div>
+              </div>
+            ):(
+              <div key={r.key} style={{display:"grid",gridTemplateColumns:"20px minmax(0,1.5fr) minmax(0,0.9fr) minmax(0,0.9fr) minmax(0,1.1fr)",gap:8,alignItems:"center",borderTop:"1px solid "+t.BORDER,padding:"9px 0"}}>
+                {box}{nameCol}{unitsIn}{avgIn}<div style={{textAlign:"right"}}>{statusTag(r)}</div>
+              </div>
+            );
+          })}
+          <div style={{borderTop:"1px solid "+t.BORDER,paddingTop:9}}>
+            {missing.length>0&&<div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginBottom:8,lineHeight:1.5}}>{"Not on this statement: "+missing.map(x=>x.ticker+" ("+(Math.round((parseFloat(x.shares)||0)*10000)/10000)+" units)").join(", ")+" - kept as is."}</div>}
+            {formErr&&<div style={{fontSize:11,color:t.RED,fontFamily:M,marginBottom:8}}>{formErr}</div>}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Btn onClick={confirm} disabled={!chosen.length} style={{fontSize:12}}>{chosen.length?"Import "+chosen.length+" "+(chosen.length===1?"holding":"holdings"):"Nothing selected"}</Btn>
+              <Btn onClick={()=>{reset();onClose&&onClose();}} variant="ghost" style={{fontSize:12}}>Cancel</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setShowRecalibrate,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,superLog,setSuperLog,setPage}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -3580,6 +3822,7 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
   const[editCryptoIdx,setEditCryptoIdx]=useState(null);
   const[editCryptoForm,setEditCryptoForm]=useState({});
   const[showSuperAdd,setShowSuperAdd]=useState(false);
+  const[showImport,setShowImport]=useState(false);
   const[showCashAdd,setShowCashAdd]=useState(false);
   const[cashForm,setCashForm]=useState({balance:"",date:todayStr(),note:""});
   const[superForm,setSuperForm]=useState({balance:"",type:"balance",date:todayStr(),note:""});
@@ -3690,9 +3933,11 @@ function WealthPage({dailySnaps,debtList,profile,onUpdateProfile,nwHistory,setSh
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             {safeH.length>0&&sP.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{sP.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
             {safeH.length>0&&<button onClick={sP.refresh} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>Refresh</button>}
-            <button onClick={()=>setShowAdd(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10}}>+ Add</button>
+            <button onClick={()=>{setShowImport(s=>!s);setShowAdd(false);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10}}>Import statement</button>
+            <button onClick={()=>{setShowAdd(s=>!s);setShowImport(false);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10}}>+ Add</button>
           </div>
         }>Share Portfolio - Live</SectionLabel>
+        {showImport&&<ShareStatementImport holdings={holdings} setHoldings={setHoldings} subscription={subscription} setShowUpgrade={setShowUpgrade} onClose={()=>setShowImport(false)}/>}
         {showAdd&&(
           <div style={{padding:12,background:t.CARD2,borderRadius:7,border:"1px solid "+t.BORDER,marginBottom:12}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:7,marginBottom:7}}>
@@ -11635,7 +11880,7 @@ function App(){
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="journal"&&<JournalPage entries={journal} setEntries={setJournal}/>}
           {["habits","goals","journal"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="goals"?"Unlock AI goal suggestions & checkpoint analysis →":page==="journal"?"Unlock AI weekly review of your journal entries →":"Unlock AI habit coaching & weekly performance review →"}/>}
-          {page==="wealth"&&<WealthPage dailySnaps={dailySnaps} debtList={debts} profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
+          {page==="wealth"&&<WealthPage subscription={subscription} setShowUpgrade={setShowUpgrade} dailySnaps={dailySnaps} debtList={debts} profile={liveProfile} onUpdateProfile={setProfile} nwHistory={nwHistoryFull} setShowRecalibrate={()=>setShowRecalibrate(true)} holdings={holdings} setHoldings={setHoldings} portfolio={portfolio} cryptoHoldings={cryptoHoldings} setCryptoHoldings={setCryptoHoldings} cryptoPortfolio={cryptoPortfolio} commodityHoldings={commodityHoldings} setCommodityHoldings={setCommodityHoldings} commodityPortfolio={commodityPortfolio} altAssets={altAssets} setAltAssets={setAltAssets} properties={properties} setProperties={setProperties} superLog={superLog} setSuperLog={setSuperLog} setPage={setPage}/>}
           {page==="property"&&<PropertyPage properties={properties} setProperties={setProperties} debts={debts} addLoan={d=>setDebts(ds=>[...((ds&&ds.length)?ds:legacyProfileDebts(profile||{})),d])}/>}
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
