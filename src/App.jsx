@@ -227,7 +227,7 @@ const NAV=[
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
-  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","AI Advisor"],
+  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","Executive AI"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
 ];
@@ -864,7 +864,7 @@ function MorningBriefing({profile,tasks,onClose}){
         const dateLabel=new Date().toLocaleDateString(_locale,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
         const controller=new AbortController();
         const timeoutId=setTimeout(()=>controller.abort(),9000);
-        const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:550,tools:[{type:"web_search_20250305",name:"web_search"}],system:"Today's date is "+dateLabel+". Fast briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". One search only: S&P 500 and ASX 200 current levels and % move today, plus the single most important financial news story from the last 24h. Sections: MARKETS (brief, just the numbers), NEWS (1 story, 2 sentences max), PRIORITIES (top 3 from tasks below, do not invent any), MINDSET (one sentence). Be extremely concise — this must be fast. Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]});
+        const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:550,tools:[{type:"web_search_20250305",name:"web_search"}],system:GENERAL_INFO_RULE+" Today's date is "+dateLabel+". Fast briefing for "+profile.firstName+", "+(profile.occupation||"investor")+". One search only: S&P 500 and ASX 200 current levels and % move today, plus the single most important financial news story from the last 24h. Sections: MARKETS (brief, just the numbers), NEWS (1 story, 2 sentences max), PRIORITIES (top 3 from tasks below, do not invent any), MINDSET (one sentence). Be extremely concise — this must be fast. Plain text, caps headers.",messages:[{role:"user",content:"Briefing for "+dateLabel+". My current undone high-priority tasks: "+highTasks}]});
         clearTimeout(timeoutId);
         const d=await r.json();
         if(!r.ok){setBrief("Briefing failed: "+(d.error?.message||d.error||"Server error "+r.status));setLoading(false);return;}
@@ -1533,7 +1533,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
       <div style={{...rowStyle(5),order:isMobile?5:0}}>
       <div onClick={()=>setPage("advisor")} style={{background:t.GOLD+"0A",border:"1px solid "+t.GOLD+"22",borderRadius:10,padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>AI Advisor - Full Dashboard Context - Web Search</div>
+          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Executive AI - Full Dashboard Context - Web Search</div>
           <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>Ask for a review, get market insights, or explore investment ideas</div>
         </div>
         <div style={{fontSize:20,color:t.GOLD,marginLeft:16,flexShrink:0}}>✦</div>
@@ -4774,7 +4774,7 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
     try{
       const r=await claudeFetch({
         model:"claude-sonnet-4-6",max_tokens:800,
-        system:"You are a personal finance expert. Give direct, specific debt payoff advice. No fluff.",
+        system:GENERAL_INFO_RULE+" You are Executive AI. Explain general debt payoff strategies (such as avalanche, snowball, extra repayments and using an offset) worked through with the numbers provided. No fluff.",
         messages:[{role:"user",content:"My debts:\n"+debtSummary+"\n\nTotal debt: "+fmt(totalDebt)+"\nExtra monthly budget: "+fmt(extra)+"\nCurrent strategy: "+strategy+"\n\nGive me: 1) Which debt to attack first and why, 2) Specific monthly payment plan, 3) One quick win I can do this week to reduce debt faster. Be specific with numbers."}]
       });
       const d=await r.json();
@@ -4845,8 +4845,8 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
       <Card style={{marginBottom:14,borderColor:t.GOLD+"33"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiAdvice||aiLoading?12:0}}>
           <div>
-            <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>AI Debt Advisor</div>
-            <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Personalised payoff strategy based on your debts</div>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Debt Strategy - Executive AI</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Payoff strategies worked through with your numbers</div>
           </div>
           <button onClick={getAiAdvice} disabled={aiLoading||!allDebts.length} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"6px 12px",color:t.GOLD,cursor:aiLoading||!allDebts.length?"default":"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,opacity:!allDebts.length?.5:1}}>
             {aiLoading?"Analysing...":"Get Strategy"}
@@ -5825,8 +5825,8 @@ function InvestPage({profile,properties,subscription,setShowUpgrade}){
         model:"claude-sonnet-4-6",
         max_tokens:800,
         tools:[{type:"web_search_20250305",name:"web_search"}],
-        system:"Investment analyst for "+(profile?.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile?.shareValue)||0)+", Property "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+", Super "+fmt(parseFloat(profile?.superBalance)||0)+", Crypto "+fmt(parseFloat(profile?.cryptoValue)||0)+". Available cash: "+fmt(parseFloat(profile?.cashSavings)||0)+". Search for current market conditions. Give 3-4 specific opportunities with: NAME, ASSET CLASS, WHY NOW (specific current catalyst), SUGGESTED ALLOCATION, RISK. Be specific.",
-        messages:[{role:"user",content:"What are the best opportunities right now given current market conditions? Search for latest data."}]
+        system:GENERAL_INFO_RULE+" You are Executive AI giving general market information. Discuss sectors, themes and asset classes rather than specific products. User context: "+(profile?.riskProfile||["Growth"])[0]+" risk investor in Australia. Portfolio: Shares "+fmt(parseFloat(profile?.shareValue)||0)+", Property "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+", Super "+fmt(parseFloat(profile?.superBalance)||0)+", Crypto "+fmt(parseFloat(profile?.cryptoValue)||0)+". Available cash: "+fmt(parseFloat(profile?.cashSavings)||0)+". Search for current market conditions. Give 3-4 specific opportunities with: NAME, ASSET CLASS, WHY NOW (specific current catalyst), SUGGESTED ALLOCATION, RISK. Be specific.",
+        messages:[{role:"user",content:"What are the key market themes and general opportunities across asset classes right now? Search for the latest data."}]
       });
       if(!r.ok){
         const err=await r.json().catch(()=>({}));
@@ -7608,7 +7608,7 @@ function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habit
       const avgMood=weekJournal.length?(weekJournal.reduce((a,e)=>a+(e.mood||3),0)/weekJournal.length).toFixed(1):"?";
       const goalsSummary=(goals||[]).map(g=>g.title+" "+g.progress+"% ("+g.period+")").join(", ")||"none";
       const habitDetails=habitPerf.map(h=>h.name+": "+h.done+"/"+h.target).join("\n")||"none";
-      const r=await claudeFetch({model:"claude-haiku-4-5",max_tokens:900,system:"Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]});
+      const r=await claudeFetch({model:"claude-haiku-4-5",max_tokens:900,system:GENERAL_INFO_RULE+" Performance coach for "+profile.firstName+". Direct, specific. Structure: WINS (2-3 with numbers), GAPS (1-2), PATTERNS (one data insight), NEXT WEEK (3 priorities). Max 270 words.",messages:[{role:"user",content:"Week "+weekStart+" to "+weekEnd+"\nScores: avg "+avgScore+"/100 - "+daysActive+"/7 active\nHabits ("+habitAvg+"%):\n"+habitDetails+"\nWorkouts ("+weekWorkouts.length+"): "+wSummary+"\nBody: "+bSummary+"\nJournal: "+weekJournal.length+" entries, avg mood "+avgMood+"/5\nGoals: "+goalsSummary}]});
       const d=await r.json();
       const review=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Unable to generate.";
       setAiReview(review);
@@ -7712,9 +7712,134 @@ function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habit
   );
 }
 
-function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog,messages,setMessages}){
+// ---- Executive AI ----
+// Shared instruction for every AI feature that touches money: general information only.
+const GENERAL_INFO_RULE="IMPORTANT: You provide general information only, not personal financial advice, and you are not a licensed financial adviser. Never recommend buying, selling or holding a specific financial product (a particular share, ETF, fund, cryptocurrency, super fund, loan or insurance product) and never tell the user which product to choose. You may explain concepts, compare general strategies and asset classes, describe how an approach would play out using the user's own numbers, analyse their history and habits, and share factual market information. When a question needs personal financial, tax or legal advice, give the general picture and suggest they speak with a licensed financial adviser, accountant or tax agent. Never describe yourself as an adviser.";
+
+// Compact history of the user's activity for Executive AI, built from data the app already stores.
+function aiHistoryDigest(d){
+  const out=[];
+  const snaps=d.dailySnaps||{},hist=d.history||{},today=todayStr();
+  const snapKeys=Object.keys(snaps).filter(k=>snaps[k]).sort();
+  const dd=s=>new Date(s+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short"});
+  const mm=k=>new Date(k+"-15T12:00:00").toLocaleDateString("en-AU",{month:"short",year:"numeric"});
+  const cut=(s,n)=>{s=String(s||"").replace(/\s+/g," ").trim();return s.length>n?s.slice(0,n)+"...":s;};
+  const sgn=v=>(v>0?"+":v<0?"-":"")+fmt(Math.abs(v));
+
+  // Net worth - month by month (month-end), then the last 30 days
+  const months={};
+  Object.keys(d.nwHistory||{}).forEach(k=>{const v=parseFloat(d.nwHistory[k]);if(v)months[k]=v;});
+  snapKeys.forEach(k=>{if(typeof snaps[k].nw==="number")months[k.slice(0,7)]=snaps[k].nw;});
+  const mk=Object.keys(months).sort().slice(-24);
+  if(mk.length){
+    out.push("NET WORTH BY MONTH (month-end, most recent last): "+mk.map(k=>mm(k)+" "+fmt(months[k])).join("; "));
+  }
+  const last30=snapKeys.filter(k=>k>=daysAgoStr(30)&&typeof snaps[k].nw==="number");
+  if(last30.length>1){
+    const v=last30.map(k=>snaps[k].nw),first=snaps[last30[0]],last=snaps[last30[last30.length-1]];
+    let line="LAST 30 DAYS NET WORTH: "+fmt(v[0])+" ("+dd(last30[0])+") to "+fmt(v[v.length-1])+" ("+dd(last30[last30.length-1])+"), high "+fmt(Math.max(...v))+", low "+fmt(Math.min(...v));
+    if(typeof first.a==="number"&&typeof last.a==="number")line+=". Total assets "+sgn(last.a-first.a)+", total debt "+sgn(last.d-first.d);
+    out.push(line);
+  }
+  if(snapKeys.length)out.push("(Daily tracking began "+dd(snapKeys[0])+(mk.length?"; earlier months are monthly totals only":"")+".)");
+
+  // Daily execution - weekly blocks, most recent first
+  const habits=d.habits||[],log=d.habitLog||{};
+  // Habit rates only from the first day any habit was ticked (earlier weeks would read as 0%)
+  const firstHabitDay=Object.keys(log).filter(k=>log[k]).map(k=>k.slice(k.lastIndexOf("_")+1)).sort()[0]||null;
+  const weeks=[];
+  for(let w=0;w<12;w++){
+    const days=[];for(let i=6;i>=0;i--)days.push(daysAgoStr(w*7+i));
+    const scored=days.filter(x=>hist[x]&&hist[x].score>0);
+    const snapDays=days.filter(x=>snaps[x]);
+    const tasks=days.reduce((s,x)=>s+(snaps[x]?(snaps[x].td||[]).length:((hist[x]&&hist[x].tasks)||0)),0);
+    const hPossible=firstHabitDay?habits.length*days.filter(x=>x<=today&&x>=firstHabitDay).length:0;
+    const hDone=days.reduce((s,x)=>s+habits.filter(h=>log[h.id+"_"+x]).length,0);
+    const st=snapDays.reduce((s,x)=>s+(snaps[x].st||[]).length,0),sAll=snapDays.reduce((s,x)=>s+(snaps[x].st||[]).length+(snaps[x].sm||[]).length,0);
+    if(!scored.length&&!tasks&&!hDone)continue;
+    const avg=scored.length?Math.round(scored.reduce((s,x)=>s+hist[x].score,0)/scored.length):0;
+    weeks.push("week to "+dd(days[6])+": score "+avg+" ("+scored.length+" days tracked), "+tasks+" tasks done"+(hPossible?", habits "+Math.round(hDone/hPossible*100)+"%":"")+(sAll?", supplements "+Math.round(st/sAll*100)+"%":""));
+  }
+  if(weeks.length)out.push("WEEKLY EXECUTION (most recent first):\n- "+weeks.join("\n- "));
+
+  // Tasks actually completed, last 14 days
+  const doneDays=snapKeys.filter(k=>k>=daysAgoStr(13)&&(snaps[k].td||[]).length).reverse();
+  if(doneDays.length)out.push("TASKS COMPLETED (last 14 days):\n- "+doneDays.map(k=>dd(k)+": "+snaps[k].td.slice(0,8).map(x=>cut(x,50)).join(", ")+(snaps[k].td.length>8?" (+"+(snaps[k].td.length-8)+" more)":"")+((snaps[k].to||[]).length?" | not done: "+snaps[k].to.slice(0,4).map(x=>cut(x,40)).join(", "):"")).join("\n- "));
+
+  // Habits - completion rates and streaks
+  if(habits.length){
+    const rows=habits.map(h=>{
+      let c30=0,c90=0;for(let i=0;i<90;i++){if(log[h.id+"_"+daysAgoStr(i)]){c90++;if(i<30)c30++;}}
+      let streak=0,i=log[h.id+"_"+today]?0:1;while(i<400&&log[h.id+"_"+daysAgoStr(i)]){streak++;i++;}
+      return h.name+": "+c30+"/30 days, "+c90+"/90 days, current streak "+streak;
+    });
+    out.push("HABITS:\n- "+rows.join("\n- "));
+  }
+
+  // Goals
+  const active=(d.goals||[]);
+  if(active.length)out.push("ACTIVE GOALS: "+active.map(g=>cut(g.title,60)+" ("+(g.progress||0)+"%, "+(g.period||"")+")").join("; "));
+  const comp=[...(d.completed||[])].filter(g=>g&&g.title).sort((a,b)=>String(b.completedAt||"").localeCompare(String(a.completedAt||""))).slice(0,20);
+  if(comp.length)out.push("COMPLETED GOALS (most recent first): "+comp.map(g=>cut(g.title,60)+(g.completedAt?" ("+dd(g.completedAt)+")":"")).join("; "));
+
+  // Debts and repayments
+  const debts=(d.debts||[]).filter(x=>parseFloat(x.balance)>0||(x.payments||[]).length);
+  if(debts.length){
+    const since=daysAgoStr(90);
+    out.push("LOANS:\n- "+debts.map(x=>{
+      const p=(x.payments||[]).filter(y=>y.date>=since);
+      const pr=p.reduce((s,y)=>s+(parseFloat(y.principal!=null?y.principal:y.amount)||0),0),it=p.reduce((s,y)=>s+(parseFloat(y.interest)||0),0);
+      return cut(x.name,40)+" ("+(x.type||"Loan")+"): "+fmt(parseFloat(x.balance)||0)+(x.rate!==""&&x.rate!=null?" at "+x.rate+"%":"")+(parseFloat(x.minPayment)?", repaying "+fmt(parseFloat(x.minPayment))+" "+(x.frequency||"monthly"):"")+(parseFloat(x.offsetBalance)>0?", offset "+fmt(parseFloat(x.offsetBalance)):"")+(p.length?". Last 90 days: "+fmt(pr)+" off the loan, "+fmt(it)+" interest":"");
+    }).join("\n- "));
+  }
+
+  // Income and spending, last 6 months
+  const tx=d.transactions||[];
+  if(tx.length){
+    const ms=[];for(let i=5;i>=0;i--){const x=new Date();x.setDate(1);x.setMonth(x.getMonth()-i);ms.push(x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0"));}
+    const rows=ms.map(m=>{const inc=tx.filter(y=>y.type==="income"&&String(y.date).startsWith(m)).reduce((s,y)=>s+Math.abs(parseFloat(y.amount)||0),0);const exp=tx.filter(y=>y.type==="expense"&&String(y.date).startsWith(m)).reduce((s,y)=>s+Math.abs(parseFloat(y.amount)||0),0);return (inc||exp)?mm(m)+" in "+fmt(inc)+" / out "+fmt(exp):null;}).filter(Boolean);
+    const cats={};tx.filter(y=>y.type==="expense"&&y.date>=daysAgoStr(90)).forEach(y=>{cats[y.category||"Other"]=(cats[y.category||"Other"]||0)+Math.abs(parseFloat(y.amount)||0);});
+    const top=Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([c,v])=>c+" "+fmt(v));
+    if(rows.length)out.push("CASH FLOW (recorded): "+rows.join("; ")+(top.length?". Top spending last 90 days: "+top.join(", "):""));
+  }
+
+  // Holdings, cash and super history
+  const hold=(d.holdings||[]).slice(0,20);
+  if(hold.length)out.push("SHARE/ETF HOLDINGS: "+hold.map(h=>h.ticker+" "+(Math.round((parseFloat(h.shares)||0)*10000)/10000)+" units"+(h.avgCost?" avg "+fmt(parseFloat(h.avgCost)):"")).join("; "));
+  const cashLog=((d.profile&&d.profile.cashLog)||[]).slice(0,4);
+  if(cashLog.length)out.push("CASH BALANCE UPDATES: "+cashLog.map(e=>dd(e.date)+" "+fmt(e.balance)).join("; "));
+  const sup=[...(d.superLog||[])].sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,4);
+  if(sup.length)out.push("SUPER BALANCE UPDATES: "+sup.map(e=>dd(e.date)+" "+fmt(e.balance)).join("; "));
+
+  // Reading, training, body
+  const books=d.books||[];
+  const fin=books.filter(b=>b.status==="done"&&(!b.dateFinished||b.dateFinished>=daysAgoStr(365))).slice(-12);
+  const reading=books.filter(b=>b.status==="reading");
+  if(fin.length||reading.length)out.push("READING: "+(fin.length?"finished "+fin.map(b=>cut(b.title,40)+(b.dateFinished?" ("+dd(b.dateFinished)+")":"")).join(", "):"")+(reading.length?(fin.length?"; ":"")+"currently reading "+reading.map(b=>cut(b.title,40)+" (p."+(b.cur||0)+"/"+(b.tot||"?")+")").join(", "):""));
+  const wk=d.workouts||[];
+  if(wk.length){
+    const ms=[];for(let i=2;i>=0;i--){const x=new Date();x.setDate(1);x.setMonth(x.getMonth()-i);ms.push(x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0"));}
+    out.push("WORKOUTS PER MONTH: "+ms.map(m=>mm(m)+" "+wk.filter(w=>String(w.date).startsWith(m)).length).join(", "));
+  }
+  const wts=(d.bodyLog||[]).filter(e=>e.weight&&e.date>=daysAgoStr(90)).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  if(wts.length)out.push("WEIGHT (last 90 days): "+(wts.length>1?wts[0].weight+"kg ("+dd(wts[0].date)+") to ":"")+wts[wts.length-1].weight+"kg ("+dd(wts[wts.length-1].date)+")");
+
+  // Recent reflections and reviews
+  const wr=d.weeklyReflections||{};
+  const refl=Object.keys(wr).filter(k=>/^week_\d{4}-\d{2}-\d{2}$/.test(k)&&wr[k]).sort().slice(-3).reverse();
+  if(refl.length)out.push("USER'S WEEKLY REFLECTIONS:\n- "+refl.map(k=>"week of "+dd(k.slice(5))+": "+cut(wr[k],240)).join("\n- "));
+  const rev=Object.keys(wr).filter(k=>/_ai$/.test(k)&&wr[k]).sort().slice(-2).reverse();
+  if(rev.length)out.push("PREVIOUS WEEKLY AI REVIEWS:\n- "+rev.map(k=>"week of "+dd(k.slice(5,15))+": "+cut(wr[k],300)).join("\n- "));
+  const jr=[...(d.journal||[])].filter(e=>e&&e.text).sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,5);
+  if(jr.length)out.push("RECENT JOURNAL:\n- "+jr.map(e=>dd(e.date)+(e.mood?" (mood "+e.mood+"/5)":"")+": "+cut(e.text,140)).join("\n- "));
+
+  const s=out.join("\n\n");
+  return s.length>12000?s.slice(0,12000)+"\n(history truncated)":s;
+}
+
+function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog,messages,setMessages,dailySnaps,history,nwHistory,completed,debts,transactions,holdings,superLog,books,workouts,bodyLog,weeklyReflections,journal}){
   const t=T();
-  const initMsg={role:"assistant",content:"Good to have you here, "+profile.firstName+". I have full visibility of your dashboard. Ask me anything, or say 'review my dashboard' for an honest assessment."};
+  const initMsg={role:"assistant",content:"Good to have you here, "+profile.firstName+". I can see your dashboard and your history. Ask me anything, or say 'review my dashboard' for an honest assessment."};
   const msgs=messages&&messages.length>0?messages:[initMsg];
   const[input,setInput]=useState("");const[loading,setLoading]=useState(false);
   const bottomRef=useRef(null);
@@ -7741,7 +7866,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
   const lastMsgIsToday=lastMsgOverall&&lastMsgOverall.timestamp?new Date(lastMsgOverall.timestamp).toDateString()===new Date().toDateString():false;
   const showPrompts=msgs.length===1||!lastMsgIsToday;
 
-  const sys="Private advisor. Direct, sharp. Use web search for current market data.\n\nCLIENT: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome (stated): "+fmt(parseFloat(profile.annualIncome)||0)+(profile.recordedIncome12m?" | Income recorded last 12m: "+fmt(profile.recordedIncome12m):"")+" | Cash: "+fmt((parseFloat(profile.cashSavings)||0)+(parseFloat(profile.offsetCash)||0))+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
+  const sys="You are Executive AI, the built-in assistant in The Executive app. Direct, sharp and practical. Use web search for current market data.\n"+GENERAL_INFO_RULE+"\n\nUSER: "+profile.firstName+" "+(profile.lastName||"")+" | "+(profile.dob?calcAge(profile.dob):profile.age)+" | "+(profile.occupation||"")+" | "+(profile.location||"AU")+"\nNW: "+fmt(profile.netWorth||0)+" of "+fmt(Number(profile.netWorthTarget||3e6))+" ("+Math.round((profile.netWorth||0)/Number(profile.netWorthTarget||3e6)*100)+"%)\nIncome (stated): "+fmt(parseFloat(profile.annualIncome)||0)+(profile.recordedIncome12m?" | Income recorded last 12m: "+fmt(profile.recordedIncome12m):"")+" | Cash: "+fmt((parseFloat(profile.cashSavings)||0)+(parseFloat(profile.offsetCash)||0))+" | Shares: "+fmt(parseFloat(profile.shareValue)||0)+" | Property: "+fmt((properties||[]).reduce((s,p)=>s+(parseFloat(p.currentValue)||0),0))+"\nDebt: "+fmt(profile.totalDebt||0)+" | Risk: "+((profile.riskProfile||["Growth"])[0])+"\n\nTODAY:\nTasks "+tDone+"/"+(tasks||[]).length+" | Supps "+sDone+"/"+(supplements||[]).length+"\nPending high-priority: "+((tasks||[]).filter(tk=>!tk.done&&tk.priority==="high").map(tk=>tk.text).join(", ")||"all done")+"\n\nHABITS "+hDone+"/"+(habits||[]).length+":\n✓ Done: "+(habitsDone.join(", ")||"none")+"\n✗ Not done: "+(habitsNotDone.join(", ")||"all complete")+"\n\nGoals: "+((goals||[]).map(g=>g.title+" "+g.progress+"%").join(", ")||"none")+"\n\nFor 'review': cover FINANCES, HEALTH AND HABITS, GOALS, DAILY EXECUTION. Be direct.";
 
   const send=async text=>{
     const q=text||input.trim();if(!q||loading)return;setInput("");
@@ -7751,22 +7876,23 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
     // Only send last 20 messages to Claude to manage token usage
     const contextMsgs=updated.slice(-20).map(m=>({role:m.role,content:m.content}));
     try{
-      const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:2000,system:sys,tools:[{type:"web_search_20250305",name:"web_search"}],messages:contextMsgs});
+      const hist=aiHistoryDigest({profile,goals,habits,habitLog,dailySnaps,history,nwHistory,completed,debts,transactions,holdings,superLog,books,workouts,bodyLog,weeklyReflections,journal});
+      const r=await claudeFetch({model:"claude-sonnet-4-6",max_tokens:2000,system:sys+(hist?"\n\nHISTORY (use this for questions about past progress, trends and what they have done; if something isn't recorded, say so):\n"+hist:""),tools:[{type:"web_search_20250305",name:"web_search"}],messages:contextMsgs});
       const d=await r.json();
       const reply=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n")||"Try again.";
       setMessages(m=>[...m,{role:"assistant",content:reply,timestamp:Date.now()}]);
     }catch{setMessages(m=>[...m,{role:"assistant",content:"Connection error.",timestamp:Date.now()}]);}
     setLoading(false);
   };
-  const PROMPTS=["Review my dashboard","What should I prioritise?","ASX market update","Accelerate my net worth","Debt payoff strategy","Investment opportunities","Habits to add or swap","Morning briefing"];
+  const PROMPTS=["Review my dashboard","What should I prioritise?","ASX market update","Accelerate my net worth","Debt payoff strategy","Investing concepts for me","Habits to add or swap","Morning briefing"];
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)",maxWidth:900,margin:"0 auto"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14,flexShrink:0}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>Private Intelligence</div>
-          <div style={{fontSize:26,color:t.TEXT}}>AI Advisor</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Executive AI</div>
           <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>
-            Full dashboard context · Web search
+            Full dashboard and history · Web search
             {lastMsgLabel&&<span style={{color:t.GOLD}}> · Memory from {lastMsgLabel}</span>}
           </div>
         </div>
@@ -7810,6 +7936,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()} placeholder="Ask anything..." disabled={loading} style={{flex:1,background:t.CARD,border:"1px solid "+(loading?t.BORDER:t.GOLD+"44"),borderRadius:9,padding:"11px 14px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none"}}/>
         <Btn onClick={()=>send()} disabled={loading||!input.trim()} style={{padding:"11px 18px"}}>Send</Btn>
       </div>
+      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center",paddingTop:6,flexShrink:0}}>General information only - not financial advice. Speak with a licensed adviser before acting.</div>
     </div>
   );
 }
@@ -7960,7 +8087,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
               <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{(fields.length-filled)+" fields remaining"}</div>
             </div>
             <PB value={pct} color={t.GOLD} height={5}/>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>A complete profile gives the AI Advisor better context and personalises your entire dashboard.</div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>A complete profile gives the Executive AI better context and personalises your entire dashboard.</div>
           </Card>
         ):(
           <Card style={{marginBottom:16,borderColor:t.GREEN+"44",padding:"10px 14px"}}>
@@ -8131,7 +8258,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
 
       <Card style={{marginBottom:12}}>
         <SectionLabel>Privacy</SectionLabel>
-        <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.75}}>Your data is encrypted and stored securely in the cloud, synced across all your devices. AI Advisor questions are sent to Anthropic's API only. We don't advertise, sell data, or use your information to train AI models.</div>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.75}}>Your data is encrypted and stored securely in the cloud, synced across all your devices. Executive AI questions are sent to Anthropic's API only. We don't advertise, sell data, or use your information to train AI models.</div>
       </Card>
       <Card style={{marginBottom:12}}>
         <SectionLabel>Export Data</SectionLabel>
@@ -8887,7 +9014,7 @@ function SetupPage({onComplete}){
           <div>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Investment Profile</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Risk & targets</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Used to personalise your AI Advisor and investment ideas.</div>
+            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Used to personalise your Executive AI and investment ideas.</div>
             <div style={{marginBottom:20}}>
               <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>Investment risk tolerance</div>
               {["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"].map(r=>{
@@ -10497,7 +10624,7 @@ function ServicesPage({services,setServices}){
 function PaywallPage({onUpgrade,feature}){
   const t=T();
   const featureMap={
-    advisor:{icon:"🤖",title:"AI Advisor",desc:"Your private advisor with full dashboard visibility, web search, and honest assessments."},
+    advisor:{icon:"🤖",title:"Executive AI",desc:"Your private AI with full visibility of your dashboard and history, web search, and honest assessments."},
     invest:{icon:"📈",title:"Invest Intelligence",desc:"Live market prices, AI-powered opportunities, and a personalised watchlist."},
     tax:{icon:"🧾",title:"Tax Planner",desc:"Australian tax bracket estimator, deduction tracker and refund calculator."},
     learn:{icon:"🎓",title:"Learn",desc:"AI-curated education and courses tailored to your goals and career."},
@@ -10505,7 +10632,7 @@ function PaywallPage({onUpgrade,feature}){
   };
   const ctx=feature&&featureMap[feature]?featureMap[feature]:null;
   const proFeatures=[
-    "AI Advisor — full dashboard visibility + web search",
+    "Executive AI — full dashboard visibility + web search",
     "Morning Briefing with live market data",
     "Live stock, crypto & commodity prices",
     "AI goal suggestions & habit coaching",
@@ -10557,7 +10684,7 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
     {id:"annual",label:"Annual",price:"$139",period:"/year",note:"Save $29 — 2 months free",priceId:STRIPE_PRICES.annual,packageId:"$rc_annual",popular:true},
   ];
   const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
-  const PRO_FEATURES=["Everything in Free","AI Advisor — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
+  const PRO_FEATURES=["Everything in Free","Executive AI — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:520,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
@@ -11902,7 +12029,7 @@ function App(){
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="learn"/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}
           {page==="services"&&(isFeatureLocked("services",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="services"/>:<ServicesPage services={services} setServices={setServices}/>)}
-          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="advisor"/>:<AdvisorPage profile={liveProfile} properties={properties} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
+          {page==="advisor"&&(isFeatureLocked("advisor",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="advisor"/>:<AdvisorPage dailySnaps={dailySnaps} history={history} nwHistory={nwHistory} completed={completed} debts={debts} transactions={transactions} holdings={holdings} superLog={superLog} books={books} workouts={workouts} bodyLog={bodyLog} weeklyReflections={weeklyReflections} journal={journal} profile={liveProfile} properties={properties} tasks={tasks} goals={goals} supplements={supplements} habits={habits} habitLog={habitLog} messages={advisorMessages} setMessages={setAdvisorMessages}/>)}
           {page==="profile"&&<ProfilePage profile={activeProfile} setProfile={setProfile} properties={properties} onReset={handleReset} onRecalibrate={()=>setShowRecalibrate(true)} theme={theme} setTheme={setTheme} bgPhoto={bgPhoto} setBgPhotoId={setBgPhotoId} nwHistory={nwHistoryFull} tasks={tasks} goals={goals} workouts={workouts} transactions={transactions} journal={journal} authUser={authUser} authToken={authToken} handleSignOut={handleSignOut} setShowAuth={setShowAuth} subscription={subscription} onUpgrade={()=>setShowUpgrade(true)} handlePortal={handlePortal}/>}
           </div>
         </div>

@@ -42,13 +42,13 @@ function welcomeEmail(email) {
   <div class="rule"></div>
   <div class="card">
     <h1>Welcome to<br><em>The Executive</em></h1>
-    <p>Your account is set up and ready. You now have access to every tool in the dashboard — from wealth tracking and habit streaks to your private AI Advisor.</p>
+    <p>Your account is set up and ready. You now have access to every tool in the dashboard — from wealth tracking and habit streaks to Executive AI, your private AI.</p>
     <a href="https://the-executive.vip/app" class="btn">Open Your Dashboard</a>
     <p>A few things worth doing first:</p>
     <ul class="features">
       <li><span>Set your financial snapshot</span> — net worth target, assets and debts in Profile</li>
       <li><span>Add your habits</span> — the daily score tracks tasks, habits and supplements</li>
-      <li><span>Try the AI Advisor</span> — ask for a full dashboard review on day one</li>
+      <li><span>Try Executive AI</span> — ask for a full dashboard review on day one</li>
       <li><span>Set your market tickers</span> — tap Edit on the Markets card to add ASX, US stocks, crypto</li>
       <li><span>Install on your phone</span> — open in Safari → Share → Add to Home Screen</li>
     </ul>
@@ -83,7 +83,7 @@ function subscriptionActiveEmail(email, planLabel, periodEnd) {
     <a href="https://the-executive.vip/app" class="btn">Open Your Dashboard</a>
     <p>What you've just unlocked:</p>
     <ul class="features">
-      <li><span>AI Advisor</span> — full dashboard visibility + live web search</li>
+      <li><span>Executive AI</span> — full dashboard visibility + live web search</li>
       <li><span>Morning Briefing</span> — daily market data, priorities and mindset</li>
       <li><span>AI goal suggestions</span> — checkpoints and milestones generated for you</li>
       <li><span>AI supplement recommendations</span> — personalised to your health goals</li>
