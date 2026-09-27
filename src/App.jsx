@@ -1276,7 +1276,7 @@ function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,t
       </div>
 
       {/* ── ROW 2: Markets + Holdings/Pulse + Bills ── */}
-      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"minmax(0,1fr) minmax(0,1fr) minmax(0,2fr)",gap:12,order:isMobile?4:0}}>
+      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"repeat(4,minmax(0,1fr))",gap:12,order:isMobile?4:0}}>
         {/* Markets */}
         <Card>
           <SectionLabel action={
@@ -1404,11 +1404,11 @@ function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,t
         </Card>
 
         {/* Upcoming: bills, repayments, income, reminders */}
-        <UpcomingCard src={{bills,debts,dividends,holdings,goals,calendarItems}} setCalendarItems={setCalendarItems} setPage={setPage} limit={4} onCalendar={()=>setPage("calendar")}/>
+        <div style={{gridColumn:isMobile?"auto":"span 2",minWidth:0}}><UpcomingCard src={{bills,debts,dividends,holdings,goals,calendarItems}} setCalendarItems={setCalendarItems} setPage={setPage} limit={4} onCalendar={()=>setPage("calendar")} fill/></div>
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
-      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr 1fr",gap:12,alignItems:"start",order:isMobile?2:0}}>
+      <div style={{...rowStyle(4),display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"repeat(4,minmax(0,1fr))",gap:12,alignItems:"stretch",order:isMobile?2:0}}>
         {/* Tasks */}
         <Card style={{height:"100%",boxSizing:"border-box"}}>
           <SectionLabel action={<button onClick={()=>setPage("tasks")} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>All tasks</button>}>Priority Actions</SectionLabel>
@@ -7676,7 +7676,7 @@ function CalEventRow({e,setCalendarItems,onEdit,onOpen,showDate}){
   );
 }
 // Next 14 days of money in/out and reminders (Dashboard + Calendar)
-function UpcomingCard({src,setCalendarItems,setPage,limit,onCalendar}){
+function UpcomingCard({src,setCalendarItems,setPage,limit,onCalendar,fill}){
   const t=T();
   const today=todayStr(),end=daysAgoStr(-13);
   const all=buildCalendarEvents(src,daysAgoStr(60),end);
@@ -7687,7 +7687,7 @@ function UpcomingCard({src,setCalendarItems,setPage,limit,onCalendar}){
   const list=[...overdue.map(e=>({...e,note:"Overdue"+(e.note&&e.note!=="Overdue"?" - "+e.note:""),overdue:true})),...next.filter(e=>!e.done)];
   const n=limit||6;
   return(
-    <Card>
+    <Card style={fill?{height:"100%",boxSizing:"border-box"}:undefined}>
       <SectionLabel action={onCalendar?<button onClick={onCalendar} style={{background:"none",border:"none",color:t.GOLD,fontSize:9,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",letterSpacing:1,padding:0}}>CALENDAR</button>:<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Next 14 days</span>}>Upcoming</SectionLabel>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
         <div style={{background:t.RED+"12",border:"1px solid "+t.RED+"30",borderRadius:7,padding:"7px 10px"}}>
