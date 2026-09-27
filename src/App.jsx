@@ -1276,7 +1276,7 @@ function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,t
       </div>
 
       {/* ── ROW 2: Markets + Holdings/Pulse + Bills ── */}
-      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,order:isMobile?4:0}}>
+      <div style={{...rowStyle(3),display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"minmax(0,1fr) minmax(0,1fr) minmax(0,2fr)",gap:12,order:isMobile?4:0}}>
         {/* Markets */}
         <Card>
           <SectionLabel action={
