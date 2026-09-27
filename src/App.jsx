@@ -227,7 +227,7 @@ const NAV=[
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
-  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["advisor","🤖","Executive AI"],
+  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["calendar","📅","Calendar"],["advisor","🤖","Executive AI"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
 ];
@@ -939,7 +939,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
   ];
 
   const groups=[
-    ["Command",["dashboard","weekly","advisor","news","learn","notes","services"]],
+    ["Command",["dashboard","weekly","calendar","advisor","news","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","property","cashflow","bills","budget","debt","invest","projector","dividends","tax"]],
     ["Health",["health","body","workout","recipes"]],
@@ -1102,7 +1102,7 @@ function AnimatedScore({value,color,size=52}){
   return <div className="score-up" style={{fontSize:size,color,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1}}>{display}</div>;
 }
 
-function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
+function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
   const t=T();
@@ -1403,35 +1403,8 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
           </div>
         </Card>
 
-        {/* Bills */}
-        <Card style={{cursor:"pointer"}} onClick={()=>setPage("bills")}>
-          <SectionLabel action={<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Next 7 days</span>}>Bills Due Soon</SectionLabel>
-          {!bills||bills.length===0?(
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",padding:"8px 0"}}>No bills tracked yet</div>
-          ):upcoming.length===0?(
-            <div style={{fontSize:11,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",padding:"8px 0"}}>No bills due in the next 7 days</div>
-          ):(
-            <div>
-              {upcoming.slice(0,4).map((b,i)=>{
-                const diff=Math.round((new Date(b.nextDue+"T12:00:00")-new Date())/864e5);
-                const urgent=diff===0;
-                return (
-                  <div key={b.id}>
-                    {i>0&&<Divider/>}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0"}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div>
-                        <div style={{fontSize:9,color:urgent?t.RED:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{urgent?"Due today":"In "+diff+" day"+(diff!==1?"s":"")}</div>
-                      </div>
-                      <div style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700,flexShrink:0,marginLeft:8}}>{fmt(b.amount)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-              {upcoming.length>4&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6,textAlign:"right"}}>{"+"+(upcoming.length-4)+" more"}</div>}
-            </div>
-          )}
-        </Card>
+        {/* Upcoming: bills, repayments, income, reminders */}
+        <UpcomingCard src={{bills,debts,dividends,holdings,goals,calendarItems}} setCalendarItems={setCalendarItems} setPage={setPage} limit={4} onCalendar={()=>setPage("calendar")}/>
       </div>
 
       {/* ── ROW 3: Tasks + Goals + Habits ── */}
@@ -7576,6 +7549,345 @@ function DailySnapshots({last7,dailySnaps,history,habits,habitLog,completed,tran
   );
 }
 
+// ── Calendar ──────────────────────────────────────────────────────────────────
+// Everything with a date, in one place: bills, loan repayments, dividends,
+// expected income, goal deadlines, tax dates and the user's own reminders.
+const CAL_COLORS={bill:"#C97E7E",repay:"#C9A84C",dividend:"#7A9E7E",income:"#7EB8C9",deadline:"#B07EC9",reminder:"#D19A66"};
+const CAL_TYPES=[["bill","Bills"],["repay","Repayments"],["dividend","Dividends"],["income","Income"],["deadline","Deadlines"],["reminder","Reminders"]];
+const CAL_REPEAT=[["none","Does not repeat"],["weekly","Every week"],["fortnightly","Every fortnight"],["monthly","Every month"],["quarterly","Every quarter"],["annually","Every year"]];
+const CAL_REPEAT_SHORT={weekly:"Weekly",fortnightly:"Fortnightly",monthly:"Monthly",quarterly:"Quarterly",annually:"Yearly"};
+const CAL_PAGE={bill:"bills",repay:"debt",dividend:"dividends",deadline:"goals"};
+// Next date in a repeating series, keeping the same day of month (clamped to short months)
+function calStep(ds,freq,anchor){
+  if(freq==="weekly"||freq==="fortnightly")return advanceDate(ds,freq);
+  const add={monthly:1,quarterly:3,"semi-annual":6,annually:12,annual:12}[freq]||1;
+  const d=parseLocalDate(ds);const y=d.getFullYear(),m=d.getMonth()+add;
+  const dim=new Date(y,m+1,0).getDate();
+  return localDateStr(new Date(y,m,Math.min(anchor||d.getDate(),dim),12));
+}
+// Every date a series falls on between from and to (inclusive)
+function calOccurrences(start,freq,from,to){
+  const out=[];if(!start||typeof start!=="string")return out;
+  const anchor=parseInt(start.slice(8,10),10)||1;
+  let d=start,n=0;
+  while(d<=to&&n<1000){
+    if(d>=from)out.push(d);
+    if(!freq||freq==="none")break;
+    d=calStep(d,freq,anchor);n++;
+  }
+  return out;
+}
+const CAL_ORDER={deadline:0,reminder:1,bill:2,repay:3,income:4,dividend:5};
+function buildCalendarEvents(src,from,to){
+  const{bills,debts,dividends,holdings,goals,calendarItems}=src||{};
+  const ev=[];const today=todayStr();
+  (bills||[]).forEach(b=>{
+    const amt=parseFloat(b.amount)||0;
+    (b.paymentHistory||[]).forEach((p,i)=>{if(p&&p.date&&p.date>=from&&p.date<=to)ev.push({key:"bp"+b.id+p.date+i,date:p.date,type:"bill",title:b.name,amount:parseFloat(p.amount)||amt,dir:"out",paid:true,note:"Paid"});});
+    if(b.nextDue)calOccurrences(b.nextDue,b.frequency||"monthly",from,to).forEach(d=>{
+      const overdue=d<today&&!b.autopay;
+      ev.push({key:"b"+b.id+d,date:d,type:"bill",title:b.name,amount:amt,dir:"out",overdue,note:overdue?"Overdue":b.autopay?"Autopay":(CAL_REPEAT_SHORT[b.frequency]||"")});
+    });
+  });
+  (debts||[]).forEach(dt=>{
+    const name=dt.name||dt.type||"Loan";
+    (dt.payments||[]).forEach((p,i)=>{
+      if(!p||!p.date||p.date<from||p.date>to)return;
+      const split=p.interest!=null&&p.principal!=null;
+      ev.push({key:"dp"+dt.id+p.date+i,date:p.date,type:"repay",title:name,amount:parseFloat(p.amount)||0,dir:"out",paid:true,note:split?fmt(p.interest)+" interest, "+fmt(p.principal)+" principal":"Extra repayment"});
+    });
+    const pay=parseFloat(dt.minPayment)||0;
+    if(!dt.nextPaymentDate||pay<=0)return;
+    let bal=parseFloat(dt.balance)||0;
+    const rate=parseFloat(dt.rate)||0,off=parseFloat(dt.offsetBalance)||0,freq=dt.frequency||"monthly";
+    const anchor=dt.payDay||parseInt(String(dt.nextPaymentDate).slice(8,10),10)||1;
+    let d=dt.nextPaymentDate,n=0;
+    while(d<=to&&bal>0&&n<700){
+      const interest=Math.max(bal-off,0)*(rate/100)*((DEBT_PERIOD_DAYS[freq]||365/12)/365);
+      const principal=Math.max(Math.min(pay-interest,bal),0);
+      if(d>=from)ev.push({key:"d"+dt.id+d,date:d,type:"repay",title:name,amount:Math.min(pay,principal+interest),dir:"out",estimated:true,note:rate?"Est. "+fmt(interest)+" interest, "+fmt(principal)+" principal":"Scheduled repayment"});
+      bal-=principal;d=calStep(d,freq,anchor);n++;
+    }
+  });
+  (dividends||[]).forEach(dv=>{
+    if(!dv.nextPayDate)return;
+    const h=(holdings||[]).find(x=>x.ticker===dv.ticker);
+    const sh=parseFloat(h?h.shares:dv.shares)||0;
+    const amt=(parseFloat(dv.amountPerShare)||0)*sh;
+    calOccurrences(dv.nextPayDate,dv.frequency||"quarterly",from,to).forEach(d=>{
+      ev.push({key:"v"+dv.id+d,date:d,type:"dividend",title:dv.ticker+" dividend",amount:amt,dir:"in",estimated:true,note:"Estimated"+(dv.franking?", "+dv.franking+"% franked":"")});
+    });
+  });
+  (goals||[]).forEach(g=>{
+    if(g.endDate&&g.endDate>=from&&g.endDate<=to)ev.push({key:"g"+g.id,date:g.endDate,type:"deadline",title:"Goal: "+g.title,note:g.progress!=null?g.progress+"% complete":"",done:(g.progress||0)>=100});
+    (g.checkpoints||[]).forEach(cp=>{if(cp.dueDate&&cp.dueDate>=from&&cp.dueDate<=to)ev.push({key:"gc"+g.id+"_"+cp.id,date:cp.dueDate,type:"deadline",title:cp.text,note:"Milestone for "+g.title,done:!!cp.done});});
+  });
+  if(_locale==="en-AU"){
+    const y0=parseInt(from.slice(0,4),10),y1=parseInt(to.slice(0,4),10);
+    for(let y=y0;y<=y1;y++){
+      const eofy=y+"-06-30",lodge=y+"-10-31";
+      if(eofy>=from&&eofy<=to)ev.push({key:"tx1"+y,date:eofy,type:"deadline",title:"End of financial year",note:"Last day to make deductible purchases and super contributions for FY"+String(y).slice(2)});
+      if(lodge>=from&&lodge<=to)ev.push({key:"tx2"+y,date:lodge,type:"deadline",title:"Tax return due",note:"If lodging yourself. Registered tax agents can have later dates."});
+    }
+  }
+  (calendarItems||[]).forEach(it=>{
+    const isInc=it.type==="income";
+    const amt=parseFloat(it.amount)||0;
+    calOccurrences(it.date,it.repeat,from,to).forEach(d=>{
+      if(it.endDate&&d>it.endDate)return;
+      ev.push({key:"c"+it.id+d,date:d,type:isInc?"income":"reminder",title:it.title||(isInc?"Income":"Reminder"),amount:amt,dir:amt>0?(isInc?"in":"out"):null,note:[CAL_REPEAT_SHORT[it.repeat]||"",it.note||""].filter(Boolean).join(" - "),item:it,occ:d,done:(it.doneDates||[]).includes(d),estimated:isInc});
+    });
+  });
+  return ev.sort((a,b)=>a.date.localeCompare(b.date)||(CAL_ORDER[a.type]-CAL_ORDER[b.type]));
+}
+function calDayLabel(ds,long){
+  const today=todayStr();
+  if(ds===today)return "Today";
+  if(ds===daysAgoStr(-1))return "Tomorrow";
+  if(ds===daysAgoStr(1))return "Yesterday";
+  try{return parseLocalDate(ds).toLocaleDateString(_locale,long?{weekday:"long",day:"numeric",month:"long"}:{weekday:"short",day:"numeric",month:"short"});}catch{return ds;}
+}
+function toggleCalDone(setCalendarItems,it,occ){
+  if(!setCalendarItems||!it)return;
+  setCalendarItems(xs=>(xs||[]).map(x=>{
+    if(!idEq(x.id,it.id))return x;
+    const dd=x.doneDates||[];
+    return{...x,doneDates:dd.includes(occ)?dd.filter(z=>z!==occ):[...dd,occ].slice(-300)};
+  }));
+}
+function CalTick({done,onClick,color}){
+  const t=T();const c=color||t.GOLD;
+  return <button aria-label={done?"Mark not done":"Mark done"} onClick={e=>{e.stopPropagation();onClick();}} style={{width:18,height:18,borderRadius:5,border:"1.5px solid "+(done?c:t.MUTED),background:done?c:"transparent",color:"#080808",fontSize:11,lineHeight:"14px",padding:0,cursor:"pointer",flexShrink:0,fontWeight:700}}>{done?"✓":""}</button>;
+}
+// One row in a list of calendar events
+function CalEventRow({e,setCalendarItems,onEdit,onOpen,showDate}){
+  const t=T();const c=CAL_COLORS[e.type];
+  const dim=e.paid||e.done;
+  return(
+    <div onClick={onOpen} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid "+t.BORDER,cursor:onOpen?"pointer":"default"}}>
+      {e.item&&e.type==="reminder"?<CalTick done={e.done} color={c} onClick={()=>toggleCalDone(setCalendarItems,e.item,e.occ)}/>:<div style={{width:4,alignSelf:"stretch",minHeight:26,borderRadius:2,background:c,flexShrink:0,opacity:dim?.5:1}}/>}
+      <div style={{flex:1,minWidth:0,opacity:dim?.6:1}}>
+        <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:e.done?"line-through":"none"}}>{e.title}</div>
+        <div style={{fontSize:9,color:e.overdue?t.RED:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(showDate?calDayLabel(e.date)+(e.note?" - ":""):"")+(e.note||"")}</div>
+      </div>
+      {e.amount>0&&<div style={{fontSize:12,fontWeight:700,fontFamily:"'Montserrat',sans-serif",color:e.dir==="in"?t.GREEN:e.dir==="out"?t.RED:t.MUTED,flexShrink:0,opacity:dim?.6:1}}>{(e.dir==="in"?"+":e.dir==="out"?"-":"")+fmt(e.amount)}</div>}
+      {e.item&&onEdit&&<button onClick={ev=>{ev.stopPropagation();onEdit(e.item);}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,color:t.MUTED,fontSize:9,padding:"3px 7px",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",flexShrink:0}}>Edit</button>}
+    </div>
+  );
+}
+// Next 14 days of money in/out and reminders (Dashboard + Calendar)
+function UpcomingCard({src,setCalendarItems,setPage,limit,onCalendar}){
+  const t=T();
+  const today=todayStr(),end=daysAgoStr(-13);
+  const all=buildCalendarEvents(src,daysAgoStr(60),end);
+  const overdue=all.filter(e=>e.date<today&&((e.type==="reminder"&&e.item&&!e.done)||(e.type==="bill"&&e.overdue)));
+  const next=all.filter(e=>e.date>=today&&!e.paid);
+  const out=[...overdue,...next].filter(e=>e.dir==="out").reduce((s,e)=>s+(e.amount||0),0);
+  const inc=next.filter(e=>e.dir==="in").reduce((s,e)=>s+(e.amount||0),0);
+  const list=[...overdue.map(e=>({...e,note:"Overdue"+(e.note&&e.note!=="Overdue"?" - "+e.note:""),overdue:true})),...next.filter(e=>!e.done)];
+  const n=limit||6;
+  return(
+    <Card>
+      <SectionLabel action={onCalendar?<button onClick={onCalendar} style={{background:"none",border:"none",color:t.GOLD,fontSize:9,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",letterSpacing:1,padding:0}}>CALENDAR</button>:<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Next 14 days</span>}>Upcoming</SectionLabel>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+        <div style={{background:t.RED+"12",border:"1px solid "+t.RED+"30",borderRadius:7,padding:"7px 10px"}}>
+          <div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>Going out</div>
+          <div style={{fontSize:15,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(out)}</div>
+        </div>
+        <div style={{background:t.GREEN+"12",border:"1px solid "+t.GREEN+"30",borderRadius:7,padding:"7px 10px"}}>
+          <div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>Coming in</div>
+          <div style={{fontSize:15,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(inc)}</div>
+        </div>
+      </div>
+      {list.length===0?(
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",padding:"6px 0"}}>Nothing due in the next 14 days</div>
+      ):(
+        <div>
+          {list.slice(0,n).map(e=><CalEventRow key={e.key} e={e} showDate setCalendarItems={setCalendarItems} onOpen={CAL_PAGE[e.type]&&setPage?()=>setPage(CAL_PAGE[e.type]):(onCalendar||null)}/>)}
+          {list.length>n&&<div onClick={onCalendar} style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6,textAlign:"right",cursor:onCalendar?"pointer":"default"}}>{"+"+(list.length-n)+" more"}</div>}
+        </div>
+      )}
+    </Card>
+  );
+}
+function CalendarPage({bills,debts,dividends,holdings,goals,calendarItems,setCalendarItems,history,dailySnaps,setPage}){
+  const t=T();const isMobile=useIsMobile();
+  const today=todayStr();
+  const[cursor,setCursor]=useState(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};});
+  const[sel,setSel]=useState(today);
+  const[filters,setFilters]=useState({bill:true,repay:true,dividend:true,income:true,deadline:true,reminder:true});
+  const[form,setForm]=useState(null);
+  const src={bills,debts,dividends,holdings,goals,calendarItems};
+  const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const first=new Date(cursor.y,cursor.m,1,12);
+  const gridStart=new Date(cursor.y,cursor.m,1-((first.getDay()+6)%7),12);
+  const last=new Date(cursor.y,cursor.m+1,0,12);
+  const gridEnd=new Date(cursor.y,cursor.m+1,6-((last.getDay()+6)%7),12);
+  const from=localDateStr(gridStart),to=localDateStr(gridEnd);
+  const events=buildCalendarEvents(src,from,to).filter(e=>filters[e.type]);
+  const byDate={};events.forEach(e=>{(byDate[e.date]=byDate[e.date]||[]).push(e);});
+  const days=[];for(let d=new Date(gridStart);d<=gridEnd;d.setDate(d.getDate()+1))days.push(localDateStr(d));
+  const weeks=[];for(let i=0;i<days.length;i+=7)weeks.push(days.slice(i,i+7));
+  const mPrefix=cursor.y+"-"+String(cursor.m+1).padStart(2,"0");
+  const monthEv=events.filter(e=>e.date.startsWith(mPrefix));
+  const mOut=monthEv.filter(e=>e.dir==="out").reduce((s,e)=>s+(e.amount||0),0);
+  const mIn=monthEv.filter(e=>e.dir==="in").reduce((s,e)=>s+(e.amount||0),0);
+  const selEvents=buildCalendarEvents(src,sel,sel).filter(e=>filters[e.type]);
+  const selSnap=(dailySnaps||{})[sel];const selHist=(history||{})[sel];
+  const move=k=>{setCursor(c=>{const d=new Date(c.y,c.m+k,1);return{y:d.getFullYear(),m:d.getMonth()};});};
+  const goToday=()=>{const d=new Date();setCursor({y:d.getFullYear(),m:d.getMonth()});setSel(today);};
+  const scoreCol=s=>s>=80?t.GREEN:s>=50?t.GOLD:t.RED;
+  const newItem=type=>setForm({type,title:"",date:sel,repeat:"none",amount:"",note:"",endDate:""});
+  const saveForm=()=>{
+    if(!form||!form.title.trim()||!form.date)return;
+    const clean={...form,title:form.title.trim(),amount:form.amount===""?"":String(parseFloat(form.amount)||""),endDate:form.repeat==="none"?"":form.endDate};
+    if(form.id)setCalendarItems(xs=>(xs||[]).map(x=>idEq(x.id,form.id)?{...x,...clean}:x));
+    else setCalendarItems(xs=>[...(xs||[]),{...clean,id:Date.now(),doneDates:[]}]);
+    setSel(form.date);setForm(null);
+  };
+  const delItem=()=>{if(!form||!form.id)return;setCalendarItems(xs=>(xs||[]).filter(x=>!idEq(x.id,form.id)));setForm(null);};
+  // Stop a repeating item from the selected day onward (earlier ticks are kept)
+  const stopFrom=()=>{if(!form||!form.id||sel<=form.date)return;const endD=localDateStr(new Date(parseLocalDate(sel).getTime()-864e5));setCalendarItems(xs=>(xs||[]).map(x=>idEq(x.id,form.id)?{...x,endDate:endD}:x));setForm(null);};
+  const lbl={fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4};
+  const cellBg="rgba(255,255,255,0.025)";
+
+  const formCard=form&&(
+    <Card style={{marginBottom:12,border:"1px solid "+CAL_COLORS[form.type==="income"?"income":"reminder"]+"55"}}>
+      <SectionLabel>{(form.id?"Edit ":"New ")+(form.type==="income"?"expected income":"reminder")}</SectionLabel>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {[["reminder","Reminder"],["income","Expected income"]].map(([k,l])=>(
+          <button key={k} onClick={()=>setForm(f=>({...f,type:k}))} style={{flex:1,padding:"7px 8px",borderRadius:6,border:"1px solid "+(form.type===k?CAL_COLORS[k]:t.BORDER),background:form.type===k?CAL_COLORS[k]+"22":"transparent",color:form.type===k?CAL_COLORS[k]:t.MUTED,fontSize:11,fontFamily:"'Montserrat',sans-serif",cursor:"pointer"}}>{l}</button>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:10}}>
+        <div style={{gridColumn:isMobile?"auto":"1 / span 2"}}><div style={lbl}>Title</div><Inp value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder={form.type==="income"?"e.g. Salary, commission, rent":"e.g. Pay BAS, check super, renew insurance"}/></div>
+        <div><div style={lbl}>{form.repeat==="none"?"Date":"First date"}</div><Inp type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></div>
+        <div><div style={lbl}>Repeats</div><Sel value={form.repeat} onChange={e=>setForm(f=>({...f,repeat:e.target.value}))}>{CAL_REPEAT.map(([k,l])=><option key={k} value={k}>{l}</option>)}</Sel></div>
+        <div><div style={lbl}>{form.type==="income"?"Amount":"Amount (optional)"}</div><Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="0"/></div>
+        {form.repeat!=="none"?<div><div style={lbl}>Ends (optional)</div><Inp type="date" value={form.endDate||""} onChange={e=>setForm(f=>({...f,endDate:e.target.value}))}/></div>:<div/>}
+        <div style={{gridColumn:isMobile?"auto":"1 / span 2"}}><div style={lbl}>Note (optional)</div><Inp value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder=""/></div>
+      </div>
+      {form.type==="reminder"&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>An amount counts toward money going out. Tick a reminder off each time it is done.</div>}
+      <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+        <Btn onClick={saveForm} disabled={!form.title.trim()||!form.date}>{form.id?"Save changes":"Add to calendar"}</Btn>
+        <Btn variant="ghost" onClick={()=>setForm(null)}>Cancel</Btn>
+        {form.id&&form.repeat!=="none"&&sel>form.date&&<Btn variant="ghost" onClick={stopFrom} style={{color:t.GOLD}}>{"Stop from "+calDayLabel(sel)}</Btn>}
+        {form.id&&<Btn variant="ghost" onClick={delItem} style={{color:t.RED,marginLeft:"auto"}}>Delete</Btn>}
+      </div>
+    </Card>
+  );
+
+  return(
+    <div data-page="true" style={{maxWidth:1100,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:14,gap:10,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Command</div>
+          <div style={{fontSize:26,color:t.TEXT}}>Calendar</div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn variant="ghost" onClick={()=>newItem("income")} style={{padding:"8px 12px",fontSize:11}}>+ Income</Btn>
+          <Btn onClick={()=>newItem("reminder")} style={{padding:"8px 12px",fontSize:11}}>+ Reminder</Btn>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {CAL_TYPES.map(([k,l])=>{const on=filters[k];const c=CAL_COLORS[k];return(
+          <button key={k} onClick={()=>setFilters(f=>({...f,[k]:!f[k]}))} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:99,border:"1px solid "+(on?c+"88":t.BORDER),background:on?c+"18":"transparent",color:on?t.TEXT:t.MUTED,fontSize:10,fontFamily:"'Montserrat',sans-serif",cursor:"pointer",...(hasPhoto()&&!on?surfaceBg():{})}}>
+            <span style={{width:7,height:7,borderRadius:99,background:on?c:t.MUTED,opacity:on?1:.5}}/>{l}
+          </button>);})}
+      </div>
+
+      {formCard}
+
+      <Card style={{padding:isMobile?10:14,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <button aria-label="Previous month" onClick={()=>move(-1)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.TEXT,width:30,height:28,cursor:"pointer",fontSize:14}}>{"‹"}</button>
+            <div style={{fontSize:isMobile?16:18,color:t.TEXT,minWidth:isMobile?130:170,textAlign:"center"}}>{MONTHS[cursor.m]+" "+cursor.y}</div>
+            <button aria-label="Next month" onClick={()=>move(1)} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.TEXT,width:30,height:28,cursor:"pointer",fontSize:14}}>{"›"}</button>
+            <button onClick={goToday} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.MUTED,padding:"5px 9px",cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif",marginLeft:4}}>Today</button>
+          </div>
+          <div style={{display:"flex",gap:12,fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
+            <span style={{color:t.MUTED}}>Out <span style={{color:t.RED,fontWeight:700}}>{fmt(mOut)}</span></span>
+            <span style={{color:t.MUTED}}>In <span style={{color:t.GREEN,fontWeight:700}}>{fmt(mIn)}</span></span>
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(7,minmax(0,1fr))":"repeat(7,minmax(0,1fr)) 78px",gap:isMobile?3:5}}>
+          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].concat(isMobile?[]:["Week"]).map(h=>(
+            <div key={h} style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,textAlign:"center",paddingBottom:4}}>{isMobile?h.slice(0,1):h}</div>
+          ))}
+          {weeks.map((wk,wi)=>{
+            const wEv=wk.flatMap(d=>byDate[d]||[]);
+            const wOut=wEv.filter(e=>e.dir==="out").reduce((s,e)=>s+(e.amount||0),0);
+            const wIn=wEv.filter(e=>e.dir==="in").reduce((s,e)=>s+(e.amount||0),0);
+            return [
+              ...wk.map(ds=>{
+                const evs=byDate[ds]||[];
+                const inMonth=ds.startsWith(mPrefix);
+                const isToday=ds===today,isSel=ds===sel;
+                const sc=ds<today&&history&&history[ds]&&history[ds].score!=null?history[ds].score:null;
+                return(
+                  <div key={ds} data-cal-day={ds} onClick={()=>setSel(ds)} style={{minHeight:isMobile?50:96,padding:isMobile?"4px 3px":"5px 6px",borderRadius:6,background:isSel?t.GOLD+"1A":cellBg,border:"1px solid "+(isSel?t.GOLD+"99":isToday?t.GOLD+"55":t.BORDER),opacity:inMonth?1:.38,cursor:"pointer",overflow:"hidden",minWidth:0,boxSizing:"border-box"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                      <span style={{fontSize:isMobile?11:12,color:isToday?t.GOLD:t.TEXT,fontWeight:isToday?700:500,fontFamily:"'Montserrat',sans-serif"}}>{parseInt(ds.slice(8),10)}</span>
+                      {sc!=null&&<span title="Daily score" style={{fontSize:isMobile?7:9,color:scoreCol(sc),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{sc}</span>}
+                    </div>
+                    {isMobile?(
+                      <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
+                        {evs.slice(0,6).map(e=><span key={e.key} style={{width:5,height:5,borderRadius:99,background:CAL_COLORS[e.type],opacity:e.paid||e.done?.45:1}}/>)}
+                      </div>
+                    ):(
+                      <div>
+                        {evs.slice(0,3).map(e=>{const c=CAL_COLORS[e.type];return(
+                          <div key={e.key} title={e.title+(e.amount?" "+fmt(e.amount):"")} style={{fontSize:9,lineHeight:"14px",background:c+"22",borderLeft:"2px solid "+c,color:t.TEXT,borderRadius:3,padding:"0 4px",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",fontFamily:"'Montserrat',sans-serif",opacity:e.paid||e.done?.5:1,textDecoration:e.done?"line-through":"none"}}>{e.title+(e.amount?" "+fmt(e.amount):"")}</div>
+                        );})}
+                        {evs.length>3&&<div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{"+"+(evs.length-3)+" more"}</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              }),
+              ...(isMobile?[]:[
+                <div key={"w"+wi} style={{display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end",gap:3,padding:"0 4px",fontFamily:"'Montserrat',sans-serif",borderLeft:"1px solid "+t.BORDER}}>
+                  {wOut>0&&<div style={{fontSize:10,color:t.RED,fontWeight:700}}>{"-"+fmt(wOut)}</div>}
+                  {wIn>0&&<div style={{fontSize:10,color:t.GREEN,fontWeight:700}}>{"+"+fmt(wIn)}</div>}
+                  {wOut===0&&wIn===0&&<div style={{fontSize:9,color:t.MUTED2}}>-</div>}
+                </div>
+              ])
+            ];
+          })}
+        </div>
+      </Card>
+
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.3fr 1fr",gap:12,alignItems:"start"}}>
+        <Card>
+          <SectionLabel action={<button onClick={()=>newItem("reminder")} style={{background:"none",border:"none",color:t.GOLD,fontSize:9,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",letterSpacing:1,padding:0}}>+ ADD</button>}>{calDayLabel(sel,true)}</SectionLabel>
+          {sel<today&&(selHist||selSnap)&&(
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:10}}>
+              {[
+                ["Score",selHist&&selHist.score!=null?String(selHist.score):"-",selHist&&selHist.score!=null?scoreCol(selHist.score):t.MUTED],
+                ["Net worth",selSnap&&selSnap.nw!=null?fmt(selSnap.nw):"-",t.GOLD],
+                ["Tasks",selSnap&&selSnap.td?selSnap.td.length+"/"+(selSnap.td.length+(selSnap.to||[]).length):"-",t.TEXT],
+                ["Supps",selSnap&&selSnap.st?selSnap.st.length+"/"+(selSnap.st.length+(selSnap.sm||[]).length):"-",t.TEXT],
+              ].map(([l,v,c])=>(
+                <div key={l} style={{background:cellBg,border:"1px solid "+t.BORDER,borderRadius:6,padding:"6px 8px"}}>
+                  <div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>{l}</div>
+                  <div style={{fontSize:13,color:c,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {selEvents.length===0?(
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",padding:"6px 0"}}>Nothing scheduled.</div>
+          ):selEvents.map(e=><CalEventRow key={e.key} e={e} setCalendarItems={setCalendarItems} onEdit={it=>setForm({type:it.type||"reminder",title:it.title||"",date:it.date,repeat:it.repeat||"none",amount:it.amount||"",note:it.note||"",endDate:it.endDate||"",id:it.id})} onOpen={CAL_PAGE[e.type]?()=>setPage&&setPage(CAL_PAGE[e.type]):null}/>)}
+          {selEvents.some(e=>e.estimated)&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>Estimated amounts are projections from your saved details and may differ from what is actually paid.</div>}
+        </Card>
+        <UpcomingCard src={src} setCalendarItems={setCalendarItems} setPage={setPage} limit={8}/>
+      </div>
+    </div>
+  );
+}
+
 function WeeklyPage({dailySnaps,completed,transactions,profile,tasks,goals,habits,habitLog,history,journal,workouts,supplements,bodyLog,weeklyReflections,setWeeklyReflections,subscription,setShowUpgrade,authToken}){
   const t=T();
   const isMobile=useIsMobile();
@@ -9642,10 +9954,11 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 const chr34='"';
 
 // ── Learn Page ────────────────────────────────────────────────────────────────
-function DividendPage({holdings,cryptoHoldings,portfolio}){
+function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:setDivsProp}){
   const t=T();
   const isMobile=useIsMobile();
-  const[divs,setDivs]=useState([]);
+  const[divsLocal,setDivsLocal]=useState([]);
+  const divs=divsProp||divsLocal;const setDivs=setDivsProp||setDivsLocal;
   const[showAdd,setShowAdd]=useState(false);
   const[form,setForm]=useState({ticker:"",name:"",amountPerShare:"",frequency:"quarterly",nextPayDate:"",franking:"100"});
 
@@ -10984,7 +11297,7 @@ function App(){
   // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
-    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     (async()=>{
       try{
         setSyncing(true);
@@ -11134,6 +11447,8 @@ function App(){
   const[readingGoal,setReadingGoal]=useState(24);
   const[bills,setBills]=useState([]);
   const[debts,setDebts]=useState([]);
+  const[calendarItems,setCalendarItems]=useState([]);
+  const[dividends,setDividends]=useState([]);
   // Record scheduled debt repayments (interest + principal) once they fall due.
   // Runs on load, at the start of each day, and whenever a debt's schedule changes.
   const debtSchedKey=(debts||[]).map(d=>d.id+":"+(d.nextPaymentDate||"")+":"+(d.minPayment||"")+":"+(d.frequency||"")).join("|");
@@ -11230,7 +11545,7 @@ function App(){
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             if(d.history)setHistory(d.history);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.habits!==undefined)setHabits(d.habits);
             if(d.habitLog)setHabitLog(d.habitLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
@@ -11281,7 +11596,7 @@ function App(){
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
-        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);if(saved.dailySnaps)setDailySnaps(saved.dailySnaps);
+        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);if(saved.calendarItems!==undefined)setCalendarItems(saved.calendarItems||[]);if(saved.dividends!==undefined)setDividends(saved.dividends||[]);if(saved.dailySnaps)setDailySnaps(saved.dailySnaps);
         if(saved.habits!==undefined)setHabits(saved.habits);
         if(saved.habitLog)setHabitLog(saved.habitLog);
         if(saved.holdings!==undefined)setHoldings(saved.holdings);
@@ -11334,7 +11649,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -11379,13 +11694,13 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -11435,7 +11750,7 @@ function App(){
             if(d.budgets)setBudgets(d.budgets);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             // Health & body
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.workouts!==undefined)setWorkouts(d.workouts);
             // Journal & reading
             if(d.journal!==undefined)setJournal(d.journal);
@@ -11474,7 +11789,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
@@ -11561,7 +11876,7 @@ function App(){
     setCompleted([]);
     setSupplements(data.supplements||[]);
     setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks([]);setBills([]);setHistory({});setDailySnaps({});setBodyLog([]);
+    setBooks([]);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);
     // Build habits from selected habit names
     const habitColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A"];
     const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
@@ -11769,7 +12084,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
             if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -11810,7 +12125,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
               if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -11866,7 +12181,7 @@ function App(){
     setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setReadingGoal(24);setBills([]);setDebts([]);setTaxDeductions([]);
-    setHistory({});setDailySnaps({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
+    setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setBudgets({});setWeeklyReflections({});setNotes([]);setServices([]);
     setLearnData({library:[],sessions:[],weeklyGoal:5});
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setProperties([]);
@@ -11948,7 +12263,7 @@ function App(){
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks(D_BOOKS);setBills([]);setHistory({});setDailySnaps({});setBodyLog([]);
+    setBooks(D_BOOKS);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);setBudgets({});setAdvisorMessages([]);
     setShowSetup(true);
@@ -12016,7 +12331,7 @@ function App(){
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1,transform:"translateZ(0)"}}>
           <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
-          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile}/>}
+          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile} debts={debts} dividends={dividends} calendarItems={calendarItems} setCalendarItems={setCalendarItems}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
@@ -12031,7 +12346,7 @@ function App(){
           {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} properties={properties} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
-          {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio}/>}
+          {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio} divs={dividends} setDivs={setDividends}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
           {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/> }
@@ -12040,6 +12355,7 @@ function App(){
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
           {["body","workout","reading"].includes(page)&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint={page==="workout"?"Unlock AI workout plan generation & performance analysis →":page==="reading"?"Unlock AI book summaries & reading insights →":"Unlock AI body composition analysis & recommendations →"}/>}
+          {page==="calendar"&&<CalendarPage bills={bills} debts={debts} dividends={dividends} holdings={holdings} goals={goals} calendarItems={calendarItems} setCalendarItems={setCalendarItems} history={history} dailySnaps={dailySnaps} setPage={setPage}/>}
           {page==="weekly"&&<WeeklyPage dailySnaps={dailySnaps} completed={completed} transactions={transactions} profile={liveProfile} tasks={tasks} goals={goals} habits={habits} habitLog={habitLog} history={history} journal={journal} workouts={workouts} supplements={supplements} bodyLog={bodyLog} weeklyReflections={weeklyReflections} setWeeklyReflections={setWeeklyReflections} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="learn"&&(isFeatureLocked("learn",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="learn"/>:<LearnPage profile={liveProfile} goals={goals} habits={habits} learnData={learnData} setLearnData={setLearnData}/>)}
           {page==="notes"&&<NotesPage notes={notes} setNotes={setNotes}/>}

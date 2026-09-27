@@ -79,11 +79,13 @@ def seed():
         "nwHistory": {"2026-06": 540000, "2026-07": 548000},
         "dailySnaps": snaps,
         "advisorMessages": [],
+        "calendarItems": [{"id": 21, "type": "reminder", "title": "Check super", "date": ds(10), "repeat": "monthly", "amount": "", "note": "", "doneDates": []}],
+        "dividends": [{"id": 22, "ticker": "CBA.AX", "name": "CBA", "amountPerShare": "2.25", "frequency": "quarterly", "nextPayDate": ds(-20), "franking": "100", "shares": 100}],
     }
 
 # Collections that must never shrink in a save (catches accidental data loss)
 MUST_KEEP = ["goals", "completed", "supplements", "habits", "workouts", "bodyLog", "transactions", "journal", "books", "bills", "debts",
-             "properties", "holdings", "cryptoHoldings", "commodityHoldings", "altAssets", "notes"]
+             "properties", "holdings", "cryptoHoldings", "commodityHoldings", "altAssets", "notes", "calendarItems", "dividends"]
 
 # ---------------------------------------------------------------- helpers
 def nav_pages():
