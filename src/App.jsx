@@ -666,18 +666,33 @@ function PB({value,color,height=4}){
     </div>
   );
 }
+// Frosted glass used by every card-like surface when a background photo is on
+const GLASS_BG="rgba(8,7,6,0.72)";
+const GLASS_BLUR="blur(14px) saturate(120%)";
+// Background for a card-like surface: frosted glass over a photo, the theme card colour otherwise
+function surfaceBg(){
+  if(!hasPhoto())return{background:T().CARD};
+  return{background:GLASS_BG,backdropFilter:GLASS_BLUR,WebkitBackdropFilter:GLASS_BLUR};
+}
 function Card({children,style,onClick}){
   const t=T();
   const glass=hasPhoto();
   const base=glass?{
-    background:"rgba(6,5,4,0.85)",
+    background:GLASS_BG,
     border:"1px solid rgba(255,255,255,0.1)",
     boxShadow:"0 2px 12px rgba(0,0,0,0.4)",
   }:{
     background:t.CARD,
     border:"1px solid "+t.BORDER,
   };
-  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,...style,cursor:onClick?"pointer":"default"}}>{children}</div>;
+  const st=style||{};
+  let bg=null;
+  if(glass){
+    // Keep a light colour tint (8-digit hex, e.g. green+"0A") layered over the glass; replace solid backgrounds with glass
+    const tint=typeof st.background==="string"&&/^#[0-9a-fA-F]{8}$/.test(st.background)?st.background:null;
+    bg={background:tint?"linear-gradient("+tint+","+tint+"),"+GLASS_BG:GLASS_BG,backdropFilter:GLASS_BLUR,WebkitBackdropFilter:GLASS_BLUR};
+  }
+  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,...st,...(bg||{}),cursor:onClick?"pointer":"default"}}>{children}</div>;
 }
 function Divider(){
   const t=T();
@@ -1147,7 +1162,7 @@ function DashboardPage({profile,tasks,setTasks,goals,supplements,setSupplements,
   return (
     <div style={{display:"flex",flexDirection:"column",gap:14,position:"relative"}}>
       {/* ── HEADER ── */}
-      <div style={{...rowStyle(0),background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,overflow:"hidden",marginBottom:12}}>
+      <div style={{...rowStyle(0),...surfaceBg(),border:"1px solid "+(hasPhoto()?"rgba(255,255,255,0.1)":t.BORDER),borderRadius:12,overflow:"hidden",marginBottom:12}}>
         {/* Top row — greeting + sync */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"14px 16px 10px"}}>
           <div>
@@ -2442,7 +2457,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
         <div style={{marginBottom:16}}>
           <div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:10}}>Completed</div>
           {(completed||[]).map((g,i)=>(
-            <div key={g.id||i} style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:9,padding:"10px 14px",marginBottom:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div key={g.id||i} style={{...surfaceBg(),border:"1px solid "+t.BORDER,borderRadius:9,padding:"10px 14px",marginBottom:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontSize:12,color:t.MUTED,textDecoration:"line-through",fontFamily:"'Montserrat',sans-serif"}}>{g.title}</div>
                 <div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{"Completed "+fmtDateNum(g.completedAt)}</div>
@@ -7917,7 +7932,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
             {m.role==="assistant"&&(
               <div style={{width:28,height:28,borderRadius:"50%",background:t.GOLD+"33",border:"1px solid "+t.GOLD+"55",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.GOLD,flexShrink:0,marginTop:2}}>AI</div>
             )}
-            <div style={{maxWidth:m.role==="user"?"62%":"80%",background:m.role==="user"?t.GOLD+"14":t.CARD,border:"1px solid "+(m.role==="user"?t.GOLD+"33":t.BORDER),borderRadius:m.role==="user"?"12px 12px 3px 12px":"12px 12px 12px 3px",padding:"10px 14px"}}>
+            <div style={{maxWidth:m.role==="user"?"62%":"80%",...(m.role==="user"?{}:surfaceBg()),background:m.role==="user"?(hasPhoto()?"linear-gradient("+t.GOLD+"22,"+t.GOLD+"22),"+GLASS_BG:t.GOLD+"14"):surfaceBg().background,border:"1px solid "+(m.role==="user"?t.GOLD+"33":t.BORDER),borderRadius:m.role==="user"?"12px 12px 3px 12px":"12px 12px 12px 3px",padding:"10px 14px"}}>
               <div style={{fontSize:13,color:t.TEXT,lineHeight:1.85,fontFamily:"'Montserrat',sans-serif",whiteSpace:"pre-wrap"}}>{m.content}</div>
             </div>
           </div>
@@ -7925,7 +7940,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
         {loading&&(
           <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
             <div style={{width:28,height:28,borderRadius:"50%",background:t.GOLD+"33",border:"1px solid "+t.GOLD+"55",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.GOLD,flexShrink:0}}>AI</div>
-            <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:"12px 12px 12px 3px",padding:"10px 14px",display:"flex",gap:4,alignItems:"center"}}>
+            <div style={{...surfaceBg(),border:"1px solid "+t.BORDER,borderRadius:"12px 12px 12px 3px",padding:"10px 14px",display:"flex",gap:4,alignItems:"center"}}>
               {[0,1,2].map(j=><div key={j} style={{width:5,height:5,borderRadius:"50%",background:t.GOLD,opacity:.6,animation:"sk 1.2s ease-in-out "+j*.2+"s infinite"}}/>)}
             </div>
           </div>
@@ -7970,7 +7985,7 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
   };
 
   if(step===0) return(
-    <div style={{padding:"14px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12}}>
+    <div style={{padding:"14px",...surfaceBg(),border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12}}>
       <div style={{fontSize:11,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:4}}>Danger Zone</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <button onClick={onReset} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"6px 12px",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
@@ -7985,7 +8000,7 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
   );
 
   if(step===1) return(
-    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
+    <div style={{padding:"16px",...surfaceBg(),border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
       <div style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:8}}>Delete Account</div>
       <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",lineHeight:1.75,marginBottom:14}}>
         This will permanently delete:
@@ -8010,7 +8025,7 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
   );
 
   if(step===2) return(
-    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"66",borderRadius:8,marginBottom:12}}>
+    <div style={{padding:"16px",...surfaceBg(),border:"1px solid "+t.RED+"66",borderRadius:8,marginBottom:12}}>
       <div style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:8}}>Final Confirmation</div>
       <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:12}}>
         Type <strong style={{color:t.TEXT,fontFamily:"monospace"}}>{CONFIRM_WORD}</strong> to confirm permanent deletion:
@@ -8031,20 +8046,20 @@ function DangerZone({authUser,authToken,onReset,onSignOut}){
   );
 
   if(step===3) return(
-    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12,textAlign:"center"}}>
+    <div style={{padding:"16px",...surfaceBg(),border:"1px solid "+t.RED+"33",borderRadius:8,marginBottom:12,textAlign:"center"}}>
       <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Deleting your account...</div>
     </div>
   );
 
   if(step===4) return(
-    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.GREEN+"44",borderRadius:8,marginBottom:12,textAlign:"center"}}>
+    <div style={{padding:"16px",...surfaceBg(),border:"1px solid "+t.GREEN+"44",borderRadius:8,marginBottom:12,textAlign:"center"}}>
       <div style={{fontSize:13,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Account deleted successfully</div>
       <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>Redirecting...</div>
     </div>
   );
 
   return(
-    <div style={{padding:"16px",background:t.CARD,border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
+    <div style={{padding:"16px",...surfaceBg(),border:"1px solid "+t.RED+"55",borderRadius:8,marginBottom:12}}>
       <div style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:6}}>Deletion failed</div>
       <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>{error}</div>
       <div style={{display:"flex",gap:8}}>
@@ -9317,7 +9332,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
         ):(
           <>
             {/* Progress bar */}
-            <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+            <div style={{...surfaceBg(),border:"1px solid "+t.BORDER,borderRadius:12,padding:"14px 16px",marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{checkedCount+" of "+totalItems+" items"}</div>
                 <div style={{fontSize:13,color:pctDone===100?t.GREEN:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{pctDone+"%"}</div>
@@ -9351,7 +9366,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
                   </div>
 
                   {/* Items */}
-                  <div style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,overflow:"hidden"}}>
+                  <div style={{...surfaceBg(),border:"1px solid "+t.BORDER,borderRadius:10,overflow:"hidden"}}>
                     {items.map((item,i)=>(
                       <div key={item.id} onClick={()=>setShoppingList(sl=>sl.map(x=>x.id===item.id?{...x,checked:!x.checked}:x))}
                         style={{display:"flex",alignItems:"center",gap:12,padding:"13px 14px",borderBottom:i<items.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:item.checked?t.CARD2:"transparent",transition:"background .15s"}}>
