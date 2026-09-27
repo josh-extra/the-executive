@@ -8651,279 +8651,330 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
   );
 }
 
-function BudgetPage({transactions,budgets,setBudgets}){
+// Which budget category a bill or loan repayment counts toward (user override first, then name, then its own category)
+const BILL_BUDGET_CAT={Housing:"Rent & Mortgage",Insurance:"Insurance",Utilities:"Utilities",Subscriptions:"Subscriptions",Finance:"Other",Health:"Health & Medical",Transport:"Transport",Other:"Other"};
+function billBudgetCat(b){
+  if(b&&b.budgetCat)return b.budgetCat;
+  const n=String((b&&b.name)||"").toLowerCase();
+  if(/rent|mortgage|strata|body corp|council|rates/.test(n))return "Rent & Mortgage";
+  if(/phone|mobile|internet|nbn|telstra|optus|vodafone/.test(n))return "Phone & Internet";
+  if(/gym|fitness|pilates|yoga/.test(n))return "Gym & Fitness";
+  if(/insurance/.test(n))return "Insurance";
+  if(/electric|power|energy|gas|water/.test(n))return "Utilities";
+  if(/netflix|spotify|stan|disney|icloud|apple|youtube|prime|claude|chatgpt|subscription/.test(n))return "Subscriptions";
+  if(/rego|registration|toll|parking/.test(n))return "Transport";
+  return BILL_BUDGET_CAT[b&&b.category]||"Other";
+}
+function debtBudgetCat(d){
+  if(d&&d.budgetCat)return d.budgetCat;
+  const tp=String((d&&d.type)||"");
+  if(tp==="Mortgage"||tp==="Investment Loan")return "Rent & Mortgage";
+  if(tp==="Car Finance")return "Car Repayment";
+  return "Other";
+}
+// Compact category chip with the native picker laid invisibly over it
+// (keeps the 16px select that stops iOS zooming, without a giant box on screen)
+function CatPicker({value,options,onChange,label}){
+  const t=T();
+  return(
+    <div onClick={e=>e.stopPropagation()} style={{position:"relative",flexShrink:1,minWidth:0,maxWidth:150}}>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 18px 3px 7px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",position:"relative"}}>
+        {value}<span style={{position:"absolute",right:6,top:3,fontSize:8}}>{"\u25BE"}</span>
+      </div>
+      <select aria-label={label} value={value} onChange={e=>onChange(e.target.value)} style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer"}}>
+        {options.map(c=><option key={c} value={c}>{c}</option>)}
+      </select>
+    </div>
+  );
+}
+function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBills,debts,setDebts}){
   const t=T();
   const isMobile=useIsMobile();
+  const txs=transactions||[];
   const[showAdd,setShowAdd]=useState(false);
   const[newCat,setNewCat]=useState("");
   const[editingCat,setEditingCat]=useState(null);
+  const[editVal,setEditVal]=useState("");
+  const[openCat,setOpenCat]=useState(null);
   const[showAutoFill,setShowAutoFill]=useState(false);
-
-  // Use most recent month with data (same logic as CashFlow)
-  const recentMonths=Array.from({length:3}).map((_,i)=>{
-    const d=new Date();d.setMonth(d.getMonth()-(i+1));
-    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
-  });
-  const hasRecentData=transactions.some(tx=>recentMonths.some(m=>tx.date.startsWith(m)));
-
-  const mk=monthStr();
-  const prevMk=(()=>{const d=new Date();d.setMonth(d.getMonth()-1);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");})();
-
-  // Use most recent month with data — same as CashFlow page
-  const hasCurrentMonthTx=transactions.some(tx=>tx.date.startsWith(mk)&&tx.type==="expense");
-  const activeMk=hasCurrentMonthTx?mk:prevMk;
-  const activeMkLabel=(()=>{const d=new Date(activeMk+"-01T12:00:00");return d.toLocaleString("default",{month:"long",year:"numeric"});})();
-  const isShowingPrevMonth=activeMk===prevMk&&!hasCurrentMonthTx;
-
-  // Auto-fill budgets from 3-month average spend per category
+  const curMk=monthStr();
+  const[mk,setMk]=useState(curMk);
+  const mkOf=(k,add)=>{const d=new Date(parseInt(k.slice(0,4),10),parseInt(k.slice(5,7),10)-1+add,1,12);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");};
+  const prevMk=mkOf(mk,-1);
+  const isCur=mk===curMk,isFuture=mk>curMk;
+  const mkLabel=(()=>{const d=new Date(mk+"-01T12:00:00");return d.toLocaleString(_locale,{month:"long",year:"numeric"});})();
+  // Last 3 full months (for Fill from Statements)
+  const recentMonths=[1,2,3].map(i=>mkOf(curMk,-i));
+  const hasRecentData=txs.some(tx=>recentMonths.some(m=>String(tx.date||"").startsWith(m)));
+  const monthlyAvg=cat=>{const v=recentMonths.map(m=>txs.filter(tx=>String(tx.date||"").startsWith(m)&&tx.type==="expense"&&tx.category===cat).reduce((s,tx)=>s+(parseFloat(tx.amount)||0),0)).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0;};
   const autoFillFromHistory=()=>{
-    const suggestions={};
-    const defaultCats=EXP_CATS.expense;
-    defaultCats.forEach(cat=>{
-      const monthlySpends=recentMonths.map(m=>
-        transactions.filter(tx=>tx.date.startsWith(m)&&tx.type==="expense"&&tx.category===cat)
-          .reduce((s,tx)=>s+tx.amount,0)
-      ).filter(v=>v>0);
-      if(monthlySpends.length>0){
-        const avg=Math.round(monthlySpends.reduce((a,b)=>a+b,0)/monthlySpends.length);
-        if(avg>0)suggestions[cat]=avg;
-      }
-    });
-    setBudgets(b=>({...b,...Object.fromEntries(Object.entries(suggestions).map(([k,v])=>[k,String(v)]))}));
-    setShowAutoFill(false);
+    const sug={};EXP_CATS.expense.forEach(c=>{const a=monthlyAvg(c);if(a>0)sug[c]=String(a);});
+    setBudgets(b=>({...b,...sug}));setShowAutoFill(false);
   };
-
-  // All budget categories = defaults + custom ones stored in budgets
   const defaultCats=EXP_CATS.expense;
-  const customCats=Object.keys(budgets).filter(k=>!defaultCats.includes(k)&&k!=="__total");
+  const customCats=Object.keys(budgets||{}).filter(k=>!defaultCats.includes(k)&&k!=="__total");
   const allCats=[...defaultCats,...customCats];
-  const budgetedCats=allCats.filter(c=>budgets[c]&&parseFloat(budgets[c])>0);
-  const totalBudget=budgetedCats.reduce((s,c)=>s+(parseFloat(budgets[c])||0),0);
-
-  const getSpent=(cat,month)=>transactions.filter(tx=>tx.date.startsWith(month)&&tx.type==="expense"&&tx.category===cat).reduce((s,tx)=>s+tx.amount,0);
-  const totalSpent=budgetedCats.reduce((s,c)=>s+getSpent(c,activeMk),0);
-  const totalPct=totalBudget>0?Math.min(Math.round(totalSpent/totalBudget*100),100):0;
-  const remaining=totalBudget-totalSpent;
-
-  // 6-month trend per category
-  const months6=Array.from({length:6}).map((_,i)=>{
-    const d=new Date();d.setMonth(d.getMonth()-(5-i));
-    return{key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleString("default",{month:"short"})};
-  });
-
+  const budgetOf=c=>parseFloat((budgets||{})[c])||0;
+  const budgetedCats=allCats.filter(c=>budgetOf(c)>0);
+  const totalBudget=budgetedCats.reduce((s,c)=>s+budgetOf(c),0);
+  const monthTx=(cat,m)=>txs.filter(tx=>String(tx.date||"").startsWith(m)&&tx.type==="expense"&&tx.category===cat);
+  const getSpent=(cat,m)=>monthTx(cat,m).reduce((s,tx)=>s+(parseFloat(tx.amount)||0),0);
+  // Committed: bills and loan repayments still to come this month (and unpaid overdue bills).
+  // Anything already due is assumed paid and shows up through imported transactions instead.
+  const today=todayStr();
+  const mStart=mk+"-01",mEnd=localDateStr(new Date(parseInt(mk.slice(0,4),10),parseInt(mk.slice(5,7),10),0,12));
+  const committedItems=(()=>{
+    if(mk<curMk)return [];
+    const from=isCur?(today<mStart?mStart:today):mStart;
+    const keep=e=>!e.paid&&e.amount>0&&(e.date>=from||(e.type==="bill"&&e.overdue));
+    const out=[];
+    (bills||[]).forEach(b=>buildCalendarEvents({bills:[b]},mStart,mEnd).filter(e=>e.type==="bill"&&keep(e)).forEach(e=>out.push({...e,cat:billBudgetCat(b),src:b})));
+    (debts||[]).forEach(d=>buildCalendarEvents({debts:[d]},mStart,mEnd).filter(e=>e.type==="repay"&&keep(e)).forEach(e=>out.push({...e,cat:debtBudgetCat(d),src:d})));
+    return out.sort((x,y)=>x.date.localeCompare(y.date));
+  })();
+  const getCommitted=cat=>committedItems.filter(e=>e.cat===cat).reduce((s,e)=>s+e.amount,0);
+  const totalSpent=budgetedCats.reduce((s,c)=>s+getSpent(c,mk),0);
+  const totalCommitted=budgetedCats.reduce((s,c)=>s+getCommitted(c),0);
+  const totalProjected=totalSpent+totalCommitted;
+  const remaining=totalBudget-totalProjected;
+  const usedPct=totalBudget>0?Math.round(totalSpent/totalBudget*100):0;
+  const projPct=totalBudget>0?Math.round(totalProjected/totalBudget*100):0;
+  // Pace (current month only)
+  const dim=parseInt(mEnd.slice(8,10),10);
+  const dayN=new Date().getDate();
+  const monthPct=Math.round(dayN/dim*100);
+  const paceDiff=usedPct-monthPct;
+  const months6=Array.from({length:6}).map((_,i)=>{const k=mkOf(mk,i-5);return{key:k,label:new Date(k+"-01T12:00:00").toLocaleString(_locale,{month:"short"})};});
   const setCatBudget=(cat,val)=>setBudgets(b=>({...b,[cat]:val}));
+  const startEdit=cat=>{setEditingCat(cat);setEditVal(budgetOf(cat)?String(budgetOf(cat)):"");};
+  const saveEdit=()=>{if(editingCat==null)return;const v=parseFloat(editVal)||0;setCatBudget(editingCat,v?String(v):0);setEditingCat(null);};
+  const recat=(tx,cat)=>setTransactions&&setTransactions(ts=>(ts||[]).map(x=>idEq(x.id,tx.id)?{...x,category:cat}:x));
+  const moveItem=(e,cat)=>{
+    if(!e.src)return;
+    if(e.type==="bill"&&setBills)setBills(bs=>(bs||[]).map(b=>idEq(b.id,e.src.id)?{...b,budgetCat:cat}:b));
+    if(e.type==="repay"&&setDebts)setDebts(ds=>(ds||[]).map(d=>idEq(d.id,e.src.id)?{...d,budgetCat:cat}:d));
+  };
+  const barCol=(p,over)=>over||p>100?t.RED:p>=80?t.GOLD:t.GREEN;
+  const lbl={fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:4};
+  const editBox=cat=>(
+    <div onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:6}}>
+      <input type="number" inputMode="decimal" value={editVal} autoFocus onChange={e=>setEditVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveEdit();if(e.key==="Escape")setEditingCat(null);}} placeholder={"Budget "+L().symbol} aria-label={"Monthly budget for "+cat}
+        style={{width:100,background:t.CARD2,border:"1px solid "+t.GOLD,borderRadius:5,padding:"5px 8px",color:t.TEXT,fontSize:12,fontFamily:"'Montserrat',sans-serif",outline:"none",textAlign:"right"}}/>
+      <Btn onClick={saveEdit} style={{fontSize:10,padding:"5px 10px"}}>Save</Btn>
+      <Btn onClick={()=>setEditingCat(null)} variant="ghost" style={{fontSize:10,padding:"5px 8px"}}>Cancel</Btn>
+    </div>
+  );
+  const pace=isCur&&totalBudget>0?(paceDiff>5?{c:t.RED,txt:"Ahead of pace - spending faster than the month is passing"}:paceDiff<-5?{c:t.GREEN,txt:"Under pace - spending slower than the month is passing"}:{c:t.GOLD,txt:"On pace"}):null;
 
   return (
-    <div data-page="true" style={{maxWidth:800,margin:"0 auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:10}}>
+    <div data-page="true" style={{maxWidth:820,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
         <div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Financial Control</div>
           <div style={{fontSize:26,color:t.TEXT}}>Monthly Budget</div>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
-            <div style={{fontSize:11,color:isShowingPrevMonth?t.GOLD:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{activeMkLabel}</div>
-            {isShowingPrevMonth&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:t.GOLD+"14",padding:"2px 7px",borderRadius:4}}>Showing last month — no data yet for {new Date().toLocaleString("default",{month:"long"})}</div>}
-          </div>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {hasRecentData&&<button onClick={()=>setShowAutoFill(s=>!s)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"8px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:600}}>
-            ✦ Fill from Statements
-          </button>}
-          <Btn onClick={()=>setShowAdd(s=>!s)}>+ Add Category</Btn>
+          {hasRecentData&&<Btn variant="ghost" onClick={()=>setShowAutoFill(s=>!s)} style={{color:t.GOLD,fontSize:11}}>Fill from Statements</Btn>}
+          <Btn onClick={()=>setShowAdd(s=>!s)} style={{fontSize:11}}>+ Add Category</Btn>
         </div>
       </div>
 
-      {/* Auto-fill from statements card */}
-      {showAutoFill&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44",background:t.GOLD+"06"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-            <div>
-              <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:4}}>Auto-fill from transaction history</div>
-              <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7}}>
-                Sets each category budget to your 3-month average spend from imported statements.<br/>
-                <span style={{color:t.GOLD}}>Only categories with transaction history will be updated.</span>
-              </div>
-            </div>
-          </div>
-          {/* Preview of what will be set */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6,marginBottom:12}}>
-            {EXP_CATS.expense.map(cat=>{
-              const monthlySpends=recentMonths.map(m=>
-                transactions.filter(tx=>tx.date.startsWith(m)&&tx.type==="expense"&&tx.category===cat)
-                  .reduce((s,tx)=>s+tx.amount,0)
-              ).filter(v=>v>0);
-              if(!monthlySpends.length)return null;
-              const avg=Math.round(monthlySpends.reduce((a,b)=>a+b,0)/monthlySpends.length);
-              const current=parseFloat(budgets[cat])||0;
-              return(
-                <div key={cat} style={{background:t.CARD2,borderRadius:7,padding:"8px 10px",border:"1px solid "+t.BORDER}}>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:2}}>{cat}</div>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    {current>0&&<span style={{fontSize:10,color:t.MUTED,textDecoration:"line-through"}}>{fmt(current)}</span>}
-                    <span style={{fontSize:13,color:t.GOLD,fontWeight:700}}>{fmt(avg)}</span>
-                  </div>
-                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>avg/{recentMonths.length}mo</div>
-                </div>
-              );
-            }).filter(Boolean)}
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            <Btn onClick={autoFillFromHistory}>Apply Suggestions</Btn>
-            <Btn onClick={()=>setShowAutoFill(false)} variant="ghost">Cancel</Btn>
-          </div>
-        </Card>
-      )}
+      {/* Month switcher */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <button aria-label="Previous month" onClick={()=>{setMk(m=>mkOf(m,-1));setOpenCat(null);}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.TEXT,width:30,height:28,cursor:"pointer",fontSize:14,...(hasPhoto()?surfaceBg():{})}}>{"‹"}</button>
+        <div style={{fontSize:16,color:t.TEXT,minWidth:150,textAlign:"center"}}>{mkLabel}</div>
+        <button aria-label="Next month" onClick={()=>{setMk(m=>mkOf(m,1));setOpenCat(null);}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.TEXT,width:30,height:28,cursor:"pointer",fontSize:14,...(hasPhoto()?surfaceBg():{})}}>{"›"}</button>
+        {!isCur&&<button onClick={()=>{setMk(curMk);setOpenCat(null);}} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,color:t.MUTED,padding:"5px 9px",cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif",...(hasPhoto()?surfaceBg():{})}}>This month</button>}
+        {isFuture&&<span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Future month - bills and repayments only</span>}
+      </div>
 
-      {/* No transactions yet */}
-      {!transactions.length&&(
-        <Card style={{marginBottom:14,textAlign:"center",padding:"24px"}}>
-          <div style={{fontSize:24,marginBottom:8}}>📊</div>
-          <div style={{fontSize:13,color:t.TEXT,marginBottom:6}}>Import bank statements to auto-fill budgets</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7,marginBottom:12}}>Go to Cash Flow → Import PDF to upload your bank statement. Once imported, come back here and tap <span style={{color:t.GOLD}}>Fill from Statements</span> to set budgets based on your actual spending.</div>
+      {showAutoFill&&(
+        <Card style={{marginBottom:14,border:"1px solid "+t.GOLD+"44"}}>
+          <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:4}}>Fill from transaction history</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7,marginBottom:10}}>Sets each category to your average monthly spend over the last 3 full months. Only categories with transactions are changed.</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6,marginBottom:12}}>
+            {EXP_CATS.expense.map(cat=>{const avg=monthlyAvg(cat);if(!avg)return null;const cur=budgetOf(cat);return(
+              <div key={cat} style={{background:t.CARD2,borderRadius:7,padding:"8px 10px",border:"1px solid "+t.BORDER}}>
+                <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:2}}>{cat}</div>
+                <div style={{display:"flex",alignItems:"center",gap:6,fontFamily:"'Montserrat',sans-serif"}}>
+                  {cur>0&&<span style={{fontSize:10,color:t.MUTED,textDecoration:"line-through"}}>{fmt(cur)}</span>}
+                  <span style={{fontSize:13,color:t.GOLD,fontWeight:700}}>{fmt(avg)}</span>
+                </div>
+              </div>);}).filter(Boolean)}
+          </div>
+          <div style={{display:"flex",gap:8}}><Btn onClick={autoFillFromHistory}>Apply Suggestions</Btn><Btn onClick={()=>setShowAutoFill(false)} variant="ghost">Cancel</Btn></div>
         </Card>
       )}
 
       {showAdd&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+        <Card style={{marginBottom:14,border:"1px solid "+t.GOLD+"44"}}>
           <SectionLabel>New Budget Category</SectionLabel>
           <div style={{display:"flex",gap:8}}>
-            <Inp value={newCat} onChange={e=>setNewCat(e.target.value)} placeholder="Category name (e.g. Gym, Hobbies)"/>
-            <Btn onClick={()=>{if(!newCat.trim())return;setCatBudget(newCat.trim(),0);setNewCat("");setShowAdd(false);}}>Add</Btn>
+            <Inp value={newCat} onChange={e=>setNewCat(e.target.value)} placeholder="Category name (e.g. Hobbies)"/>
+            <Btn onClick={()=>{const n=newCat.trim();if(!n)return;setCatBudget(n,0);setNewCat("");setShowAdd(false);startEdit(n);}}>Add</Btn>
             <Btn onClick={()=>setShowAdd(false)} variant="ghost">Cancel</Btn>
           </div>
         </Card>
       )}
 
+      {!txs.length&&(
+        <Card style={{marginBottom:14,padding:"18px"}}>
+          <div style={{fontSize:13,color:t.TEXT,marginBottom:4}}>Import bank statements to track spending</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7}}>Go to Cash Flow and import a PDF statement. Bills and loan repayments already count toward your budgets as they come up.</div>
+        </Card>
+      )}
+
       {totalBudget>0&&(
-        <Card style={{marginBottom:14,background:t.CARD2,border:"1px solid "+(totalSpent>totalBudget?t.RED:t.GOLD)+"44"}}>
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>TOTAL BUDGET</div>
-              <div style={{fontSize:20,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(totalBudget)}</div>
-            </div>
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>SPENT</div>
-              <div style={{fontSize:20,color:totalSpent>totalBudget?t.RED:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(totalSpent)}</div>
-            </div>
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>REMAINING</div>
-              <div style={{fontSize:20,color:remaining>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmt(Math.abs(remaining))}</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{remaining>=0?"left":"over budget"}</div>
-            </div>
-            <div style={{textAlign:"center"}}>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:4}}>USED</div>
-              <div style={{fontSize:20,color:totalPct>=100?t.RED:totalPct>=80?t.GOLD:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{totalPct+"%"}</div>
-            </div>
+        <Card style={{marginBottom:14,border:"1px solid "+(projPct>100?t.RED:t.GOLD)+"44"}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:12}}>
+            {[
+              ["Budget",fmt(totalBudget),t.GOLD,""],
+              ["Spent",fmt(totalSpent),totalSpent>totalBudget?t.RED:t.TEXT,usedPct+"% used"],
+              ["Still to come",fmt(totalCommitted),t.TEXT,"bills and repayments"],
+              [remaining>=0?"Projected left":"Projected over",fmt(Math.abs(remaining)),remaining>=0?t.GREEN:t.RED,"after everything due"],
+            ].map(([l,v,c,s])=>(
+              <div key={l} style={{textAlign:"center"}}>
+                <div style={lbl}>{l}</div>
+                <div style={{fontSize:20,color:c,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{v}</div>
+                {s&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{s}</div>}
+              </div>
+            ))}
           </div>
-          <PB value={totalPct} color={totalSpent>totalBudget?t.RED:totalPct>=80?t.GOLD:t.GREEN} height={6}/>
+          {/* Spent (solid) + committed (faded) against budget, with a today marker */}
+          <div style={{position:"relative",height:8,background:t.BORDER,borderRadius:99,overflow:"hidden"}}>
+            <div style={{position:"absolute",left:0,top:0,bottom:0,width:Math.min(usedPct,100)+"%",background:barCol(usedPct),borderRadius:99}}/>
+            <div style={{position:"absolute",left:Math.min(usedPct,100)+"%",top:0,bottom:0,width:Math.max(Math.min(projPct,100)-Math.min(usedPct,100),0)+"%",background:barCol(projPct)+"55"}}/>
+            {isCur&&<div title="Today" style={{position:"absolute",left:monthPct+"%",top:-2,bottom:-2,width:2,background:t.TEXT,opacity:.7}}/>}
+          </div>
+          {pace&&(
+            <div style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:8,flexWrap:"wrap",fontFamily:"'Montserrat',sans-serif",fontSize:10}}>
+              <span style={{color:t.MUTED}}>{"Day "+dayN+" of "+dim+": "+monthPct+"% of the month gone, "+usedPct+"% of budget spent"}</span>
+              <span style={{color:pace.c,fontWeight:600}}>{pace.txt}</span>
+            </div>
+          )}
         </Card>
       )}
 
       {budgetedCats.length>0&&(
         <Card style={{marginBottom:14}}>
           <SectionLabel>6-Month Spending Trend</SectionLabel>
-          <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80,marginBottom:6}}>
-            {months6.map((m,i)=>{
-              const spent=budgetedCats.reduce((s,c)=>s+getSpent(c,m.key),0);
-              const maxSpend=Math.max(...months6.map(mm=>budgetedCats.reduce((s,c)=>s+getSpent(c,mm.key),0)),totalBudget,1);
-              const budgetH=(totalBudget/maxSpend)*60;
-              const spentH=(spent/maxSpend)*60;
-              const over=spent>totalBudget;
-              return (
-                <div key={m.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+          {(()=>{const vals=months6.map(m=>budgetedCats.reduce((s,c)=>s+getSpent(c,m.key),0));const mx=Math.max(...vals,totalBudget,1);const bH=totalBudget/mx*60;return(
+            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:80,marginBottom:6}}>
+              {months6.map((m,i)=>{const sp=vals[i];return(
+                <div key={m.key} onClick={()=>setMk(m.key)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,cursor:"pointer",minWidth:0}}>
                   <div style={{width:"100%",position:"relative",height:64,display:"flex",alignItems:"flex-end"}}>
-                    {totalBudget>0&&<div style={{position:"absolute",bottom:budgetH+"px",left:0,right:0,borderTop:"1px dashed "+t.GOLD+"66"}}/>}
-                    <div style={{width:"100%",background:over?t.RED+"88":t.BLUE+"88",borderRadius:"2px 2px 0 0",height:spentH+"px",minHeight:spent>0?2:0,transition:"height .3s"}}/>
+                    <div style={{position:"absolute",bottom:bH+"px",left:0,right:0,borderTop:"1px dashed "+t.GOLD+"66"}}/>
+                    <div style={{width:"100%",background:(sp>totalBudget?t.RED:t.BLUE)+(m.key===mk?"CC":"66"),borderRadius:"2px 2px 0 0",height:(sp/mx*60)+"px",minHeight:sp>0?2:0}}/>
                   </div>
-                  <div style={{fontSize:8,color:i===5?t.GOLD:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{m.label}</div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-            {[{c:t.BLUE+"88",l:"Spent"},{c:t.GOLD,l:"Budget (dashed)"}].map(x=>(
-              <div key={x.l} style={{display:"flex",alignItems:"center",gap:3}}>
-                <div style={{width:10,height:3,background:x.c,borderRadius:2}}/>
-                <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{x.l}</span>
-              </div>
-            ))}
-          </div>
+                  <div style={{fontSize:8,color:m.key===mk?t.GOLD:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{m.label}</div>
+                </div>);})}
+            </div>);})()}
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"right"}}>Tap a month to view it. Dashed line = total budget.</div>
         </Card>
       )}
 
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {allCats.map(cat=>{
-          const budget=parseFloat(budgets[cat])||0;
-          const spent=getSpent(cat,activeMk);
-          const prevSpent=getSpent(cat,prevMk);
-          const pct=budget>0?Math.min(Math.round(spent/budget*100),100):0;
-          const over=budget>0&&spent>budget;
-          const isEditing=editingCat===cat;
+          const budget=budgetOf(cat);
           const isCustom=!defaultCats.includes(cat);
-          if(budget===0&&!isEditing&&!isCustom)return null;
+          const isEditing=editingCat===cat;
+          if(budget<=0&&!isCustom)return null;
+          const spent=getSpent(cat,mk);
+          const comm=getCommitted(cat);
+          const proj=spent+comm;
+          const pct=budget>0?Math.round(spent/budget*100):0;
+          const ppct=budget>0?Math.round(proj/budget*100):0;
+          const over=budget>0&&proj>budget;
+          const prevSpent=getSpent(cat,prevMk);
+          const isOpen=openCat===cat;
+          const catTx=isOpen?monthTx(cat,mk).sort((a,b)=>String(b.date).localeCompare(String(a.date))):[];
+          const catComm=isOpen?committedItems.filter(e=>e.cat===cat):[];
           return (
-            <Card key={cat} style={{borderLeft:"3px solid "+(over?t.RED:budget>0?t.GREEN:t.BORDER)}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:budget>0?8:0}}>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{cat}</span>
-                    {prevSpent>0&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"last mo: "+fmt(prevSpent)}</span>}
-                  </div>
-                  {budget>0&&(
+            <Card key={cat} style={{borderLeft:"3px solid "+(over?t.RED:budget>0?t.GREEN:t.BORDER),padding:0}}>
+              <div onClick={()=>!isEditing&&setOpenCat(isOpen?null:cat)} style={{padding:"12px 14px",cursor:isEditing?"default":"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:isEditing&&isMobile?"wrap":"nowrap"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{cat}</span>
+                      {prevSpent>0&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"last month "+fmt(prevSpent)}</span>}
+                    </div>
                     <div style={{fontSize:10,color:over?t.RED:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>
-                      {fmt(spent)+" spent of "+fmt(budget)+" budget"+( over?" - "+fmt(spent-budget)+" over!":"")}
+                      {budget>0?(fmt(spent)+" spent"+(comm>0?" + "+fmt(comm)+" to come":"")+" of "+fmt(budget)+(over?" - "+fmt(proj-budget)+" over":"")):"No budget set"}
+                    </div>
+                  </div>
+                  {isEditing?editBox(cat):(
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                      {budget>0&&<span style={{fontSize:14,color:barCol(ppct,over),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{pct+"%"}</span>}
+                      <button onClick={e=>{e.stopPropagation();startEdit(cat);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>{budget>0?"Edit":"Set"}</button>
+                      {isCustom&&<button aria-label={"Delete "+cat} onClick={e=>{e.stopPropagation();const b={...budgets};delete b[cat];setBudgets(b);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>{"×"}</button>}
                     </div>
                   )}
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:7}}>
-                  {isEditing?(
-                    <>
-                      <input
-                        type="number"
-                        defaultValue={budget||""}
-                        autoFocus
-                        onBlur={e=>{setCatBudget(cat,parseFloat(e.target.value)||0);setEditingCat(null);}}
-                        onKeyDown={e=>{if(e.key==="Enter"){setCatBudget(cat,parseFloat(e.target.value)||0);setEditingCat(null);}}}
-                        placeholder="Budget $"
-                        style={{width:90,background:t.CARD2,border:"1px solid "+t.GOLD,borderRadius:5,padding:"4px 8px",color:t.TEXT,fontSize:12,fontFamily:"'Montserrat',sans-serif",outline:"none",textAlign:"right"}}
-                      />
-                      <Btn onClick={()=>setEditingCat(null)} variant="ghost" style={{fontSize:10,padding:"4px 8px"}}>Done</Btn>
-                    </>
-                  ):(
-                    <>
-                      {budget>0&&<span style={{fontSize:14,color:over?t.RED:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{pct+"%"}</span>}
-                      <button onClick={()=>setEditingCat(cat)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>{budget>0?"Edit":"Set"}</button>
-                      {isCustom&&<button onClick={()=>{const b={...budgets};delete b[cat];setBudgets(b);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>}
-                    </>
-                  )}
-                </div>
+                {budget>0&&(
+                  <div style={{position:"relative",height:5,background:t.BORDER,borderRadius:99,overflow:"hidden",marginTop:8}}>
+                    <div style={{position:"absolute",left:0,top:0,bottom:0,width:Math.min(pct,100)+"%",background:barCol(pct),borderRadius:99}}/>
+                    <div style={{position:"absolute",left:Math.min(pct,100)+"%",top:0,bottom:0,width:Math.max(Math.min(ppct,100)-Math.min(pct,100),0)+"%",background:barCol(ppct,over)+"55"}}/>
+                  </div>
+                )}
               </div>
-              {budget>0&&<PB value={pct} color={over?t.RED:pct>=80?t.GOLD:t.GREEN} height={5}/>}
+              {isOpen&&(
+                <div style={{borderTop:"1px solid "+t.BORDER,padding:"8px 14px 12px"}}>
+                  {catComm.length>0&&<div style={{...lbl,marginTop:4}}>Still to come</div>}
+                  {catComm.map(e=>(
+                    <div key={e.key} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
+                      <div style={{width:3,alignSelf:"stretch",background:CAL_COLORS[e.type],borderRadius:2}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title}</div>
+                        <div style={{fontSize:9,color:e.overdue?t.RED:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{calDayLabel(e.date)+(e.overdue?" - overdue":"")+(e.type==="repay"?" - repayment":" - bill")}</div>
+                      </div>
+                      <CatPicker label="Counts toward" value={cat} options={allCats} onChange={v=>moveItem(e,v)}/>
+                      <div style={{fontSize:12,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700,flexShrink:0}}>{fmt(e.amount)}</div>
+                    </div>
+                  ))}
+                  <div style={{...lbl,marginTop:catComm.length?10:4}}>{"Transactions - "+mkLabel}</div>
+                  {catTx.length===0?<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",padding:"4px 0"}}>No transactions in this category for this month.</div>:catTx.map(tx=>(
+                    <div key={tx.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tx.note||tx.category}</div>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{calDayLabel(String(tx.date).slice(0,10))}</div>
+                      </div>
+                      {setTransactions&&<CatPicker label="Category" value={tx.category} options={allCats.includes(tx.category)?allCats:[tx.category,...allCats]} onChange={v=>recat(tx,v)}/>}
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700,flexShrink:0}}>{fmt(parseFloat(tx.amount)||0)}</div>
+                    </div>
+                  ))}
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>Change a category to move an item into another budget.</div>
+                </div>
+              )}
             </Card>
           );
         })}
-        {budgetedCats.length===0&&!showAdd&&(
-          <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-            <div style={{fontSize:28,marginBottom:10}}>B</div>
-            <div style={{marginBottom:8}}>No budgets set yet</div>
-            <div style={{fontSize:11}}>Tap Set on any category or add a custom one above</div>
+
+        {budgetedCats.length===0&&!editingCat&&(
+          <div style={{textAlign:"center",padding:30,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
+            <div style={{marginBottom:6,color:t.TEXT}}>No budgets set yet</div>
+            <div style={{fontSize:11}}>Tap a category below to set its monthly budget.</div>
           </div>
         )}
-        {defaultCats.filter(c=>!budgets[c]||parseFloat(budgets[c])===0).length>0&&(
-          <Card style={{padding:"10px 14px"}}>
-            <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Unbudgeted Categories</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {defaultCats.filter(c=>!budgets[c]||parseFloat(budgets[c])===0).map(cat=>{
-                const spent=getSpent(cat,activeMk);
-                return (
-                  <button key={cat} onClick={()=>setEditingCat(cat)} style={{padding:"5px 11px",borderRadius:14,border:"1px solid "+t.BORDER,background:"transparent",color:spent>0?t.TEXT:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
-                    {cat}
-                    {spent>0&&<span style={{fontSize:9,color:t.RED,fontFamily:"'Montserrat',sans-serif"}}>{fmt(spent)}</span>}
-                  </button>
-                );
-              })}
+
+        {(()=>{const un=defaultCats.filter(c=>budgetOf(c)<=0&&editingCat!==c);const chipEdit=editingCat&&defaultCats.includes(editingCat)&&budgetOf(editingCat)<=0?editingCat:null;if(!un.length&&!chipEdit)return null;return(
+          <Card style={{padding:"10px 14px",...(chipEdit?{border:"1px solid "+t.GOLD+"55"}:{})}}>
+            {chipEdit&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexWrap:"wrap",padding:"4px 0 10px",marginBottom:8,borderBottom:"1px solid "+t.BORDER}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{chipEdit}</div>
+                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"Monthly budget"+(monthlyAvg(chipEdit)?" - you average "+fmt(monthlyAvg(chipEdit))+" a month":"")}</div>
+                </div>
+                {editBox(chipEdit)}
+              </div>
+            )}
+            <div style={lbl}>Unbudgeted categories - tap to set</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+              {un.map(cat=>{const sp=getSpent(cat,mk)+getCommitted(cat);return(
+                <button key={cat} onClick={()=>startEdit(cat)} style={{padding:"5px 11px",borderRadius:14,border:"1px solid "+t.BORDER,background:"transparent",color:sp>0?t.TEXT:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,display:"flex",alignItems:"center",gap:5}}>
+                  {cat}{sp>0&&<span style={{fontSize:9,color:t.RED}}>{fmt(sp)}</span>}
+                </button>);})}
             </div>
-          </Card>
-        )}
+          </Card>);})()}
       </div>
     </div>
   );
@@ -12343,7 +12394,7 @@ function App(){
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
-          {page==="budget"&&<BudgetPage transactions={transactions} budgets={budgets} setBudgets={setBudgets}/>}
+          {page==="budget"&&<BudgetPage transactions={transactions} setTransactions={setTransactions} budgets={budgets} setBudgets={setBudgets} bills={bills} setBills={setBills} debts={debts} setDebts={setDebts}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} properties={properties} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio} divs={dividends} setDivs={setDividends}/>}

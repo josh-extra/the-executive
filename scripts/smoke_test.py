@@ -32,6 +32,9 @@ def ds(n):
     return (datetime.date.today() - datetime.timedelta(days=n)).isoformat()
 
 # ---------------------------------------------------------------- test data
+# Deliberately long text: pages must cut it off or wrap it, never spill past the page edge
+LONG_TEXT = "Complete final 8 listing presentations (Aug 11-Sept 30). Achieve 16+ total presentations for the year and review each one afterwards"
+
 def seed():
     snaps = {}
     v = 560000
@@ -45,7 +48,8 @@ def seed():
                     "cashLog": [{"id": 1, "date": ds(10), "balance": 40000, "change": 5000, "note": "Pay"}], "riskProfile": ["Growth - accept volatility"]},
         "tasks": [{"id": 1, "text": "Morning briefing", "done": False, "priority": "high", "recurring": True},
                   {"id": 2, "text": "Call vendors", "done": False, "priority": "medium"}],
-        "goals": [{"id": 1, "title": "Reach net worth target", "period": "year", "progress": 20, "category": "financial"}],
+        "goals": [{"id": 1, "title": "Reach net worth target", "period": "year", "progress": 20, "category": "financial", "endDate": ds(-40),
+                   "checkpoints": [{"id": 1, "text": LONG_TEXT, "dueDate": ds(-2), "done": False}]}],
         "completed": [{"id": 9, "title": "Read 12 books", "period": "year", "progress": 100, "category": "personal", "completedAt": ds(5)}],
         "supplements": [{"id": 1, "name": "Creatine", "dose": "5g", "time": "morning", "taken": False}],
         "habits": [{"id": 1, "name": "Read 20 pages", "icon": "Book", "color": "#C9A84C", "target": 7}],
@@ -79,7 +83,8 @@ def seed():
         "nwHistory": {"2026-06": 540000, "2026-07": 548000},
         "dailySnaps": snaps,
         "advisorMessages": [],
-        "calendarItems": [{"id": 21, "type": "reminder", "title": "Check super", "date": ds(10), "repeat": "monthly", "amount": "", "note": "", "doneDates": []}],
+        "calendarItems": [{"id": 21, "type": "reminder", "title": "Check super", "date": ds(10), "repeat": "monthly", "amount": "", "note": "", "doneDates": []},
+                          {"id": 23, "type": "reminder", "title": LONG_TEXT, "date": ds(-1), "repeat": "none", "amount": "", "note": LONG_TEXT, "doneDates": []}],
         "dividends": [{"id": 22, "ticker": "CBA.AX", "name": "CBA", "amountPerShare": "2.25", "frequency": "quarterly", "nextPayDate": ds(-20), "franking": "100", "shares": 100}],
     }
 
@@ -88,6 +93,11 @@ MUST_KEEP = ["goals", "completed", "supplements", "habits", "workouts", "bodyLog
              "properties", "holdings", "cryptoHoldings", "commodityHoldings", "altAssets", "notes", "calendarItems", "dividends"]
 
 # ---------------------------------------------------------------- helpers
+# Anything wider than the page area (ignoring deliberate side-scrolling strips)
+SPILL_JS = """()=>{const area=document.querySelector('.exec-main');if(!area)return [];const lim=area.getBoundingClientRect().right+1;const out=[];
+const inScroller=e=>{for(let p=e.parentElement;p&&p!==area;p=p.parentElement){const o=getComputedStyle(p).overflowX;if(o==='auto'||o==='scroll'||o==='hidden')return true;}return false;};
+for(const e of area.querySelectorAll('*')){const r=e.getBoundingClientRect();if(r.width&&r.right>lim&&!inScroller(e)){out.push('"'+(e.textContent||e.tagName).trim().slice(0,40)+'" by '+Math.round(r.right-lim)+'px');if(out.length>1)break;}}
+return out;}"""
 def nav_pages():
     src = open(APP, encoding="utf-8").read()
     block = src[src.index("const NAV=["):]
@@ -226,6 +236,9 @@ def main():
                 js = [e for e in new if e.startswith("JS error")]
                 if js:
                     results.append(("FAIL", size + ": " + label, js[0])); continue
+                spill = pg.evaluate(SPILL_JS)
+                if spill:
+                    results.append(("FAIL", size + ": " + label, "content spills past the page edge: " + "; ".join(spill))); continue
                 note = ""
                 if phone:
                     over = pg.evaluate("()=>Math.max(document.documentElement.scrollWidth,document.body.scrollWidth)-window.innerWidth")
