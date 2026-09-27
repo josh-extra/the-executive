@@ -692,7 +692,7 @@ function Card({children,style,onClick}){
     const tint=typeof st.background==="string"&&/^#[0-9a-fA-F]{8}$/.test(st.background)?st.background:null;
     bg={background:tint?"linear-gradient("+tint+","+tint+"),"+GLASS_BG:GLASS_BG,backdropFilter:GLASS_BLUR,WebkitBackdropFilter:GLASS_BLUR};
   }
-  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,...st,...(bg||{}),cursor:onClick?"pointer":"default"}}>{children}</div>;
+  return <div onClick={onClick} style={{...base,borderRadius:10,padding:16,minWidth:0,...st,...(bg||{}),cursor:onClick?"pointer":"default"}}>{children}</div>;
 }
 function Divider(){
   const t=T();
@@ -7859,7 +7859,7 @@ function CalendarPage({bills,debts,dividends,holdings,goals,calendarItems,setCal
         </div>
       </Card>
 
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1.3fr 1fr",gap:12,alignItems:"start"}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"minmax(0,1.3fr) minmax(0,1fr)",gap:12,alignItems:"start"}}>
         <Card>
           <SectionLabel action={<button onClick={()=>newItem("reminder")} style={{background:"none",border:"none",color:t.GOLD,fontSize:9,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",letterSpacing:1,padding:0}}>+ ADD</button>}>{calDayLabel(sel,true)}</SectionLabel>
           {sel<today&&(selHist||selSnap)&&(
@@ -12278,7 +12278,7 @@ function App(){
     <div style={{display:"flex",minHeight:"100vh",background:bgPhoto&&bgPhoto!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
       <BgPhotoLayer photoId={bgPhoto}/>
       <style>{`@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}`}</style>
-      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;} body,#root{overflow-x:hidden;}}"}</style>
+      <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;}} /* exec-no-spill */ body,#root{overflow-x:hidden;} .exec-main{overflow-wrap:break-word;} .exec-main [data-page]{min-width:0;max-width:100%;} .exec-main [style*=\"display: grid\"]>*{min-width:0;} .exec-main input,.exec-main select,.exec-main textarea{min-width:0;max-width:100%;}"}</style>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} onNativePurchase={handleNativePurchase} onRestorePurchases={handleRestorePurchases} loading={upgradeLoading}/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -12329,7 +12329,7 @@ function App(){
           </div>
         ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1,transform:"translateZ(0)"}}>
-          <div style={{width:"100%",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
+          <div className="exec-main" style={{width:"100%",minWidth:0,overflowX:"clip",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
           {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile} debts={debts} dividends={dividends} calendarItems={calendarItems} setCalendarItems={setCalendarItems}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
