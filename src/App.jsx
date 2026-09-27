@@ -5843,21 +5843,191 @@ function WatchlistItem({w,onRemove}){
   );
 }
 
-function InvestPage({profile,properties,subscription,setShowUpgrade}){
+// ── Watchlist ─────────────────────────────────────────────────────────────────
+// Saved to the account (syncs across devices). Prices and targets are in the
+// stock's own currency; the user's-currency value is shown alongside.
+const CUR_SYM={AUD:"A$",USD:"US$",GBP:"£",EUR:"€",CAD:"C$",NZD:"NZ$",SGD:"S$",HKD:"HK$",JPY:"¥"};
+const fmtNative=(v,cur)=>v==null||isNaN(v)?"-":(CUR_SYM[cur]||(cur?cur+" ":"$"))+Number(v).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:Math.abs(v)<1?4:2});
+function WatchlistPanel({watchlist,setWatchlist,holdings}){
+  const t=T();const isMobile=useIsMobile();
+  const list=watchlist||[];
+  const[quotes,setQuotes]=useState({});
+  const[showAdd,setShowAdd]=useState(false);
+  const[form,setForm]=useState({ticker:"",name:"",notes:"",alertBelow:"",alertAbove:""});
+  const[editId,setEditId]=useState(null);
+  const[editForm,setEditForm]=useState({});
+  const[sort,setSort]=useState("added");
+  const[updated,setUpdated]=useState(null);
+  const tickersKey=list.map(w=>w.ticker).join(",");
+  // One refresh for the whole list every 60s (the shared quote queue spaces the requests)
+  useEffect(()=>{
+    let alive=true;
+    const load=async()=>{
+      const syms=[...new Set(list.map(w=>w.ticker).filter(Boolean))];
+      const out={};
+      for(const s of syms){
+        try{
+          const r=await quoteFetch("/api/quote?symbol="+encodeURIComponent(s));
+          const d=await r.json();
+          if(d&&d.price!=null){const lq=await toLocalQuote(d,s);out[s]={...lq,ok:true};}
+          else out[s]={ok:false};
+        }catch{out[s]={ok:false};}
+      }
+      if(!alive)return;
+      setQuotes(q=>({...q,...out}));setUpdated(new Date());
+      // Record the price on the day each stock was added (for "since added")
+      const missing=list.filter(w=>w.addedPrice==null&&out[w.ticker]&&out[w.ticker].ok);
+      if(missing.length)setWatchlist(wl=>(wl||[]).map(w=>w.addedPrice==null&&out[w.ticker]&&out[w.ticker].ok?{...w,addedPrice:out[w.ticker].nativePrice,addedCurrency:out[w.ticker].currency,priceDate:todayStr()}:w));
+    };
+    if(list.length)load();
+    const id=setInterval(()=>{if(list.length)load();},60000);
+    return()=>{alive=false;clearInterval(id);};
+  },[tickersKey]);
+  const held=sym=>(holdings||[]).find(h=>String(h.ticker||"").toUpperCase()===String(sym||"").toUpperCase());
+  const alertOf=(w,q)=>{
+    if(!q||!q.ok||q.nativePrice==null)return null;
+    const lo=parseFloat(w.alertBelow),hi=parseFloat(w.alertAbove);
+    if(lo>0&&q.nativePrice<=lo)return{c:t.GREEN,txt:"At or below your "+fmtNative(lo,q.currency)+" target"};
+    if(hi>0&&q.nativePrice>=hi)return{c:t.GOLD,txt:"At or above your "+fmtNative(hi,q.currency)+" target"};
+    return null;
+  };
+  const nearTarget=(w,q)=>{
+    if(!q||!q.ok)return 999;
+    const lo=parseFloat(w.alertBelow),hi=parseFloat(w.alertAbove);const p=q.nativePrice;const d=[];
+    if(lo>0)d.push(Math.max((p-lo)/p,0));if(hi>0)d.push(Math.max((hi-p)/p,0));
+    return d.length?Math.min(...d):999;
+  };
+  const sorted=[...list].sort((a,b)=>{
+    const qa=quotes[a.ticker],qb=quotes[b.ticker];
+    if(sort==="day")return ((qb&&qb.pct)||0)-((qa&&qa.pct)||0);
+    if(sort==="name")return String(a.name||a.ticker).localeCompare(String(b.name||b.ticker));
+    if(sort==="target")return nearTarget(a,qa)-nearTarget(b,qb);
+    return String(b.addedDate||"").localeCompare(String(a.addedDate||""))||(b.id-a.id);
+  });
+  const hits=list.filter(w=>alertOf(w,quotes[w.ticker])).length;
+  const add=()=>{
+    const tk=form.ticker.trim().toUpperCase();if(!tk)return;
+    if(list.some(w=>String(w.ticker).toUpperCase()===tk)){setShowAdd(false);return;}
+    const q=quotes[tk];
+    setWatchlist(wl=>[{id:Date.now(),ticker:tk,name:form.name.trim(),notes:form.notes.trim(),alertBelow:form.alertBelow,alertAbove:form.alertAbove,addedDate:todayStr(),addedPrice:q&&q.ok?q.nativePrice:null,addedCurrency:q&&q.ok?q.currency:null},...(wl||[])]);
+    setForm({ticker:"",name:"",notes:"",alertBelow:"",alertAbove:""});setShowAdd(false);
+  };
+  const saveEdit=()=>{setWatchlist(wl=>(wl||[]).map(w=>idEq(w.id,editId)?{...w,name:editForm.name,notes:editForm.notes,alertBelow:editForm.alertBelow,alertAbove:editForm.alertAbove}:w));setEditId(null);};
+  const lbl={fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4};
+  const chip=(on)=>({padding:"4px 10px",borderRadius:99,border:"1px solid "+(on?t.GOLD+"88":t.BORDER),background:on?t.GOLD+"18":"transparent",color:on?t.GOLD:t.MUTED,fontSize:10,fontFamily:"'Montserrat',sans-serif",cursor:"pointer",...(hasPhoto()&&!on?surfaceBg():{})});
+  const targetFields=(f,set)=>(
+    <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
+      <div><div style={lbl}>Alert at or below</div><Inp type="number" value={f.alertBelow} onChange={e=>set(x=>({...x,alertBelow:e.target.value}))} placeholder="Price (optional)"/></div>
+      <div><div style={lbl}>Alert at or above</div><Inp type="number" value={f.alertAbove} onChange={e=>set(x=>({...x,alertAbove:e.target.value}))} placeholder="Price (optional)"/></div>
+    </div>
+  );
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
+        <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
+          {list.length+(list.length===1?" stock":" stocks")+" watched"}
+          {hits>0&&<span style={{color:t.GOLD,fontWeight:600}}>{" - "+hits+(hits===1?" price target reached":" price targets reached")}</span>}
+        </div>
+        <Btn onClick={()=>setShowAdd(s=>!s)} style={{padding:"6px 12px",fontSize:11}}>+ Add stock</Btn>
+      </div>
+      {showAdd&&(
+        <Card style={{marginBottom:12,border:"1px solid "+t.GOLD+"44"}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"minmax(0,1fr) minmax(0,2fr)",gap:8,marginBottom:8}}>
+            <div><div style={lbl}>Ticker</div><TickerAutocomplete value={form.ticker} onChange={v=>setForm(f=>({...f,ticker:v}))} onSelect={s=>setForm(f=>({...f,ticker:s.symbol,name:f.name||s.label}))} placeholder="e.g. BHP.AX, AAPL"/></div>
+            <div><div style={lbl}>Name</div><Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Company name"/></div>
+          </div>
+          <div style={{marginBottom:8}}><div style={lbl}>Notes</div><Inp value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Why are you watching it?"/></div>
+          {targetFields(form,setForm)}
+          <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6}}>ASX shares end in .AX (e.g. CBA.AX). Targets are in the stock's own currency.</div>
+          <div style={{display:"flex",gap:8,marginTop:10}}><Btn onClick={add} disabled={!form.ticker.trim()}>Add to watchlist</Btn><Btn variant="ghost" onClick={()=>setShowAdd(false)}>Cancel</Btn></div>
+        </Card>
+      )}
+      {list.length>1&&(
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginRight:2}}>Sort</span>
+          {[["added","Recently added"],["day","Today's move"],["target","Closest to target"],["name","Name"]].map(([k,l])=><button key={k} onClick={()=>setSort(k)} style={chip(sort===k)}>{l}</button>)}
+        </div>
+      )}
+      {list.length===0&&!showAdd&&(
+        <Card style={{textAlign:"center",padding:28}}>
+          <div style={{fontSize:13,color:t.TEXT,marginBottom:6}}>Your watchlist is empty</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7}}>Add shares you're keeping an eye on. You'll see the live price, today's move, how it has moved since you added it, and a flag when it reaches a price you set.</div>
+        </Card>
+      )}
+      {sorted.map(w=>{
+        const q=quotes[w.ticker];
+        const ok=q&&q.ok&&q.nativePrice!=null;
+        const since=ok&&w.addedPrice>0&&!(w.priceDate===todayStr()&&w.priceDate!==w.addedDate)&&(!w.addedCurrency||w.addedCurrency===q.currency)?(q.nativePrice/w.addedPrice-1)*100:null;
+        const al=alertOf(w,q);
+        const h=held(w.ticker);
+        const isEdit=editId===w.id;
+        const foreign=ok&&q.currency!==L().currency&&q.price!=null;
+        return(
+          <Card key={w.id} style={{marginBottom:8,...(al?{border:"1px solid "+al.c+"66"}:{})}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <Tag>{w.ticker}</Tag>
+                  {w.name&&<span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{w.name}</span>}
+                  {h&&<span style={{fontSize:9,color:t.BLUE,fontFamily:"'Montserrat',sans-serif",border:"1px solid "+t.BLUE+"44",borderRadius:4,padding:"1px 5px"}}>{"You hold "+Number(h.shares||0).toLocaleString("en-AU",{maximumFractionDigits:4})}</span>}
+                </div>
+                {w.notes&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontStyle:"italic",marginTop:5}}>{w.notes}</div>}
+                <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:5,fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
+                  <span>{w.priceDate&&w.priceDate!==w.addedDate?("Added "+fmtDate(w.addedDate)+" - price tracked from "+fmtDate(w.priceDate)+(w.addedPrice>0?" at "+fmtNative(w.addedPrice,w.addedCurrency||(q&&q.currency)):"")):("Added "+fmtDate(w.addedDate)+(w.addedPrice>0?" at "+fmtNative(w.addedPrice,w.addedCurrency||(q&&q.currency)):""))}</span>
+                  {since!=null&&<span style={{color:since>=0?t.GREEN:t.RED,fontWeight:600}}>{(since>=0?"+":"")+since.toFixed(1)+"% since added"}</span>}
+                  {parseFloat(w.alertBelow)>0&&<span>{"Below "+fmtNative(parseFloat(w.alertBelow),q&&q.currency)}</span>}
+                  {parseFloat(w.alertAbove)>0&&<span>{"Above "+fmtNative(parseFloat(w.alertAbove),q&&q.currency)}</span>}
+                </div>
+                {al&&<div style={{fontSize:10,color:al.c,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginTop:5}}>{al.txt}</div>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                {!q?<Skeleton width={70} height={16}/>:!ok?<div style={{fontSize:10,color:t.RED,fontFamily:"'Montserrat',sans-serif"}}>No price found</div>:(
+                  <div>
+                    <div style={{fontSize:15,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmtNative(q.nativePrice,q.currency)}</div>
+                    {foreign&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"= "+fmtNative(q.price,L().currency)}</div>}
+                    <div style={{fontSize:11,color:(q.pct||0)>=0?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{((q.pct||0)>=0?"▲ ":"▼ ")+Math.abs(q.pct||0).toFixed(2)+"% today"}</div>
+                  </div>
+                )}
+                <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:6}}>
+                  <button onClick={()=>{if(isEdit){setEditId(null);return;}setEditId(w.id);setEditForm({name:w.name||"",notes:w.notes||"",alertBelow:w.alertBelow||"",alertAbove:w.alertAbove||""});}} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Edit</button>
+                  <button aria-label={"Remove "+w.ticker} onClick={()=>setWatchlist(wl=>(wl||[]).filter(x=>!idEq(x.id,w.id)))} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 8px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Remove</button>
+                </div>
+              </div>
+            </div>
+            {isEdit&&(
+              <div style={{borderTop:"1px solid "+t.BORDER,marginTop:10,paddingTop:10}}>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"minmax(0,1fr) minmax(0,2fr)",gap:8,marginBottom:8}}>
+                  <div><div style={lbl}>Name</div><Inp value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))}/></div>
+                  <div><div style={lbl}>Notes</div><Inp value={editForm.notes} onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))}/></div>
+                </div>
+                {targetFields(editForm,setEditForm)}
+                <div style={{display:"flex",gap:8,marginTop:10}}><Btn onClick={saveEdit}>Save</Btn><Btn variant="ghost" onClick={()=>setEditId(null)}>Cancel</Btn></div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+      {list.length>0&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"right",marginTop:4}}>{"Prices refresh every minute and may be delayed"+(updated?" - updated "+updated.toLocaleTimeString(_locale,{hour:"numeric",minute:"2-digit"}):"")}</div>}
+    </div>
+  );
+}
+function InvestPage({profile,properties,subscription,setShowUpgrade,watchlist,setWatchlist,holdings}){
   const t=T();
-  const[tab,setTab]=useState("ideas");
+  const[tab,setTab]=useState("watchlist");
   const asOfDate=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
   const[aiOpps,setAiOpps]=useState(()=>{try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
   const[aiOppsDate,setAiOppsDate]=useState(()=>{try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
   const[loading,setLoading]=useState(false);
   const[aiError,setAiError]=useState("");
-  // Persist watchlist in localStorage so it survives navigation
-  const[watchlist,setWatchlist]=useState(()=>{try{const s=localStorage.getItem("invest_watchlist");return s?JSON.parse(s):[];}catch{return [];}});
-  const[wForm,setWForm]=useState({ticker:"",name:"",notes:""});
-  const[showWAdd,setShowWAdd]=useState(false);
-
-  // Save watchlist to localStorage whenever it changes
-  useEffect(()=>{try{localStorage.setItem("invest_watchlist",JSON.stringify(watchlist));}catch{}},[watchlist]);
+  // One-time carry-over of the old device-only watchlist into the account
+  useEffect(()=>{
+    try{
+      const s=localStorage.getItem("invest_watchlist");if(!s)return;
+      const old=JSON.parse(s)||[];
+      if(old.length)setWatchlist(wl=>{const have=new Set((wl||[]).map(w=>String(w.ticker).toUpperCase()));return [...(wl||[]),...old.filter(w=>w&&w.ticker&&!have.has(String(w.ticker).toUpperCase()))];});
+      localStorage.removeItem("invest_watchlist");
+    }catch{}
+  },[]);
 
   const getAi=async()=>{
     setLoading(true);setAiError("");
@@ -5895,7 +6065,7 @@ function InvestPage({profile,properties,subscription,setShowUpgrade}){
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Capital Deployment</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Opportunities</div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {[["ideas","Curated Ideas"],["live","Live AI Search"],["watchlist","My Watchlist"]].map(([id,label])=>(
+        {[["watchlist","Watchlist"],["live","Live AI Search"],["ideas","Curated Ideas"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
             {label}
           </button>
@@ -5942,36 +6112,7 @@ function InvestPage({profile,properties,subscription,setShowUpgrade}){
           {!aiOpps&&!loading&&!aiError&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:8}}>Tap Search Now to get current investment opportunities based on live market data, tailored to your portfolio and risk profile.</div>}
         </Card>
       )}
-      {tab==="watchlist"&&(
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{watchlist.length+" stocks on watchlist"}</div>
-            <Btn onClick={()=>setShowWAdd(s=>!s)} style={{padding:"6px 12px",fontSize:11}}>+ Add</Btn>
-          </div>
-          {showWAdd&&(
-            <Card style={{marginBottom:12,borderColor:t.GOLD+"44"}}>
-              <div style={{display:"flex",gap:7,marginBottom:7}}>
-                <TickerAutocomplete value={wForm.ticker} onChange={v=>setWForm(f=>({...f,ticker:v}))} onSelect={s=>setWForm(f=>({...f,ticker:s.symbol,name:f.name||s.label}))} placeholder="Ticker (e.g. BHP.AX)" style={{flex:1}}/>
-                <Inp value={wForm.name} onChange={e=>setWForm(f=>({...f,name:e.target.value}))} placeholder="Name" style={{flex:2}}/>
-              </div>
-              <Inp value={wForm.notes} onChange={e=>setWForm(f=>({...f,notes:e.target.value}))} placeholder="Notes - why watching?" style={{marginBottom:7}}/>
-              <div style={{display:"flex",gap:7}}>
-                <Btn onClick={()=>{if(!wForm.ticker)return;setWatchlist(w=>[...w,{...wForm,id:Date.now(),addedDate:todayStr()}]);setWForm({ticker:"",name:"",notes:""});setShowWAdd(false);}}>Add</Btn>
-                <Btn onClick={()=>setShowWAdd(false)} variant="ghost">Cancel</Btn>
-              </div>
-            </Card>
-          )}
-          {watchlist.length===0&&!showWAdd&&(
-            <div style={{textAlign:"center",padding:32,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-              <div style={{fontSize:28,marginBottom:8}}>W</div>
-              <div>No stocks on watchlist - add tickers you want to monitor</div>
-            </div>
-          )}
-          {watchlist.map((w,i)=>(
-            <WatchlistItem key={w.id} w={w} onRemove={()=>setWatchlist(wl=>wl.filter(x=>x.id!==w.id))}/>
-          ))}
-        </div>
-      )}
+      {tab==="watchlist"&&<WatchlistPanel watchlist={watchlist} setWatchlist={setWatchlist} holdings={holdings}/>}
       <div style={{marginTop:14,padding:"10px 12px",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
         For informational purposes only. Not financial advice.
       </div>
@@ -11404,7 +11545,7 @@ function App(){
   // Note: debt totals are computed live in liveProfile via liveDebtTotal
   useEffect(()=>{
     if(!isOnline||!pendingSave||!authToken||!authUser?.id||!readyToSave)return;
-    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave={lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     (async()=>{
       try{
         setSyncing(true);
@@ -11556,6 +11697,7 @@ function App(){
   const[debts,setDebts]=useState([]);
   const[calendarItems,setCalendarItems]=useState([]);
   const[dividends,setDividends]=useState([]);
+  const[watchlist,setWatchlist]=useState([]);
   // Record scheduled debt repayments (interest + principal) once they fall due.
   // Runs on load, at the start of each day, and whenever a debt's schedule changes.
   const debtSchedKey=(debts||[]).map(d=>d.id+":"+(d.nextPaymentDate||"")+":"+(d.minPayment||"")+":"+(d.frequency||"")).join("|");
@@ -11652,7 +11794,7 @@ function App(){
             if(d.debts!==undefined)setDebts(d.debts);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             if(d.history)setHistory(d.history);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.watchlist!==undefined)setWatchlist(d.watchlist||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.habits!==undefined)setHabits(d.habits);
             if(d.habitLog)setHabitLog(d.habitLog);
             if(d.holdings!==undefined)setHoldings(d.holdings);
@@ -11703,7 +11845,7 @@ function App(){
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
-        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);if(saved.calendarItems!==undefined)setCalendarItems(saved.calendarItems||[]);if(saved.dividends!==undefined)setDividends(saved.dividends||[]);if(saved.dailySnaps)setDailySnaps(saved.dailySnaps);
+        if(saved.bodyLog!==undefined)setBodyLog(saved.bodyLog);if(saved.calendarItems!==undefined)setCalendarItems(saved.calendarItems||[]);if(saved.dividends!==undefined)setDividends(saved.dividends||[]);if(saved.watchlist!==undefined)setWatchlist(saved.watchlist||[]);if(saved.dailySnaps)setDailySnaps(saved.dailySnaps);
         if(saved.habits!==undefined)setHabits(saved.habits);
         if(saved.habitLog)setHabitLog(saved.habitLog);
         if(saved.holdings!==undefined)setHoldings(saved.holdings);
@@ -11756,7 +11898,7 @@ function App(){
 
   useEffect(()=>{
     if(!readyToSave)return;
-    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -11801,13 +11943,13 @@ function App(){
       })();
     },400);
     return()=>clearTimeout(timer);
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
 
   // Flush save immediately if the user navigates away/closes the tab before the debounce timer fires
   useEffect(()=>{
     const flush=()=>{
       if(!readyToSave)return;
-      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+      const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       saveData(dataToSave);
       if(authToken && authUser?.id){
         try{
@@ -11857,7 +11999,7 @@ function App(){
             if(d.budgets)setBudgets(d.budgets);
             if(d.taxDeductions!==undefined)setTaxDeductions(d.taxDeductions);
             // Health & body
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.watchlist!==undefined)setWatchlist(d.watchlist||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.workouts!==undefined)setWorkouts(d.workouts);
             // Journal & reading
             if(d.journal!==undefined)setJournal(d.journal);
@@ -11896,7 +12038,7 @@ function App(){
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
-  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
+  },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
 
   const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
@@ -11983,7 +12125,7 @@ function App(){
     setCompleted([]);
     setSupplements(data.supplements||[]);
     setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks([]);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);
+    setBooks([]);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setWatchlist([]);setDailySnaps({});setBodyLog([]);
     // Build habits from selected habit names
     const habitColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A"];
     const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
@@ -12191,7 +12333,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+            if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.watchlist!==undefined)setWatchlist(d.watchlist||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
             if(d.holdings!==undefined)setHoldings(d.holdings);
             if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
             if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -12232,7 +12374,7 @@ function App(){
               if(d.commodityHoldings!==undefined)setCommodityHoldings(d.commodityHoldings);
               if(d.altAssets!==undefined)setAltAssets(d.altAssets);
               if(d.properties!==undefined)setProperties(d.properties);
-              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
+              if(d.bodyLog!==undefined)setBodyLog(d.bodyLog);if(d.calendarItems!==undefined)setCalendarItems(d.calendarItems||[]);if(d.dividends!==undefined)setDividends(d.dividends||[]);if(d.watchlist!==undefined)setWatchlist(d.watchlist||[]);if(d.dailySnaps)setDailySnaps(p=>({...(p||{}),...d.dailySnaps}));
               if(d.holdings!==undefined)setHoldings(d.holdings);
               if(d.cryptoHoldings!==undefined)setCryptoHoldings(d.cryptoHoldings);
               if(d.nwHistory)setNwHistory(d.nwHistory);
@@ -12288,7 +12430,7 @@ function App(){
     setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
     setBooks(D_BOOKS);setReadingGoal(24);setBills([]);setDebts([]);setTaxDeductions([]);
-    setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
+    setHistory({});setCalendarItems([]);setDividends([]);setWatchlist([]);setDailySnaps({});setBodyLog([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setBudgets({});setWeeklyReflections({});setNotes([]);setServices([]);
     setLearnData({library:[],sessions:[],weeklyGoal:5});
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setProperties([]);
@@ -12370,7 +12512,7 @@ function App(){
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
-    setBooks(D_BOOKS);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setDailySnaps({});setBodyLog([]);
+    setBooks(D_BOOKS);setBills([]);setHistory({});setCalendarItems([]);setDividends([]);setWatchlist([]);setDailySnaps({});setBodyLog([]);
     setSeenMilestones([]);setHabits(D_HABITS);setHabitLog({});setHoldings([]);
     setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);setBudgets({});setAdvisorMessages([]);
     setShowSetup(true);
@@ -12452,7 +12594,7 @@ function App(){
           {page==="bills"&&<BillsPage bills={bills} setBills={setBills} debts={debts} setPage={setPage}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} setTransactions={setTransactions} budgets={budgets} setBudgets={setBudgets} bills={bills} setBills={setBills} debts={debts} setDebts={setDebts}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} properties={properties} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
-          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
+          {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade} watchlist={watchlist} setWatchlist={setWatchlist} holdings={holdings}/>)}
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio} divs={dividends} setDivs={setDividends}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}

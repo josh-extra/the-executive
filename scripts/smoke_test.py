@@ -85,12 +85,13 @@ def seed():
         "advisorMessages": [],
         "calendarItems": [{"id": 21, "type": "reminder", "title": "Check super", "date": ds(10), "repeat": "monthly", "amount": "", "note": "", "doneDates": []},
                           {"id": 23, "type": "reminder", "title": LONG_TEXT, "date": ds(-1), "repeat": "none", "amount": "", "note": LONG_TEXT, "doneDates": []}],
+        "watchlist": [{"id": 31, "ticker": "AAPL", "name": "Apple", "notes": "", "alertBelow": "210", "alertAbove": "", "addedDate": ds(20), "addedPrice": 180, "addedCurrency": "USD"}],
         "dividends": [{"id": 22, "ticker": "CBA.AX", "name": "CBA", "amountPerShare": "2.25", "frequency": "quarterly", "nextPayDate": ds(-20), "franking": "100", "shares": 100}],
     }
 
 # Collections that must never shrink in a save (catches accidental data loss)
 MUST_KEEP = ["goals", "completed", "supplements", "habits", "workouts", "bodyLog", "transactions", "journal", "books", "bills", "debts",
-             "properties", "holdings", "cryptoHoldings", "commodityHoldings", "altAssets", "notes", "calendarItems", "dividends"]
+             "properties", "holdings", "cryptoHoldings", "commodityHoldings", "altAssets", "notes", "calendarItems", "dividends", "watchlist"]
 
 # ---------------------------------------------------------------- helpers
 # Anything wider than the page area (ignoring deliberate side-scrolling strips)
