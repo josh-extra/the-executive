@@ -5503,7 +5503,13 @@ Categorisation rules:
   );
 }
 
-function BillsPage({bills,setBills}){
+// LOAN_DUP_HINT: a bill that looks like the same repayment as a Debt tab loan
+function loanForBill(b,loans){
+  const amt=parseFloat(b.amount)||0;const n=String(b.name||"").toLowerCase();
+  if(!/loan|finance|mortgage|repayment/.test(n))return null;
+  return (loans||[]).find(d=>Math.abs((parseFloat(d.minPayment)||0)-amt)<1&&(d.frequency||"monthly")===b.frequency)||null;
+}
+function BillsPage({bills,setBills,debts,setPage}){
   const t=T();
   const isMobile=useIsMobile();
   const emptyForm={name:"",amount:"",frequency:"monthly",category:"Housing",lastPaid:todayStr(),autopay:false};
@@ -5541,8 +5547,14 @@ function BillsPage({bills,setBills}){
     setForm(emptyForm);setShowAdd(false);setEditingId(null);
   };
 
-  const totalMonthly=bills.reduce((s,b)=>s+monthlyEq(b),0);
-  const upcoming=bills.filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}).sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
+  // Loan repayments come straight from the Debt tab (edit them there)
+  const loans=(debts||[]).filter(d=>(parseFloat(d.minPayment)||0)>0&&(parseFloat(d.balance)||0)>0);
+  const loanMonthly=d=>(parseFloat(d.minPayment)||0)*(({weekly:52,fortnightly:26,monthly:12,quarterly:4,annually:1})[d.frequency||"monthly"]||12)/12;
+  const loanTotal=loans.reduce((s,d)=>s+loanMonthly(d),0);
+  const dupOf=b=>loanForBill(b,loans);
+  const totalMonthly=bills.filter(b=>!dupOf(b)).reduce((s,b)=>s+monthlyEq(b),0)+loanTotal;
+  const loanUpcoming=loans.filter(d=>{if(!d.nextPaymentDate)return false;const x=(new Date(d.nextPaymentDate+"T12:00:00")-new Date())/864e5;return x>=-1&&x<=7;}).map(d=>({id:"loan_"+d.id,name:d.name||d.type||"Loan",amount:parseFloat(d.minPayment)||0,nextDue:d.nextPaymentDate,isLoan:true}));
+  const upcoming=[...bills.filter(b=>!dupOf(b)).filter(b=>{const d=(new Date(b.nextDue+"T12:00:00")-new Date())/864e5;return d>=0&&d<=7;}),...loanUpcoming].sort((a,b)=>new Date(a.nextDue)-new Date(b.nextDue));
 
   // Group bills by category
   const grouped=billCats.map(cat=>({cat,items:bills.filter(b=>b.category===cat)})).filter(g=>g.items.length>0);
@@ -5562,6 +5574,7 @@ function BillsPage({bills,setBills}){
         <Card style={{textAlign:"center",padding:"12px 8px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Monthly Total</div>
           <div style={{fontSize:22,color:t.RED,fontWeight:700}}>{fmtAmt(totalMonthly)}</div>
+          {loanTotal>0&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{"incl. "+fmtAmt(loanTotal)+" loan repayments"}</div>}
         </Card>
         <Card style={{textAlign:"center",padding:"12px 8px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Annual Total</div>
@@ -5569,7 +5582,7 @@ function BillsPage({bills,setBills}){
         </Card>
         <Card style={{textAlign:"center",padding:"12px 8px"}}>
           <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Bills Tracked</div>
-          <div style={{fontSize:22,color:t.BLUE,fontWeight:700}}>{bills.length}</div>
+          <div style={{fontSize:22,color:t.BLUE,fontWeight:700}}>{bills.filter(b=>!dupOf(b)).length+loans.length}</div>
         </Card>
       </div>
 
@@ -5592,7 +5605,7 @@ function BillsPage({bills,setBills}){
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmtAmt(b.amount)}</span>
-                    <button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"4px 9px",color:t.GREEN,cursor:"pointer",fontSize:11,fontFamily:"'Montserrat',sans-serif"}}>Paid</button>
+                    {b.isLoan?<span style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>Loan - auto</span>:<button onClick={()=>markPaid(b.id)} style={{background:t.GREEN+"18",border:"1px solid "+t.GREEN+"44",borderRadius:5,padding:"4px 9px",color:t.GREEN,cursor:"pointer",fontSize:11,fontFamily:"'Montserrat',sans-serif"}}>Paid</button>}
                   </div>
                 </div>
               </div>
@@ -5677,8 +5690,47 @@ function BillsPage({bills,setBills}){
           <div>No bills tracked yet</div>
         </div>
       )}
+      {/* Loan repayments from the Debt tab */}
+      {loans.length>0&&(
+        <div style={{marginBottom:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Loan Repayments</div>
+            <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{fmtAmt(loanTotal)+"/mo"}</div>
+          </div>
+          <Card style={{borderLeft:"3px solid "+t.GOLD}}>
+            {loans.map((d,i)=>{
+              const rate=parseFloat(d.rate)||0,bal=parseFloat(d.balance)||0,off=parseFloat(d.offsetBalance)||0,f=d.frequency||"monthly";
+              const interest=Math.max(bal-off,0)*(rate/100)*((DEBT_PERIOD_DAYS[f]||365/12)/365);
+              const pay=parseFloat(d.minPayment)||0;
+              return(
+                <div key={d.id}>
+                  {i>0&&<Divider/>}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:500}}>{d.name||d.type||"Loan"}<span style={{fontSize:9,color:t.GOLD,marginLeft:6}}>from Debt tab</span></div>
+                      <div style={{display:"flex",gap:10,marginTop:2,flexWrap:"wrap"}}>
+                        <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{f.charAt(0).toUpperCase()+f.slice(1)}</span>
+                        <span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{d.nextPaymentDate?"Next: "+d.nextPaymentDate:"No payment date set"}</span>
+                        {rate>0&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"est. "+fmtAmt(interest)+" interest, "+fmtAmt(Math.max(pay-interest,0))+" principal"}</span>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0}}>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:13,color:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{fmtAmt(pay)}</div>
+                        {f!=="monthly"&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{fmtAmt(loanMonthly(d))+"/mo"}</div>}
+                      </div>
+                      {setPage&&<button onClick={()=>setPage("debt")} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Debt tab</button>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6}}>Repayments are recorded automatically on the Debt tab. Edit amounts and dates there.</div>
+          </Card>
+        </div>
+      )}
       {grouped.map(({cat,items})=>{
-        const catTotal=items.reduce((s,b)=>s+monthlyEq(b),0);
+        const catTotal=items.filter(b=>!dupOf(b)).reduce((s,b)=>s+monthlyEq(b),0);
         const col=CAT_COLORS_B[cat]||t.MUTED;
         return (
           <div key={cat} style={{marginBottom:16}}>
@@ -5706,6 +5758,7 @@ function BillsPage({bills,setBills}){
                           </span>
                           {b.lastPaid&&<span style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>{"paid "+b.lastPaid}</span>}
                         </div>
+                        {dupOf(b)&&<div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>{"Looks like the same repayment as "+(dupOf(b).name||"a loan")+" on the Debt tab - it now shows under Loan Repayments, so this bill can be deleted. Until then it's left out of totals, the Budget and the Calendar."}</div>}
                       </div>
                       <div style={{display:"flex",alignItems:"center",gap:7,flexShrink:0,marginLeft:10}}>
                         <div style={{textAlign:"right"}}>
@@ -7581,7 +7634,9 @@ const CAL_ORDER={deadline:0,reminder:1,bill:2,repay:3,income:4,dividend:5};
 function buildCalendarEvents(src,from,to){
   const{bills,debts,dividends,holdings,goals,calendarItems}=src||{};
   const ev=[];const today=todayStr();
+  const _loans=(debts||[]).filter(d=>(parseFloat(d.minPayment)||0)>0&&(parseFloat(d.balance)||0)>0);
   (bills||[]).forEach(b=>{
+    if(_loans.length&&loanForBill(b,_loans))return;
     const amt=parseFloat(b.amount)||0;
     (b.paymentHistory||[]).forEach((p,i)=>{if(p&&p.date&&p.date>=from&&p.date<=to)ev.push({key:"bp"+b.id+p.date+i,date:p.date,type:"bill",title:b.name,amount:parseFloat(p.amount)||amt,dir:"out",paid:true,note:"Paid"});});
     if(b.nextDue)calOccurrences(b.nextDue,b.frequency||"monthly",from,to).forEach(d=>{
@@ -8728,7 +8783,7 @@ function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBi
     const from=isCur?(today<mStart?mStart:today):mStart;
     const keep=e=>!e.paid&&e.amount>0&&(e.date>=from||(e.type==="bill"&&e.overdue));
     const out=[];
-    (bills||[]).forEach(b=>buildCalendarEvents({bills:[b]},mStart,mEnd).filter(e=>e.type==="bill"&&keep(e)).forEach(e=>out.push({...e,cat:billBudgetCat(b),src:b})));
+    (bills||[]).forEach(b=>buildCalendarEvents({bills:[b],debts},mStart,mEnd).filter(e=>e.type==="bill"&&keep(e)).forEach(e=>out.push({...e,cat:billBudgetCat(b),src:b})));
     (debts||[]).forEach(d=>buildCalendarEvents({debts:[d]},mStart,mEnd).filter(e=>e.type==="repay"&&keep(e)).forEach(e=>out.push({...e,cat:debtBudgetCat(d),src:d})));
     return out.sort((x,y)=>x.date.localeCompare(y.date));
   })();
@@ -8764,7 +8819,8 @@ function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBi
       <Btn onClick={()=>setEditingCat(null)} variant="ghost" style={{fontSize:10,padding:"5px 8px"}}>Cancel</Btn>
     </div>
   );
-  const pace=isCur&&totalBudget>0?(paceDiff>5?{c:t.RED,txt:"Ahead of pace - spending faster than the month is passing"}:paceDiff<-5?{c:t.GREEN,txt:"Under pace - spending slower than the month is passing"}:{c:t.GOLD,txt:"On pace"}):null;
+  const noImport=isCur&&!txs.some(tx=>String(tx.date||"").startsWith(mk)&&tx.type==="expense");
+  const pace=noImport&&totalBudget>0?{c:t.GOLD,txt:"No "+new Date(mk+"-01T12:00:00").toLocaleString(_locale,{month:"long"})+" transactions imported yet - import a statement on Cash Flow"}:isCur&&totalBudget>0?(paceDiff>5?{c:t.RED,txt:"Ahead of pace - spending faster than the month is passing"}:paceDiff<-5?{c:t.GREEN,txt:"Under pace - spending slower than the month is passing"}:{c:t.GOLD,txt:"On pace"}):null;
 
   return (
     <div data-page="true" style={{maxWidth:820,margin:"0 auto"}}>
@@ -8848,7 +8904,7 @@ function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBi
           </div>
           {pace&&(
             <div style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:8,flexWrap:"wrap",fontFamily:"'Montserrat',sans-serif",fontSize:10}}>
-              <span style={{color:t.MUTED}}>{"Day "+dayN+" of "+dim+": "+monthPct+"% of the month gone, "+usedPct+"% of budget spent"}</span>
+              {!noImport&&<span style={{color:t.MUTED}}>{"Day "+dayN+" of "+dim+": "+monthPct+"% of the month gone, "+usedPct+"% of budget spent"}</span>}
               <span style={{color:pace.c,fontWeight:600}}>{pace.txt}</span>
             </div>
           )}
@@ -8904,7 +8960,7 @@ function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBi
                   </div>
                   {isEditing?editBox(cat):(
                     <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                      {budget>0&&<span style={{fontSize:14,color:barCol(ppct,over),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{pct+"%"}</span>}
+                      {budget>0&&<span title={comm>0?"Includes "+fmt(comm)+" still to come":"Spent so far"} style={{fontSize:14,color:barCol(ppct,over),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{ppct+"%"}</span>}
                       <button onClick={e=>{e.stopPropagation();startEdit(cat);}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"4px 9px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>{budget>0?"Edit":"Set"}</button>
                       {isCustom&&<button aria-label={"Delete "+cat} onClick={e=>{e.stopPropagation();const b={...budgets};delete b[cat];setBudgets(b);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>{"×"}</button>}
                     </div>
@@ -12393,7 +12449,7 @@ function App(){
           {page==="projector"&&<ProjectorPage profile={liveProfile}/>}
           {page==="cashflow"&&<CashFlowPage transactions={transactions} setTransactions={setTransactions} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="cashflow"&&!isPro(subscription)&&<UpgradeHint onUpgrade={()=>setShowUpgrade(true)} hint="Unlock AI bank statement import — auto-categorise transactions from a PDF →"/>}
-          {page==="bills"&&<BillsPage bills={bills} setBills={setBills}/>}
+          {page==="bills"&&<BillsPage bills={bills} setBills={setBills} debts={debts} setPage={setPage}/>}
           {page==="budget"&&<BudgetPage transactions={transactions} setTransactions={setTransactions} budgets={budgets} setBudgets={setBudgets} bills={bills} setBills={setBills} debts={debts} setDebts={setDebts}/>}
           {page==="debt"&&<DebtPage profile={liveProfile} setProfile={setProfile} properties={properties} debts={debts} setDebts={setDebts} subscription={subscription} setShowUpgrade={setShowUpgrade}/>}
           {page==="invest"&&(isFeatureLocked("invest",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="invest"/>:<InvestPage profile={liveProfile} properties={properties} subscription={subscription} setShowUpgrade={setShowUpgrade}/>)}
