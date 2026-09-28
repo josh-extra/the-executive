@@ -1104,7 +1104,7 @@ function AnimatedScore({value,color,size=52}){
   return <div className="score-up" style={{fontSize:size,color,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1}}>{display}</div>;
 }
 
-function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
+function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems,profile,tasks,setTasks,goals,supplements,setSupplements,history,streak,market,nwHistory,setPage,setShowBriefing,habits,habitLog,setHabitLog,bills,transactions,isMobile,syncing,isOnline,pendingSave,authUser,setShowAuth,holdings,portfolio,cryptoHoldings,cryptoPortfolio,marketTickers,setMarketTickers,subscription,setShowUpgrade}){
   const[showMktEdit,setShowMktEdit]=useState(false);
 
   const t=T();
@@ -1197,6 +1197,7 @@ function DashboardPage({debts,dividends,calendarItems,setCalendarItems,profile,t
           </button>
         </div>
       </div>
+      {setupCard&&<div style={{order:0}}>{setupCard}</div>}
       {/* ── ROW 1: Score + Rings + Net Worth ── */}
       <div style={{...rowStyle(1),display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr 1fr",gap:12,order:isMobile?1:0}}>
         {/* Score */}
@@ -9179,447 +9180,277 @@ function BudgetPage({transactions,setTransactions,budgets,setBudgets,bills,setBi
   );
 }
 
+// ── Onboarding ────────────────────────────────────────────────────────────────
+// Onboarding only identifies what applies to the user. The details (balances,
+// loans, holdings, habits...) are filled in afterwards from a personalised
+// "Finish setting up" checklist on the Dashboard, which ticks itself off as the
+// real data appears.
+const SETUP_MONEY=[
+  {k:"cash",label:"Cash & savings",sub:"Bank and savings accounts"},
+  {k:"super",label:"__SUPER__",sub:"Retirement savings"},
+  {k:"home",label:"Home I own",sub:"With or without a home loan"},
+  {k:"invprop",label:"Investment property",sub:"And its loan"},
+  {k:"car",label:"Car loan",sub:"Car finance or lease"},
+  {k:"card",label:"Credit card",sub:"Balances you carry"},
+  {k:"personal",label:"Personal or student loan",sub:"HECS/HELP, personal loans"},
+  {k:"shares",label:"Shares & ETFs",sub:"Tracked at live prices"},
+  {k:"crypto",label:"Crypto",sub:"Bitcoin, Ethereum and others"},
+  {k:"commod",label:"Gold & commodities",sub:"Gold, silver and more"},
+  {k:"other",label:"Other assets",sub:"Cars, watches, art, collectibles"},
+  {k:"bills",label:"Regular bills",sub:"Rent, phone, subscriptions"},
+];
+const SETUP_LIFE=[
+  {k:"supps",label:"Supplements",sub:"Your daily stack"},
+  {k:"body",label:"Body metrics",sub:"Weight, body fat, sleep"},
+  {k:"workout",label:"Workouts",sub:"Training log"},
+  {k:"habits",label:"Daily habits",sub:"Streaks and consistency"},
+  {k:"goals",label:"Goals",sub:"Weekly to yearly"},
+  {k:"reading",label:"Reading",sub:"Books and notes"},
+  {k:"journal",label:"Journal",sub:"Daily reflection"},
+];
+const SETUP_HEALTH_GOALS=["Build Muscle","Lose Fat","Improve Sleep","Increase Energy","Reduce Stress","Mental Clarity","Longevity","Athletic Performance"];
+const SETUP_RISK=["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"];
+// Checklist items: which page each goes to and how we know it's done
+function setupItems(plan,data){
+  const d=data||{};const pf=d.profile||{};const debts=d.debts||[];
+  const hasDebt=types=>debts.some(x=>types.includes(x.type));
+  const n=a=>(a||[]).length>0;
+  const DEF={
+    cash:{label:"Add your cash and savings balance",page:"wealth",done:()=>(parseFloat(pf.cashSavings)||0)>0||n(pf.cashLog)},
+    super:{label:"Add your "+L().superLabel.toLowerCase()+" balance",page:"wealth",done:()=>(parseFloat(pf.superBalance)||0)>0||n(d.superLog)},
+    home:{label:"Add your home (and its loan, if you have one)",page:"property",done:()=>(d.properties||[]).some(p=>p.type==="home")||hasDebt(["Mortgage"])},
+    invprop:{label:"Add your investment property and its loan",page:"property",done:()=>(d.properties||[]).some(p=>p.type!=="home")||hasDebt(["Investment Loan"])},
+    car:{label:"Add your car loan",page:"debt",done:()=>hasDebt(["Car Finance"])},
+    card:{label:"Add your credit card",page:"debt",done:()=>hasDebt(["Credit Card"])},
+    personal:{label:"Add your personal or student loans",page:"debt",done:()=>hasDebt(["Personal Loan","Student Loan"])},
+    shares:{label:"Add your shares (or import a broker statement)",page:"wealth",done:()=>n(d.holdings)},
+    crypto:{label:"Add your crypto",page:"wealth",done:()=>n(d.cryptoHoldings)},
+    commod:{label:"Add your gold and commodities",page:"wealth",done:()=>n(d.commodityHoldings)},
+    other:{label:"Add your other assets",page:"wealth",done:()=>n(d.altAssets)},
+    bills:{label:"Add your regular bills",page:"bills",done:()=>n(d.bills)},
+    statement:{label:"Import a bank statement",page:"cashflow",done:()=>n(d.transactions)},
+    budget:{label:"Set your monthly budgets",page:"budget",done:()=>Object.values(d.budgets||{}).some(v=>(parseFloat(v)||0)>0)},
+    supps:{label:"Add your supplements",page:"health",done:()=>n(d.supplements)},
+    body:{label:"Log your body metrics",page:"body",done:()=>n(d.bodyLog)},
+    workout:{label:"Log your first workout",page:"workout",done:()=>n(d.workouts)},
+    habits:{label:"Choose your daily habits",page:"habits",done:()=>n(d.habits)},
+    goals:{label:"Set your first goals",page:"goals",done:()=>n(d.goals)},
+    reading:{label:"Add the book you're reading",page:"reading",done:()=>n(d.books)},
+    journal:{label:"Write your first journal entry",page:"journal",done:()=>n(d.journal)},
+  };
+  return (plan||[]).filter(k=>DEF[k]).map(k=>({k,...DEF[k],isDone:!!DEF[k].done()}));
+}
+function SetupChecklist({data,setProfile,setPage}){
+  const t=T();
+  const pf=(data&&data.profile)||{};
+  const[showAll,setShowAll]=useState(false);
+  if(!pf.setupPlan||pf.setupDismissed)return null;
+  const items=setupItems(pf.setupPlan,data);
+  if(!items.length)return null;
+  const done=items.filter(i=>i.isDone).length;
+  const todo=items.filter(i=>!i.isDone);
+  const dismiss=()=>setProfile&&setProfile(p=>({...p,setupDismissed:true}));
+  if(!todo.length)return(
+    <Card style={{border:"1px solid "+t.GREEN+"55"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <div><div style={{fontSize:13,color:t.TEXT}}>Setup complete</div><div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"All "+items.length+" items are in. Your dashboard is running on real numbers."}</div></div>
+        <Btn onClick={dismiss} style={{fontSize:11,padding:"7px 12px"}}>Done</Btn>
+      </div>
+    </Card>
+  );
+  const shown=showAll?todo:todo.slice(0,5);
+  return(
+    <Card style={{border:"1px solid "+t.GOLD+"44"}}>
+      <SectionLabel action={<button onClick={dismiss} style={{background:"none",border:"none",color:t.MUTED,fontSize:9,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",letterSpacing:1,padding:0}}>HIDE</button>}>Finish setting up</SectionLabel>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+        <div style={{flex:1}}><PB value={Math.round(done/items.length*100)} height={5}/></div>
+        <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:600,flexShrink:0}}>{done+" of "+items.length+" done"}</div>
+      </div>
+      {shown.map(i=>(
+        <div key={i.k} onClick={()=>setPage&&setPage(i.page)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:"1px solid "+t.BORDER,cursor:"pointer"}}>
+          <div style={{width:16,height:16,borderRadius:"50%",border:"1.5px solid "+t.MUTED,flexShrink:0}}/>
+          <div style={{flex:1,minWidth:0,fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i.label}</div>
+          <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",flexShrink:0}}>{"Add ›"}</div>
+        </div>
+      ))}
+      {todo.length>5&&<button onClick={()=>setShowAll(s=>!s)} style={{background:"none",border:"none",color:t.MUTED,fontSize:10,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",padding:"6px 0 0"}}>{showAll?"Show fewer":"Show all "+todo.length}</button>}
+      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:6}}>Items tick off automatically as you add them.</div>
+    </Card>
+  );
+}
 function SetupPage({onComplete}){
   const t=T();
+  const isMobile=useIsMobile();
+  const STEPS=["welcome","country","you","money","life","look","done"];
   const[step,setStep]=useState(0);
-  const[p,setP]=useState({
-    firstName:"",lastName:"",age:"",location:"",occupation:"",
-    height:"",weight:"",targetWeight:"",bodyFat:"",sleepHours:"",
-    healthGoals:[],currentHabits:[],riskProfile:"Growth - accept volatility",
-    annualIncome:"",investLoanDebt:"",
-    cashSavings:"",superBalance:"",carDebt:"",creditCardDebt:"",personalDebt:"",
-    netWorthTarget:"",theme:"obsidian",bgPhoto:"none"
-  });
-  const[initGoals,setInitGoals]=useState([]);
-  const[initSupps,setInitSupps]=useState([]);
-  const[newGoal,setNewGoal]=useState({title:"",period:"month",category:"financial"});
-  const[newSupp,setNewSupp]=useState({name:"",dose:"",time:"morning",purpose:""});
-
-  const STEPS=[
-    "welcome","personal","body","healthgoals","habits","supplements","goals","financial","appearance","risk","done"
-  ];
+  // Onboarding always opens in the signature Obsidian look (black and gold); the user can switch on the last step
+  useState(()=>{_themeKey="obsidian";return true;});
+  const[p,setP]=useState({firstName:"",lastName:"",dob:"",location:"",occupation:"",annualIncome:"",netWorthTarget:"",riskProfile:"",locale:_locale||"en-AU",theme:"obsidian",bgPhoto:"bg4",healthGoals:[]});
+  const[money,setMoney]=useState([]);
+  const[life,setLife]=useState([]);
   const cur=STEPS[step];
-  const prog=step/(STEPS.length-1);
-
   const upd=(k,v)=>setP(x=>({...x,[k]:v}));
-  const toggleArr=(k,v)=>setP(x=>({...x,[k]:x[k].includes(v)?x[k].filter(i=>i!==v):[...x[k],v]}));
-
+  const tog=(arr,set,k)=>set(arr.includes(k)?arr.filter(x=>x!==k):[...arr,k]);
   const next=()=>setStep(s=>Math.min(s+1,STEPS.length-1));
   const back=()=>setStep(s=>Math.max(s-1,0));
-
+  const canNext=cur!=="you"||p.firstName.trim().length>0;
+  const plan=[...SETUP_MONEY.map(x=>x.k).filter(k=>money.includes(k)),"statement","budget",...SETUP_LIFE.map(x=>x.k).filter(k=>life.includes(k))];
   const finish=()=>{
-    const tA=(parseFloat(p.cashSavings)||0)+(parseFloat(p.superBalance)||0);
-    const tD=(parseFloat(p.investLoanDebt)||0)+(parseFloat(p.carDebt)||0)+(parseFloat(p.creditCardDebt)||0)+(parseFloat(p.personalDebt)||0);
+    const age=p.dob?calcAge(p.dob):"";
     onComplete({
-      profile:{...p,totalAssets:tA,totalDebt:tD,netWorth:tA-tD,shareValue:0,cryptoValue:0},
-      goals:initGoals.map((g,i)=>({...g,id:Date.now()+i,progress:0})),
-      supplements:initSupps.map((s,i)=>({...s,id:Date.now()+i,taken:false}))
+      profile:{...p,firstName:p.firstName.trim(),lastName:p.lastName.trim(),age:age||"",riskProfile:p.riskProfile?[p.riskProfile]:[],
+        cashSavings:"",superBalance:"",totalAssets:0,totalDebt:0,netWorth:0,
+        setupPlan:plan,setupStarted:todayStr(),setupDismissed:false,currentHabits:[]},
+      goals:[],supplements:[]
     });
   };
-
-  const HEALTH_GOALS=["Build Muscle","Lose Fat","Improve Sleep","Boost Testosterone","Increase Energy","Improve HRV","Reduce Stress","Longevity","Improve Cardio","Flexibility"];
-  const HABITS_LIST=["Morning Routine","Cold Exposure","Meditation","Journalling","Strength Training","Reading Daily","Intermittent Fasting","No Alcohol","Evening Walk","Gratitude Practice"];
-  const SUPP_PRESETS=[{name:"Vitamin D3+K2",dose:"5000 IU",time:"morning",purpose:"Immunity & bone health"},{name:"Magnesium Glycinate",dose:"400mg",time:"evening",purpose:"Sleep & recovery"},{name:"Omega-3 Fish Oil",dose:"2g",time:"morning",purpose:"Inflammation & heart"},{name:"Creatine Monohydrate",dose:"5g",time:"morning",purpose:"Strength & cognition"},{name:"Zinc",dose:"25mg",time:"evening",purpose:"Testosterone & immunity"},{name:"Ashwagandha",dose:"600mg",time:"evening",purpose:"Stress & cortisol"}];
-
-  const inp=(k,label,ph,type="text")=>(
-    <div key={k}>
-      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>{label}</div>
-      <Inp type={type} value={p[k]||""} onChange={e=>upd(k,e.target.value)} placeholder={ph}/>
+  const lbl={fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4};
+  const field=(k,label,ph,type)=>(<div key={k} style={{flex:1,minWidth:0}}><div style={lbl}>{label}</div><Inp type={type||"text"} value={p[k]} onChange={e=>upd(k,e.target.value)} placeholder={ph}/></div>);
+  const head=(kicker,title,sub)=>(<div style={{marginBottom:18}}>
+    <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>{kicker}</div>
+    <div style={{fontSize:24,color:t.TEXT,marginBottom:6,fontFamily:"'Cormorant Garamond',Georgia,serif"}}>{title}</div>
+    {sub&&<div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.7}}>{sub}</div>}
+  </div>);
+  const tile=(on,onClick,label,sub,key)=>(
+    <div key={key} onClick={onClick} role="button" aria-pressed={on} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",background:on?t.GOLD+"18":GLASS_BG,border:"1px solid "+(on?t.GOLD:"rgba(255,255,255,0.1)"),borderRadius:9,cursor:"pointer",minWidth:0,backdropFilter:GLASS_BLUR,WebkitBackdropFilter:GLASS_BLUR}}>
+      <div style={{width:18,height:18,borderRadius:5,border:"1.5px solid "+(on?t.GOLD:t.MUTED),background:on?t.GOLD:"transparent",color:"#080808",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{on?"✓":""}</div>
+      <div style={{minWidth:0}}>
+        <div style={{fontSize:13,color:on?t.GOLD:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{label}</div>
+        {sub&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{sub}</div>}
+      </div>
     </div>
   );
+  const grid={display:"grid",gridTemplateColumns:isMobile?"minmax(0,1fr)":"repeat(2,minmax(0,1fr))",gap:8};
+  const chip=(on,onClick,label,key)=>(<button key={key} onClick={onClick} style={{padding:"7px 12px",borderRadius:99,border:"1px solid "+(on?t.GOLD:"rgba(255,255,255,0.14)"),background:on?t.GOLD+"22":GLASS_BG,color:on?t.GOLD:t.TEXT,fontSize:11,fontFamily:"'Montserrat',sans-serif",cursor:"pointer"}}>{label}</button>);
+  const bgFor=p.bgPhoto&&p.bgPhoto!=="none"?p.bgPhoto:"bg4";
 
-  if(cur==="welcome") return (
+  if(cur==="welcome")return(
     <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",position:"relative",overflow:"hidden"}}>
-      <BgPhotoLayer photoId="bg6"/>
-      <div style={{position:"relative",zIndex:1}}>
+      <BgPhotoLayer photoId="bg4"/>
+      <div style={{position:"relative",zIndex:1,maxWidth:360}}>
         <div style={{fontSize:9,letterSpacing:5,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>The Executive</div>
-        <div style={{width:40,height:1,background:"linear-gradient(90deg,transparent,"+t.GOLD+",transparent)",marginBottom:28,opacity:.6}}/>
-        <div style={{fontSize:32,color:"#fff",lineHeight:1.25,marginBottom:14,fontFamily:"'Cormorant Garamond',Georgia,serif",fontWeight:300}}>Welcome.<br/>Let's set up your<br/>dashboard.</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:"'Montserrat',sans-serif",lineHeight:1.85,maxWidth:300,marginBottom:12}}>This takes about 3 minutes. You'll set up your profile, finances, health goals, habits and more.</div>
-        <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:"'Montserrat',sans-serif",marginBottom:40}}>Everything can be updated later.</div>
-        <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"'Montserrat',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin Setup</button>
+        <div style={{width:40,height:1,background:"linear-gradient(90deg,transparent,"+t.GOLD+",transparent)",margin:"0 auto 28px",opacity:.6}}/>
+        <div style={{fontSize:34,color:"#fff",lineHeight:1.2,marginBottom:14,fontFamily:"'Cormorant Garamond',Georgia,serif",fontWeight:300}}>Your private<br/>command centre.</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",fontFamily:"'Montserrat',sans-serif",lineHeight:1.8,marginBottom:10}}>Five quick questions, about a minute. Tell us what's in your world and we'll build your setup list. No numbers needed yet.</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",fontFamily:"'Montserrat',sans-serif",marginBottom:36}}>Everything stays private to your account.</div>
+        <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"'Montserrat',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin</button>
         <br/>
-        <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.3)",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textDecoration:"underline"}}>Skip for now — go straight to dashboard</button>
+        <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textDecoration:"underline"}}>Explore the demo first</button>
       </div>
     </div>
   );
 
-  if(cur==="done") return (
-    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,textAlign:"center",position:"relative",overflow:"hidden"}}>
-      <BgPhotoLayer photoId="bg6"/>
-      <div style={{position:"relative",zIndex:1}}>
-        <div style={{fontSize:48,marginBottom:16}}>✦</div>
-        <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:12}}>You're all set</div>
-        <div style={{fontSize:28,color:"#fff",marginBottom:12,fontFamily:"'Cormorant Garamond',Georgia,serif",fontWeight:300}}>{"Welcome, "+(p.firstName||"Executive")+"."}</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",fontFamily:"'Montserrat',sans-serif",lineHeight:1.85,maxWidth:300,marginBottom:16}}>Your dashboard is personalised and ready. Every section you filled in is already populated.</div>
-        <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",fontFamily:"'Montserrat',sans-serif",marginBottom:40}}>You can update anything later from within each page.</div>
-        <button onClick={finish} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"'Montserrat',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Enter The Executive →</button>
-      </div>
-    </div>
-  );
-
-  return (
-    <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",maxWidth:540,margin:"0 auto"}}>
-      {/* Header */}
-      <div style={{padding:"16px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>Setup</div>
-        <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{step-1+" / "+(STEPS.length-3)}</div>
-      </div>
-      <div style={{margin:"8px 20px 0",height:2,background:t.BORDER,borderRadius:99,overflow:"hidden"}}>
-        <div style={{width:(prog*100)+"%",height:"100%",background:"linear-gradient(90deg,"+t.GOLD+","+t.GL+")",transition:"width .4s"}}/>
-      </div>
-
-      {/* Content */}
-      <div style={{flex:1,overflowY:"auto",padding:"24px 20px 120px"}}>
-
-        {cur==="personal"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Personal</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:20}}>Tell us about yourself</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{display:"flex",gap:10}}>{inp("firstName","First Name","William")}{inp("lastName","Last Name","Sterling")}</div>
-              {inp("dob","Date of Birth","","date")}
-              {inp("location","City / State","Brisbane, QLD")}
-              {inp("occupation","Occupation","Founder / Investor")}
-            </div>
+  if(cur==="done"){
+    const items=setupItems(plan,{profile:{}});
+    return(
+      <div style={{minHeight:"100vh",background:t.BG,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,position:"relative",overflow:"hidden"}}>
+        <BgPhotoLayer photoId={bgFor}/>
+        <div style={{position:"relative",zIndex:1,width:"100%",maxWidth:440}}>
+          <div style={{textAlign:"center",marginBottom:18}}>
+            <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>You're in</div>
+            <div style={{fontSize:30,color:"#fff",fontFamily:"'Cormorant Garamond',Georgia,serif",fontWeight:300}}>{"Welcome, "+(p.firstName.trim()||"Executive")+"."}</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.55)",fontFamily:"'Montserrat',sans-serif",lineHeight:1.7,marginTop:8}}>Here's your setup list. It lives on your Dashboard and ticks itself off as you add each one, in any order, whenever suits you.</div>
           </div>
-        )}
-
-        {cur==="body"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Body Metrics</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Physical baseline</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Used for body tracking and health scoring. You can skip this and add later.</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{display:"flex",gap:10}}>{inp("height","Height (cm)","182","number")}{inp("weight","Weight (kg)","85","number")}</div>
-              <div style={{display:"flex",gap:10}}>{inp("targetWeight","Target Weight (kg)","80","number")}{inp("bodyFat","Body Fat %","18","number")}</div>
-              {inp("sleepHours","Average Sleep (hrs)","7.5","number")}
-            </div>
-          </div>
-        )}
-
-        {cur==="healthgoals"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Health Goals</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What are you working toward?</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Select all that apply — used to personalise your supplement recommendations, recipes and AI advice.</div>
-            {[
-              {cat:"Body Composition",items:[
-                {id:"Build Muscle",icon:"W",desc:"Increase lean mass and strength"},
-                {id:"Lose Fat",icon:"F",desc:"Reduce body fat percentage"},
-                {id:"Maintain Weight",icon:"S",desc:"Keep current body composition"},
-              ]},
-              {cat:"Performance",items:[
-                {id:"Increase Energy",icon:"E",desc:"More sustained energy through the day"},
-                {id:"Boost Testosterone",icon:"T",desc:"Optimise hormonal health"},
-                {id:"Improve HRV",icon:"H",desc:"Better recovery and readiness"},
-                {id:"Athletic Performance",icon:"A",desc:"Sport-specific strength and endurance"},
-              ]},
-              {cat:"Wellbeing",items:[
-                {id:"Improve Sleep",icon:"Z",desc:"Deeper, more restorative sleep"},
-                {id:"Reduce Stress",icon:"M",desc:"Lower cortisol, calmer baseline"},
-                {id:"Mental Clarity",icon:"B",desc:"Sharper focus and cognition"},
-                {id:"Longevity",icon:"L",desc:"Long-term health optimisation"},
-              ]},
-            ].map(group=>(
-              <div key={group.cat} style={{marginBottom:16}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {group.items.map(g=>{
-                    const on=p.healthGoals.includes(g.id);
-                    return (
-                      <div key={g.id} onClick={()=>toggleArr("healthGoals",g.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:on?t.GOLD+"18":t.CARD,border:"1px solid "+(on?t.GOLD:t.BORDER),borderRadius:8,cursor:"pointer",transition:"all .2s"}}>
-                        <div style={{width:32,height:32,borderRadius:8,background:on?t.GOLD+"33":t.CARD2,border:"1px solid "+(on?t.GOLD:t.BORDER),display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{g.icon}</div>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,color:on?t.GOLD:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{g.id}</div>
-                          <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{g.desc}</div>
-                        </div>
-                        <div style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          {on&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+          <div style={{background:GLASS_BG,backdropFilter:GLASS_BLUR,WebkitBackdropFilter:GLASS_BLUR,border:"1px solid "+t.GOLD+"44",borderRadius:12,padding:"8px 16px",marginBottom:18,maxHeight:"42vh",overflowY:"auto"}}>
+            {items.map((i,n)=>(
+              <div key={i.k} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:n?"1px solid "+t.BORDER:"none"}}>
+                <div style={{width:14,height:14,borderRadius:"50%",border:"1.5px solid "+t.GOLD,flexShrink:0}}/>
+                <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",minWidth:0}}>{i.label}</div>
               </div>
             ))}
-            {p.healthGoals.length>0&&<div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>{p.healthGoals.length+" selected"}</div>}
           </div>
-        )}
-
-        {cur==="habits"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Daily Habits</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Build your daily routine</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Select habits you already practise or want to start. Each one goes straight into your habit tracker with streak tracking.</div>
-            {[
-              {cat:"Morning",color:"#C9A84C",items:[
-                {id:"Morning Routine",icon:"S",desc:"Structured start - journal, plan, review",freq:"Daily"},
-                {id:"Cold Exposure",icon:"C",desc:"Cold shower or ice bath for alertness",freq:"Daily"},
-                {id:"Meditation",icon:"M",desc:"Mindfulness or breathwork practice",freq:"Daily"},
-                {id:"Journalling",icon:"J",desc:"Capture thoughts, intentions and gratitude",freq:"Daily"},
-              ]},
-              {cat:"Physical",color:"#7A9E7E",items:[
-                {id:"Strength Training",icon:"W",desc:"Weightlifting or resistance work",freq:"4x/week"},
-                {id:"Cardio",icon:"R",desc:"Running, cycling, rowing or HIIT",freq:"3x/week"},
-                {id:"Mobility Work",icon:"Y",desc:"Stretching, yoga or foam rolling",freq:"Daily"},
-                {id:"Evening Walk",icon:"E",desc:"Low intensity movement to wind down",freq:"Daily"},
-              ]},
-              {cat:"Nutrition",color:"#7EB8C9",items:[
-                {id:"Intermittent Fasting",icon:"F",desc:"16:8 or similar eating window",freq:"Daily"},
-                {id:"No Alcohol",icon:"A",desc:"Alcohol-free lifestyle",freq:"Daily"},
-                {id:"No Processed Food",icon:"N",desc:"Whole foods only",freq:"Daily"},
-                {id:"Hydration",icon:"H",desc:"2-3L water minimum per day",freq:"Daily"},
-              ]},
-              {cat:"Mind",color:"#B07EC9",items:[
-                {id:"Reading Daily",icon:"B",desc:"Books - non-fiction or fiction",freq:"Daily"},
-                {id:"No Social Media",icon:"X",desc:"Cut the scroll, protect focus",freq:"Daily"},
-                {id:"Learning",icon:"L",desc:"Online course, podcast or skill building",freq:"Daily"},
-                {id:"Gratitude Practice",icon:"G",desc:"Note 3 things you are grateful for",freq:"Daily"},
-              ]},
-            ].map(group=>(
-              <div key={group.cat} style={{marginBottom:16}}>
-                <div style={{fontSize:9,color:group.color,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {group.items.map(h=>{
-                    const on=p.currentHabits.includes(h.id);
-                    return (
-                      <div key={h.id} onClick={()=>toggleArr("currentHabits",h.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:on?group.color+"18":t.CARD,border:"1px solid "+(on?group.color:t.BORDER),borderRadius:8,cursor:"pointer",transition:"all .2s"}}>
-                        <div style={{width:32,height:32,borderRadius:8,background:on?group.color+"33":t.CARD2,border:"1px solid "+(on?group.color:t.BORDER),display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{h.icon}</div>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:13,color:on?group.color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{h.id}</div>
-                          <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{h.desc}</div>
-                        </div>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
-                          <div style={{fontSize:9,color:on?group.color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:on?group.color+"18":t.CARD2,padding:"2px 6px",borderRadius:6}}>{h.freq}</div>
-                          <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(on?group.color:t.BORDER),background:on?group.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                            {on&&<span style={{fontSize:8,color:t.BG,fontWeight:700}}>V</span>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-            {p.currentHabits.length>0&&<div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>{p.currentHabits.length+" habits selected"}</div>}
-          </div>
-        )}
-
-        {cur==="supplements"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Supplements</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Your current stack</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>Select from common supplements or skip — you can manage these in the Health tab.</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-              {SUPP_PRESETS.map(s=>{
-                const on=initSupps.some(x=>x.name===s.name);
-                return (
-                  <div key={s.name} onClick={()=>setInitSupps(ss=>on?ss.filter(x=>x.name!==s.name):[...ss,s])} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:on?t.GOLD+"18":t.CARD,border:"1px solid "+(on?t.GOLD:t.BORDER),borderRadius:8,cursor:"pointer"}}>
-                    <div>
-                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{s.name}<span style={{fontSize:10,color:t.MUTED,fontWeight:400}}>{" - "+s.dose}</span></div>
-                      <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{s.purpose}</div>
-                    </div>
-                    <div style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                      {on&&<span style={{fontSize:9,color:t.BG,fontWeight:700}}>V</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{""+initSupps.length+" selected. Add custom supplements in the Health tab."}</div>
-          </div>
-        )}
-
-        {cur==="goals"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Goals</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>What do you want to achieve?</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Pick from suggestions or write your own. You can add, edit and track progress in the Goals tab.</div>
-
-            {/* Suggested goals by category */}
-            {[
-              {cat:"Wealth",color:"#C9A84C",icon:"W",goals:[
-                {title:"Reach my net worth target",period:"year",category:"wealth"},
-                {title:"Save 3 months emergency fund",period:"year",category:"wealth"},
-                {title:"Max out superannuation contributions",period:"year",category:"wealth"},
-                {title:"Pay off credit card debt",period:"month",category:"wealth"},
-              ]},
-              {cat:"Career",color:"#7EB8C9",icon:"C",goals:[
-                {title:"Launch a new revenue stream",period:"year",category:"career"},
-                {title:"Get a promotion or raise",period:"year",category:"career"},
-                {title:"Complete a professional course",period:"year",category:"career"},
-                {title:"Hit monthly revenue target",period:"month",category:"career"},
-              ]},
-              {cat:"Health",color:"#7A9E7E",icon:"H",goals:[
-                {title:"Drop to target body fat",period:"year",category:"health"},
-                {title:"Complete 4 workouts per week",period:"week",category:"health"},
-                {title:"Run a 5K",period:"year",category:"health"},
-                {title:"Sleep 8 hours consistently",period:"month",category:"health"},
-              ]},
-              {cat:"Education",color:"#D4956A",icon:"E",goals:[
-                {title:"Read 24 books this year",period:"year",category:"education"},
-                {title:"Complete an online course",period:"year",category:"education"},
-                {title:"Read for 30 minutes daily",period:"week",category:"education"},
-              ]},
-              {cat:"Personal",color:"#B07EC9",icon:"P",goals:[
-                {title:"No social media",period:"week",category:"personal"},
-                {title:"Travel to 2 new countries",period:"year",category:"personal"},
-                {title:"Spend quality time with family weekly",period:"week",category:"personal"},
-              ]},
-            ].map(group=>(
-              <div key={group.cat} style={{marginBottom:16}}>
-                <div style={{fontSize:9,color:group.color,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:2,marginBottom:8}}>{group.cat}</div>
-                <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                  {group.goals.map(g=>{
-                    const on=initGoals.some(x=>x.title===g.title);
-                    return (
-                      <div key={g.title} onClick={()=>on?setInitGoals(gs=>gs.filter(x=>x.title!==g.title)):setInitGoals(gs=>[...gs,{...g,id:Date.now()+Math.random(),progress:0,milestones:[],actions:[]}])} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",background:on?group.color+"18":t.CARD,border:"1px solid "+(on?group.color:t.BORDER),borderRadius:7,cursor:"pointer",transition:"all .2s"}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:12,color:on?group.color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:on?600:400}}>{g.title}</div>
-                        </div>
-                        <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",background:t.CARD2,padding:"2px 6px",borderRadius:5,flexShrink:0}}>{g.period==="week"?"Weekly":g.period==="month"?"Monthly":"Annual"}</div>
-                        <div style={{width:18,height:18,borderRadius:"50%",border:"1.5px solid "+(on?group.color:t.BORDER),background:on?group.color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          {on&&<span style={{fontSize:8,color:t.BG,fontWeight:700}}>V</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {/* Custom goal entry */}
-            <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",marginTop:8}}>
-              <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Add a Custom Goal</div>
-              <Inp value={newGoal.title} onChange={e=>setNewGoal(g=>({...g,title:e.target.value}))} placeholder="e.g. Close $500k in new revenue..." style={{marginBottom:8}}/>
-              <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <Sel value={newGoal.period} onChange={e=>setNewGoal(g=>({...g,period:e.target.value}))} style={{flex:1}}>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="year">This Year</option>
-                </Sel>
-                <Sel value={newGoal.category} onChange={e=>setNewGoal(g=>({...g,category:e.target.value}))} style={{flex:1}}>
-                  {["wealth","career","health","education","personal"].map(c=><option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-                </Sel>
-              </div>
-              <Btn onClick={()=>{if(!newGoal.title.trim())return;setInitGoals(gs=>[...gs,{...newGoal,id:Date.now(),progress:0,milestones:[],actions:[]}]);setNewGoal({title:"",period:"month",category:"wealth"});}}>Add Goal</Btn>
-            </div>
-
-            {initGoals.length>0&&(
-              <div style={{marginTop:16}}>
-                <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>{initGoals.length+" goal"+(initGoals.length!==1?"s":"")+" selected"}</div>
-                {initGoals.map((g,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,marginBottom:5}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{g.title}</div>
-                      <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{g.category+" - "+g.period}</div>
-                    </div>
-                    <button onClick={()=>setInitGoals(gs=>gs.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:8}}>X</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {cur==="financial"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Finances</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Your financial position</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Shares, crypto, and property are tracked separately in their own tabs. Skip anything you prefer not to enter now.</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {inp("annualIncome","Annual Income (AUD)","320,000","number")}
-              <div style={{height:1,background:t.BORDER}}/>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Other</div>
-              <div style={{display:"flex",gap:10}}>{inp("cashSavings","Cash & Savings","50,000","number")}{inp("superBalance","Superannuation","150,000","number")}</div>
-              <div style={{height:1,background:t.BORDER}}/>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>Other Debts</div>
-              <div style={{display:"flex",gap:10}}>{inp("carDebt","Car Finance","0","number")}{inp("creditCardDebt","Credit Cards","0","number")}</div>
-              {inp("personalDebt","Personal Loans","0","number")}
-            </div>
-          </div>
-        )}
-
-        {cur==="appearance"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Appearance</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose your theme</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Pick the look that suits you. You can change this anytime in Profile.</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:24}}>
-              {[
-                {id:"obsidian",label:"Obsidian",sub:"Dark - gold accents",bg:"#0D0D0D",card:"#141414",border:"#2A2A2A",accent:"#C9A84C",text:"#E8E0D0",muted:"#7A7060"},
-                {id:"charcoal",label:"Charcoal",sub:"Dark - grey tones",bg:"#141414",card:"#1E1E1E",border:"#2E2E2E",accent:"#AFAFAF",text:"#E0E0E0",muted:"#666"},
-              ].map(th=>(
-                <div key={th.id} onClick={()=>{setP(f=>({...f,theme:th.id}));_themeKey=th.id;}} style={{background:th.card,border:"2px solid "+(p.theme===th.id?th.accent:th.border),borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
-                  <div style={{background:th.bg,borderRadius:7,padding:10,marginBottom:10,border:"1px solid "+th.border}}>
-                    <div style={{fontSize:8,color:th.muted,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Today's Score</div>
-                    <div style={{fontSize:22,color:th.accent,fontFamily:"'Montserrat',sans-serif",fontWeight:700,marginBottom:6}}>78%</div>
-                    <div style={{height:3,background:th.border,borderRadius:99,overflow:"hidden"}}><div style={{width:"78%",height:"100%",background:th.accent,borderRadius:99}}/></div>
-                    <div style={{display:"flex",gap:4,marginTop:8}}>
-                      {[80,71,83].map((v,i)=><div key={i} style={{flex:1,height:3,background:th.border,borderRadius:99,overflow:"hidden"}}><div style={{width:v+"%",height:"100%",background:th.accent,opacity:.6+i*.1,borderRadius:99}}/></div>)}
-                    </div>
-                  </div>
-                  <div style={{fontSize:13,color:th.text,fontFamily:"'Montserrat',sans-serif",fontWeight:600,marginBottom:2}}>{th.label}</div>
-                  <div style={{fontSize:10,color:th.muted,fontFamily:"'Montserrat',sans-serif"}}>{th.sub}</div>
-                  {p.theme===th.id&&<div style={{marginTop:6,fontSize:9,color:th.accent,fontFamily:"'Montserrat',sans-serif"}}>Selected</div>}
-                </div>
-              ))}
-            </div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Choose a background</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:16}}>Optional - adds a photo backdrop behind your dashboard. You can change this anytime in Profile.</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
-              {BG_PHOTOS.map(bgp=>{
-                const active=(p.bgPhoto||"none")===bgp.id;
-                return(
-                  <div key={bgp.id} onClick={()=>upd("bgPhoto",bgp.id)} style={{cursor:"pointer",borderRadius:8,border:"2px solid "+(active?t.GOLD:t.BORDER),overflow:"hidden",position:"relative",background:t.CARD2}}>
-                    <div style={{paddingBottom:"56%",position:"relative"}}>
-                      {bgp.thumb
-                        ?<img src={bgp.thumb} alt={bgp.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:active?1:0.6}}/>
-                        :<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,color:t.MUTED}}>⊗</div>
-                      }
-                      {active&&<div style={{position:"absolute",top:4,right:4,width:16,height:16,borderRadius:"50%",background:t.GOLD,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:"#080808",fontWeight:700}}>✓</span></div>}
-                      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"4px 6px",background:"rgba(0,0,0,0.75)",fontSize:9,color:"#fff",fontFamily:"'Montserrat',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{bgp.label}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {cur==="risk"&&(
-          <div>
-            <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Investment Profile</div>
-            <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>Risk & targets</div>
-            <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Used to personalise your Executive AI and investment ideas.</div>
-            <div style={{marginBottom:20}}>
-              <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>Investment risk tolerance</div>
-              {["Conservative - protect capital","Balanced - steady growth","Growth - accept volatility","Aggressive - maximise returns"].map(r=>{
-                const on=p.riskProfile===r;
-                return <button key={r} onClick={()=>upd("riskProfile",r)} style={{display:"block",width:"100%",textAlign:"left",padding:"12px 14px",borderRadius:8,border:"1px solid "+(on?t.GOLD:t.BORDER),background:on?t.GOLD+"18":"transparent",color:on?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13,marginBottom:7}}>{on?"V  ":""}{r}</button>;
-              })}
-            </div>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:8}}>Net Worth Target (AUD)</div>
-            <Inp type="number" value={p.netWorthTarget} onChange={e=>upd("netWorthTarget",e.target.value)} placeholder="3,000,000"/>
-          </div>
-        )}
-
+          <button onClick={finish} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"'Montserrat',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Open my dashboard</button>
+          <button onClick={back} style={{display:"block",margin:"12px auto 0",background:"none",border:"none",color:"rgba(255,255,255,0.4)",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Back</button>
+        </div>
       </div>
+    );
+  }
 
-      {/* Footer buttons */}
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:540,padding:"12px 20px",background:"linear-gradient(transparent,"+t.BG+" 30%)",display:"flex",gap:10,paddingBottom:"calc(12px + env(safe-area-inset-bottom))"}}>
-        {step>1&&<button onClick={back} style={{flex:1,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:14,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13}}>Back</button>}
-        <button onClick={cur==="risk"?next:next} style={{flex:3,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:14,color:t.BG,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
-          {cur==="risk"?"Finish Setup":"Continue"}
-        </button>
-        {["body","supplements","goals","financial","appearance"].includes(cur)&&(
-          <button onClick={next} style={{position:"absolute",top:-28,right:20,background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textDecoration:"underline"}}>Skip</button>
-        )}
+  const stepNo=step;const total=STEPS.length-2;
+  return(
+    <div style={{minHeight:"100vh",background:t.BG,position:"relative"}}>
+      <BgPhotoLayer photoId={bgFor}/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",maxWidth:560,margin:"0 auto",minHeight:"100vh"}}>
+        <div style={{padding:"calc(16px + env(safe-area-inset-top)) 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>Setup</div>
+          <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{stepNo+" of "+total}</div>
+        </div>
+        <div style={{margin:"8px 20px 0",height:2,background:"rgba(255,255,255,0.1)",borderRadius:99,overflow:"hidden"}}>
+          <div style={{width:(stepNo/total*100)+"%",height:"100%",background:"linear-gradient(90deg,"+t.GOLD+","+t.GL+")",transition:"width .4s"}}/>
+        </div>
+        <div style={{flex:1,padding:"22px 20px 130px"}}>
+
+          {cur==="country"&&(<div>
+            {head("Country","Where are you based?","Sets your currency and live conversions for overseas shares and crypto, what your retirement savings are called, and tax features.")}
+            <div style={grid}>
+              {Object.entries(LOCALES).map(([k,v])=>tile(p.locale===k,()=>{upd("locale",k);_locale=k;},v.label,v.currency+" - "+v.superLabel,k))}
+            </div>
+          </div>)}
+
+          {cur==="you"&&(<div>
+            {head("About you","Let's get acquainted","Used to personalise your dashboard and Executive AI.")}
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{display:"flex",gap:10}}>{field("firstName","First name","William")}{field("lastName","Last name","Sterling")}</div>
+              <div style={{display:"flex",gap:10}}>{field("dob","Date of birth","","date")}{field("location","City","Brisbane, QLD")}</div>
+              {field("occupation","Occupation","Founder / Investor")}
+              {field("annualIncome","Annual income before tax ("+(LOCALES[p.locale]||LOCALES["en-AU"]).currency+", optional)","150000","number")}
+            </div>
+          </div>)}
+
+          {cur==="money"&&(<div>
+            {head("Your finances","What's in your financial picture?","Tick everything that applies. You'll add the actual amounts afterwards from your setup list. Nothing is counted until you do.")}
+            <div style={grid}>
+              {SETUP_MONEY.map(m=>tile(money.includes(m.k),()=>tog(money,setMoney,m.k),m.label==="__SUPER__"?(LOCALES[p.locale]||LOCALES["en-AU"]).superLabel:m.label,m.sub,m.k))}
+            </div>
+            <div style={{marginTop:22}}>
+              <div style={lbl}>How do you think about investment risk? (optional)</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                {SETUP_RISK.map(r=>chip(p.riskProfile===r,()=>upd("riskProfile",p.riskProfile===r?"":r),r.split(" - ")[0],r))}
+              </div>
+            </div>
+            <div style={{marginTop:16,maxWidth:280}}>{field("netWorthTarget","Net worth target (optional)","1000000","number")}</div>
+          </div>)}
+
+          {cur==="life"&&(<div>
+            {head("Your life","What else do you want to track?","Your daily score is built from tasks, habits and supplements. Pick what you'd like set up.")}
+            <div style={grid}>
+              {SETUP_LIFE.map(m=>tile(life.includes(m.k),()=>tog(life,setLife,m.k),m.label,m.sub,m.k))}
+            </div>
+            <div style={{marginTop:22}}>
+              <div style={lbl}>Health focus (optional)</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                {SETUP_HEALTH_GOALS.map(g=>chip(p.healthGoals.includes(g),()=>upd("healthGoals",p.healthGoals.includes(g)?p.healthGoals.filter(x=>x!==g):[...p.healthGoals,g]),g,g))}
+              </div>
+            </div>
+          </div>)}
+
+          {cur==="look"&&(<div>
+            {head("Appearance","Make it yours","Change this any time in Profile.")}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:18}}>
+              {[["obsidian","Obsidian","Black with gold"],["charcoal","Charcoal","Soft grey tones"]].map(([id,l,s])=>tile(p.theme===id,()=>{upd("theme",id);_themeKey=id;},l,s,id))}
+            </div>
+            <div style={lbl}>Background</div>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(3,minmax(0,1fr))",gap:8,marginTop:4}}>
+              {BG_PHOTOS.map(b=>{const on=(p.bgPhoto||"none")===b.id;return(
+                <div key={b.id} onClick={()=>upd("bgPhoto",b.id)} style={{cursor:"pointer",borderRadius:8,border:"2px solid "+(on?t.GOLD:"rgba(255,255,255,0.12)"),overflow:"hidden",position:"relative",background:GLASS_BG}}>
+                  <div style={{paddingBottom:"56%",position:"relative"}}>
+                    {b.thumb?<img src={b.thumb} alt={b.label} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",opacity:on?1:0.65}}/>:<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>Plain</div>}
+                    <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"4px 6px",background:"rgba(0,0,0,0.7)",fontSize:9,color:"#fff",fontFamily:"'Montserrat',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{b.label}</div>
+                  </div>
+                </div>);})}
+            </div>
+          </div>)}
+        </div>
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:560,padding:"12px 20px",paddingBottom:"calc(14px + env(safe-area-inset-bottom))",background:"linear-gradient(transparent,rgba(8,7,6,0.92) 35%)",display:"flex",gap:10,zIndex:2,boxSizing:"border-box"}}>
+          <button onClick={back} style={{flex:1,background:GLASS_BG,border:"1px solid rgba(255,255,255,0.12)",borderRadius:10,padding:14,color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13}}>Back</button>
+          <button onClick={()=>canNext&&next()} disabled={!canNext} style={{flex:3,background:canNext?"linear-gradient(135deg,"+t.GOLD+","+t.GL+")":t.BORDER2,border:"none",borderRadius:10,padding:14,color:canNext?"#080808":t.MUTED,cursor:canNext?"pointer":"default",fontFamily:"'Montserrat',sans-serif",fontSize:13,fontWeight:700,letterSpacing:1}}>
+            {cur==="look"?"See my setup list":cur==="you"&&!canNext?"Add your first name":"Continue"}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
-
 
 function MacroBadge({label,value,color}){
   const t=T();
@@ -12133,10 +11964,12 @@ function App(){
     const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
     setHabits((data.profile.currentHabits||[]).map((name,i)=>({id:Date.now()+i,name,icon:habitEmojis[name]||"X",color:habitColors[i%habitColors.length],target:7,timeOfDay:"morning"})));
     setHabitLog({});setHoldings([]);setCryptoHoldings([]);
+    setDebts([]);setProperties([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);
     setSeenMilestones([]);setNwHistory({});setBudgets({});
     setAdvisorMessages([]);
     if(data.profile.theme){_themeKey=data.profile.theme;setThemeState(data.profile.theme);}
     if(data.profile.bgPhoto){setBgPhotoId(data.profile.bgPhoto);}
+    if(data.profile.locale)_locale=data.profile.locale;
     setShowSetup(false);
     setPage("dashboard");
   };
@@ -12582,7 +12415,7 @@ function App(){
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1,transform:"translateZ(0)"}}>
           <div className="exec-main" style={{width:"100%",minWidth:0,overflowX:"clip",maxWidth:isMobile?undefined:1100,padding:isMobile?"12px 12px":"28px 32px",flex:1,paddingTop:isMobile?"calc(16px + env(safe-area-inset-top))":"calc(28px + env(safe-area-inset-top))",paddingBottom:isMobile?"calc(16px + env(safe-area-inset-bottom) + 70px)":"28px",boxSizing:"border-box"}}>
           {page==="search"&&<SearchPage tasks={tasks} goals={goals} journal={journal} books={books} workouts={workouts} recipes={[]} setPage={setPage}/>}
-          {page==="dashboard"&&<DashboardPage {...pg} transactions={transactions} isMobile={isMobile} debts={debts} dividends={dividends} calendarItems={calendarItems} setCalendarItems={setCalendarItems}/>}
+          {page==="dashboard"&&<DashboardPage {...pg} setupCard={<SetupChecklist data={{profile,debts,properties,holdings,cryptoHoldings,commodityHoldings,altAssets,bills,transactions,budgets,supplements,bodyLog,workouts,habits,goals,books,journal,superLog}} setProfile={setProfile} setPage={setPage}/>} transactions={transactions} isMobile={isMobile} debts={debts} dividends={dividends} calendarItems={calendarItems} setCalendarItems={setCalendarItems}/>}
           {page==="tasks"&&<TasksPage tasks={tasks} setTasks={setTasks}/>}
           {page==="habits"&&<HabitsPage habits={habits} setHabits={setHabits} habitLog={habitLog} setHabitLog={setHabitLog}/>}
           {page==="goals"&&<GoalsPage goals={goals} setGoals={setGoals} completed={completed} setCompleted={setCompleted} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
