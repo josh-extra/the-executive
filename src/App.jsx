@@ -103,7 +103,7 @@ const STRIPE_PRICES={
 const FOUNDING_LIMIT=100;
 const PRO_FEATURES=["advisor","invest","tax","learn","services"];
 const isPro=sub=>sub&&["active","trialing"].includes(sub.status);
-const isFeatureLocked=(page,sub)=>PRO_FEATURES.includes(page)&&!isPro(sub);
+const isFeatureLocked=(page,sub)=>PRO_FEATURES.includes(page)&&!isPro(sub)&&!(typeof _isDemo!=="undefined"&&_isDemo&&page!=="advisor");
 
 const hexA=(hex,alpha)=>{
   let h=hex.replace("#","");
@@ -301,6 +301,7 @@ const DEMO={
   investLoanDebt:"120000",carDebt:"0",creditCardDebt:"4200",personalDebt:"0",
   netWorthTarget:"3000000",totalAssets:1763100,totalDebt:804200,netWorth:958900,
   healthGoals:["Build Muscle","Boost Testosterone","Improve HRV"],
+  cashLog:[{id:1,date:daysAgoStr(4),balance:85000,change:6200,note:"Salary + rent in"},{id:2,date:daysAgoStr(34),balance:78800,change:-2400,note:"Hayman Island trip"},{id:3,date:daysAgoStr(64),balance:81200,change:5100,note:""}],
   riskProfile:["Growth - accept volatility"]
 };
 const D_TASKS=[
@@ -11346,6 +11347,130 @@ function NewsPage(){
   );
 }
 
+// ── Demo account data ─────────────────────────────────────────────────────────
+// A full, realistic sample for William Sterling, built relative to today so the
+// demo always looks current. Only used while nobody is signed in and there's no
+// profile; it is never saved, and it's cleared before anyone signs in.
+let _isDemo=false;
+function buildDemoData(){
+  let seed=20260929;
+  const rnd=()=>{seed=(seed*1103515245+12345)%2147483648;return seed/2147483648;};
+  const r2=(a,b)=>Math.round((a+rnd()*(b-a))*100)/100;
+  const ds=n=>daysAgoStr(n);
+  let id=9000;const nid=()=>++id;
+  // Money in and out (last ~95 days)
+  const tx=[];
+  const add=(n,type,category,amount,note)=>tx.push({id:nid(),date:ds(n),type,category,amount:Math.round(amount*100)/100,note});
+  for(let n=2;n<95;n+=14)add(n,"income","Salary",9230.77,"Sterling Capital - salary");
+  for(let n=5;n<95;n+=7)add(n,"income","Rental Income",780,"Paddington rent");
+  add(40,"income","Dividends",1272,"BHP dividend");add(12,"income","Investment Income",96.4,"Interest - savings");
+  const shops=[["Groceries",["Woolworths","Coles","Harris Farm","Aldi"],60,210,3],["Dining Out & Takeaway",["Gerard's Bistro","Uber Eats","Sushi Train","Bacchus","Guzman y Gomez"],24,260,4],["Fuel",["Ampol","BP"],70,120,8],["Transport",["Linkt tolls","Uber","Secure Parking"],8,45,6],["Entertainment",["Event Cinemas","Ticketek","Brisbane Racing Club"],30,180,11],["Clothing & Personal Care",["R.M. Williams","Barber - Lord & Co","Myer"],45,420,16],["Health & Medical",["Chemist Warehouse","Physio - Active Rehab"],25,140,13],["Home & Garden",["Bunnings","Freedom"],35,320,21],["Gifts & Donations",["Red Cross","Myer gift"],50,200,30],["Travel & Holidays",["Qantas","Hayman Island Resort"],280,1900,45]];
+  shops.forEach(([cat,names,lo,hi,every])=>{for(let n=1+Math.floor(rnd()*every);n<95;n+=every)add(n,"expense",cat,r2(lo,hi),names[Math.floor(rnd()*names.length)]);});
+  const monthly=[["Utilities","AGL energy",160,240,33],["Phone & Internet","Aussie Broadband",99,99,30],["Phone & Internet","Telstra mobile",65,65,30],["Subscriptions","Netflix",25,25,30],["Subscriptions","Spotify",16,16,30],["Subscriptions","Claude Pro",34,34,30],["Insurance","Bupa health cover",310,310,30],["Insurance","Car insurance - NRMA",145,145,30],["Gym & Fitness","Fitstop membership",35,35,7],["Tax & Accounting","Xero",75,75,30]];
+  monthly.forEach(([cat,note,lo,hi,every])=>{for(let n=3+Math.floor(rnd()*6);n<95;n+=every)add(n,"expense",cat,r2(lo,hi),note);});
+  tx.sort((a,b)=>b.date.localeCompare(a.date));
+  // Loans (repayments before today are recorded automatically on load, with the interest/principal split)
+  const homeLoan={id:"demo_home",name:"Home Loan - Westpac",type:"Mortgage",lender:"Westpac",balance:692400,originalBalance:760000,rate:6.09,minPayment:1150,frequency:"weekly",nextPaymentDate:ds(56),offsetBalance:45000,startDate:"2022-03-01",endDate:"2052-03-01",notes:"",payments:[]};
+  const invLoan={id:"demo_inv",name:"Investment Loan - CBA",type:"Investment Loan",lender:"Commonwealth Bank",balance:546800,originalBalance:560000,rate:6.39,minPayment:3380,frequency:"monthly",nextPaymentDate:ds(75),offsetBalance:0,startDate:"2024-06-15",endDate:"2054-06-15",notes:"Interest and principal",payments:[]};
+  const card={id:"demo_card",name:"Amex Platinum",type:"Credit Card",lender:"American Express",balance:4200,originalBalance:4200,rate:20.74,minPayment:0,frequency:"monthly",nextPaymentDate:"",offsetBalance:0,notes:"Paid in full monthly",payments:[]};
+  const vh=(v,step)=>Array.from({length:6}).map((_,i)=>({date:ds((6-i)*60),value:Math.round(v-(6-i)*step)}));
+  const properties=[
+    {id:"demo_p1",nickname:"Home - New Farm",type:"home",category:"residential",currentValue:1250000,purchasePrice:1080000,purchaseDate:"2022-03-01",mortgageBalance:0,linkedDebtIds:["demo_home"],ratesAnnual:2600,insuranceAnnual:2100,maintenanceAnnual:3000,valueHistory:vh(1250000,9000)},
+    {id:"demo_p2",nickname:"Investment - Paddington",type:"investment",category:"residential",currentValue:820000,purchasePrice:700000,purchaseDate:"2024-06-15",mortgageBalance:0,linkedDebtIds:["demo_inv"],rentalIncome:780,rentalFrequency:"weekly",managementFeePct:7,ratesAnnual:2200,waterAnnual:1100,insuranceAnnual:1600,maintenanceAnnual:2500,valueHistory:vh(820000,7000)},
+  ];
+  const bills=[
+    ["AGL Energy",480,"quarterly","Utilities",38,false],["Aussie Broadband",99,"monthly","Utilities",4,true],["Telstra Mobile",65,"monthly","Subscriptions",9,true],
+    ["Bupa Health Cover",310,"monthly","Health",12,true],["Car Insurance - NRMA",145,"monthly","Insurance",17,true],["Home & Contents Insurance",2100,"annually","Insurance",140,false],
+    ["Council Rates - New Farm",650,"quarterly","Housing",22,false],["Fitstop",35,"weekly","Health",3,true],["Netflix",25,"monthly","Subscriptions",6,true],["Spotify",16,"monthly","Subscriptions",19,true],["Claude Pro",34,"monthly","Subscriptions",25,true],["Car Registration",880,"annually","Transport",75,false],
+  ].map(([name,amount,frequency,category,dueIn,autopay],i)=>({id:"demo_b"+i,name,amount,frequency,category,autopay,nextDue:daysAgoStr(-dueIn),lastPaid:"",paymentHistory:[]}));
+  // Investments (live prices)
+  const holdings=[
+    {id:"demo_h1",ticker:"VAS.AX",name:"Vanguard Australian Shares ETF",shares:820,avgCost:88.4},
+    {id:"demo_h2",ticker:"CBA.AX",name:"Commonwealth Bank",shares:360,avgCost:112.5},
+    {id:"demo_h3",ticker:"BHP.AX",name:"BHP Group",shares:1150,avgCost:41.2},
+    {id:"demo_h4",ticker:"NDQ.AX",name:"Betashares Nasdaq 100 ETF",shares:640,avgCost:37.8},
+    {id:"demo_h5",ticker:"AAPL",name:"Apple",shares:85,avgCost:255},
+    {id:"demo_h6",ticker:"NVDA",name:"Nvidia",shares:140,avgCost:118},
+  ];
+  const cryptoHoldings=[{id:"demo_c1",ticker:"BTC",symbol:"BTC",name:"Bitcoin",amount:0.32,avgCost:62000},{id:"demo_c2",ticker:"ETH",symbol:"ETH",name:"Ethereum",amount:3.5,avgCost:3400}];
+  const commodityHoldings=[{id:"demo_g1",ticker:"GC=F",name:"Gold",symbol:"Au",unit:"oz",qty:4,avgCost:3150}];
+  const altAssets=[
+    {id:"demo_a1",name:"Rolex Submariner Date",category:"watch",currentValue:19500,costBasis:15800,description:"2021, box and papers",updatedAt:ds(20)},
+    {id:"demo_a2",name:"Porsche 911 Carrera (2019)",category:"car",currentValue:168000,costBasis:189000,description:"Paid off",updatedAt:ds(35)},
+    {id:"demo_a3",name:"Penfolds Grange collection",category:"wine",currentValue:14200,costBasis:9800,description:"6 vintages",updatedAt:ds(60)},
+  ];
+  const superLog=[0,1,2,3,4,5].map(i=>({id:nid(),date:ds((5-i)*30+3),balance:188000+i*2000,change:2000,type:"balance",note:i===5?"Quarterly statement":""})).reverse();
+  const dividends=[
+    {id:"demo_d1",ticker:"VAS.AX",name:"Vanguard Australian Shares",amountPerShare:"1.05",frequency:"quarterly",nextPayDate:daysAgoStr(-17),franking:"80",shares:820},
+    {id:"demo_d2",ticker:"CBA.AX",name:"Commonwealth Bank",amountPerShare:"2.50",frequency:"semi-annual",nextPayDate:daysAgoStr(-170),franking:"100",shares:360},
+    {id:"demo_d3",ticker:"BHP.AX",name:"BHP Group",amountPerShare:"0.95",frequency:"semi-annual",nextPayDate:daysAgoStr(-175),franking:"100",shares:1150},
+  ];
+  const watchlist=[
+    {id:"demo_w1",ticker:"CSL.AX",name:"CSL",notes:"Quality healthcare - waiting for a better entry",alertBelow:"230",alertAbove:"",addedDate:ds(45),addedPrice:null,addedCurrency:null},
+    {id:"demo_w2",ticker:"WES.AX",name:"Wesfarmers",notes:"Bunnings + Kmart compounding",alertBelow:"",alertAbove:"",addedDate:ds(30),addedPrice:null,addedCurrency:null},
+    {id:"demo_w3",ticker:"MSFT",name:"Microsoft",notes:"AI infrastructure exposure",alertBelow:"",alertAbove:"",addedDate:ds(12),addedPrice:null,addedCurrency:null},
+  ];
+  const calendarItems=[
+    {id:"demo_ci1",type:"income",title:"Salary",date:ds(2),repeat:"fortnightly",amount:"9230.77",note:"",doneDates:[]},
+    {id:"demo_ci2",type:"income",title:"Rent - Paddington",date:ds(5),repeat:"weekly",amount:"780",note:"",doneDates:[]},
+    {id:"demo_ci3",type:"reminder",title:"Review super contributions",date:ds(80),repeat:"quarterly",amount:"",note:"Concessional cap check",doneDates:[ds(80)]},
+    {id:"demo_ci4",type:"reminder",title:"Portfolio rebalance check",date:daysAgoStr(-6),repeat:"quarterly",amount:"",note:"",doneDates:[]},
+    {id:"demo_ci5",type:"reminder",title:"Book annual health check",date:daysAgoStr(-11),repeat:"annually",amount:"",note:"",doneDates:[]},
+  ];
+  const workouts=[];
+  const plans=[["Strength",[["Bench Press",4,6,100],["Incline DB Press",3,10,36],["Weighted Dips",3,8,20]]],["Strength",[["Back Squat",5,5,140],["Romanian Deadlift",3,8,110],["Walking Lunge",3,12,24]]],["Cardio",[]],["Strength",[["Deadlift",4,4,180],["Pull Ups",4,8,10],["Barbell Row",3,8,90]]]];
+  for(let n=1,k=0;n<42;n+=2,k++){if(rnd()<0.2)continue;const [type,sets]=plans[k%plans.length];workouts.push({id:nid(),date:ds(n),type,duration:type==="Cardio"?40:65,notes:type==="Cardio"?"Zone 2 run, 7km":"",sets:sets.map(([exercise,s,reps,weight])=>({id:nid(),exercise,sets:s,reps,weight:String(weight+(k>12?0:(rnd()<0.5?2.5:0)))}))});}
+  const bodyLog=Array.from({length:12}).map((_,i)=>({id:nid(),date:ds((11-i)*7+1),weight:String((90.6-i*0.22).toFixed(1)),bodyFat:String((20.4-i*0.2).toFixed(1)),sleep:String((6.8+rnd()*1).toFixed(1)),hrv:String(Math.round(52+i*1.2+rnd()*6))})).reverse();
+  const journal=[
+    [1,4,"Closed the Paddington lease renewal at $780/week. Portfolio steady. Need to protect mornings - too many meetings creeping in."],
+    [3,5,"Best training session in weeks - squat 140 for 5 felt easy. Early night, 8 hours sleep."],
+    [6,3,"Busy week. Skipped cold exposure twice. Reset tomorrow: phone out of the bedroom."],
+    [9,4,"Strategy day with the team. Clear plan for Q4 and the new business unit."],
+    [13,5,"Weekend away at Noosa with family. Recharged. Read 120 pages of Munger."],
+    [18,4,"Met the mortgage broker - looking at refinancing the investment loan below 6.2%."],
+  ].map(([n,mood,text])=>({id:nid(),date:ds(n),mood,text,updatedAt:ds(n)}));
+  const notes=[
+    {id:nid(),title:"Q4 priorities",content:"- Launch the advisory arm\n- Refinance investment loan\n- Max concessional super\n- 2 new mandates",category:"Goals",pinned:true,createdAt:ds(20),updatedAt:ds(3)},
+    {id:nid(),title:"Gift ideas - Sophie",content:"Aesop set, weekend at Spicers Peak, Tiffany bracelet",category:"Gifts",pinned:false,createdAt:ds(40),updatedAt:ds(40)},
+    {id:nid(),title:"Meeting - broker",content:"Current 6.39%. Target under 6.2%. Bring last 2 payslips and rental statements.",category:"Meeting Notes",pinned:false,createdAt:ds(18),updatedAt:ds(18)},
+    {id:nid(),title:"Ideas",content:"Quarterly investor letter. Podcast on property + equities.",category:"Ideas",pinned:false,createdAt:ds(9),updatedAt:ds(9)},
+  ];
+  const services=[
+    {id:nid(),name:"Sarah Chen",role:"Accountant",firm:"Chen & Partners",phone:"07 3000 1234",email:"sarah@example.com",lastContact:ds(24),nextFollow:daysAgoStr(-30),notes:"Tax return lodged via agent"},
+    {id:nid(),name:"James Whitaker",role:"Mortgage Broker",firm:"Whitaker Finance",phone:"0400 000 111",email:"james@example.com",lastContact:ds(18),nextFollow:daysAgoStr(-5),notes:"Refinance quote pending"},
+    {id:nid(),name:"Olivia Grant",role:"Financial Advisor",firm:"Grant Private Wealth",phone:"07 3000 5678",email:"olivia@example.com",lastContact:ds(60),nextFollow:daysAgoStr(-20),notes:"Annual review"},
+  ];
+  const taxDeductions=[
+    ["Home office running costs","Work from Home",1260,40],["Mobile phone (work portion)","Phone & Internet",420,25],["Bloomberg subscription","Investment Expenses",880,60],["Red Cross donation","Donations",500,30],["Leadership course","Education & Training",1450,75],
+  ].map(([description,category,amount,n])=>({id:nid(),description,category,amount,date:ds(n),receipt:true}));
+  const books=[
+    {id:1,title:"Poor Charlie's Almanack",author:"Charles Munger",status:"reading",cur:312,tot:432,readingNotes:[{id:nid(),date:ds(3),fromPage:280,toPage:312,text:"Invert, always invert. Avoid stupidity rather than seeking brilliance."}]},
+    {id:2,title:"The 48 Laws of Power",author:"Robert Greene",status:"next",cur:0,tot:452,readingNotes:[]},
+    {id:3,title:"The Psychology of Money",author:"Morgan Housel",status:"done",cur:256,tot:256,rating:5,review:"Wealth is what you don't see.",dateFinished:ds(40),readingNotes:[]},
+    {id:4,title:"Principles",author:"Ray Dalio",status:"done",cur:592,tot:592,rating:4,review:"",dateFinished:ds(95),readingNotes:[]},
+  ];
+  const goals=[
+    {id:1,title:"Reach $2M net worth",period:"year",progress:74,category:"financial",startDate:ds(270),endDate:daysAgoStr(-95),checkpoints:[{id:1,text:"Refinance investment loan",dueDate:daysAgoStr(-21),done:false,doneAt:""},{id:2,text:"Max concessional super",dueDate:daysAgoStr(-60),done:false,doneAt:""}]},
+    {id:2,title:"Launch new business unit",period:"year",progress:35,category:"career",endDate:daysAgoStr(-95),checkpoints:[{id:3,text:"Sign first 2 clients",dueDate:daysAgoStr(-30),done:false,doneAt:""}]},
+    {id:3,title:"Read 24 books",period:"year",progress:54,category:"education"},
+    {id:4,title:"Drop to 16% body fat",period:"month",progress:60,category:"health"},
+    {id:5,title:"Close $500k revenue",period:"month",progress:72,category:"financial"},
+    {id:6,title:"Complete 4 workouts",period:"week",progress:50,category:"health"},
+  ];
+  const completed=[{id:91,title:"Pay off car loan",period:"year",progress:100,category:"financial",completedAt:ds(120)},{id:92,title:"Run a half marathon",period:"year",progress:100,category:"health",completedAt:ds(200)}];
+  // Daily score history, habits and net worth snapshots
+  const history={},habitLog={},dailySnaps={};
+  for(let n=1;n<=120;n++){
+    const d=ds(n);const good=rnd();
+    [1,2,3,4,5].forEach(h=>{if(rnd()<(h===2?0.55:0.78))habitLog[h+"_"+d]=true;});
+    history[d]={score:Math.round(48+good*48),tasks:4,supps:4,habits:3};
+    const nw=1755000-n*1150+Math.round((rnd()-0.5)*9000);
+    if(n<=90)dailySnaps[d]={nw,a:nw+1236000+n*110,d:1236000+n*110,td:["Review investment portfolio"],to:[],st:["Vitamin D3","Creatine"],sm:[],books:{}};
+  }
+  const nwHistory={};for(let i=11;i>=1;i--){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);nwHistory[d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")]=1420000+(11-i)*30000;}
+  const budgets={"Groceries":"1300","Dining Out & Takeaway":"900","Fuel":"350","Transport":"200","Entertainment":"400","Clothing & Personal Care":"500","Health & Medical":"300","Gym & Fitness":"160","Subscriptions":"120","Utilities":"260","Phone & Internet":"170","Insurance":"650","Travel & Holidays":"1500","Home & Garden":"300","Rent & Mortgage":"8500"};
+  return{transactions:tx,debts:[homeLoan,invLoan,card],properties,bills,holdings,cryptoHoldings,commodityHoldings,altAssets,superLog,dividends,watchlist,calendarItems,workouts,bodyLog,journal,notes,services,taxDeductions,books,goals,completed,history,habitLog,dailySnaps,nwHistory,budgets};
+}
 function App(){
   const[readyToSave,setReadyToSave]=useState(false);
   const[sessionExpired,setSessionExpired]=useState(false);
@@ -11953,6 +12078,14 @@ function App(){
 
   const handleSetupComplete=(data)=>{
     if(!data){setShowSetup(false);return;} // skip - use demo
+    // Clear the demo's sample data first so none of it carries into a real account
+    if(demoLoaded.current){
+      demoLoaded.current=false;
+      setTransactions([]);setDebts([]);setProperties([]);setBills([]);setHoldings([]);setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);
+      setSuperLog([]);setDividends([]);setWatchlist([]);setCalendarItems([]);setWorkouts([]);setBodyLog([]);setJournal([]);setNotes([]);setServices([]);
+      setTaxDeductions([]);setBooks([]);setGoals([]);setCompleted([]);setHistory({});setHabitLog({});setDailySnaps({});setNwHistory({});setBudgets({});
+      setTasks([]);setSupplements([]);setHabits([]);
+    }
     // Full reset of all data
     setProfile(data.profile);
     setTasks([]);
@@ -12005,6 +12138,10 @@ function App(){
   // Computed before the early returns below so the hook order never changes
   const activeProfile=profile||DEMO;
   if(activeProfile.locale)_locale=activeProfile.locale;
+  // DEMO_BG: the demo (no profile yet) shows a background unless one has been picked
+  const shownBg=!profile&&(!bgPhoto||bgPhoto==="none")?"bg2":bgPhoto;
+  _bgPhotoId=shownBg||"none";
+  _isDemo=!profile&&!authUser;
   const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
   const liveCryptoValue=(cryptoHoldings||[]).length>0&&cryptoPortfolio.totalValue>0?cryptoPortfolio.totalValue:parseFloat(activeProfile.cryptoValue)||0;
   const liveCommodityValue=(commodityHoldings||[]).length>0&&commodityPortfolio.totalValue>0?commodityPortfolio.totalValue:0;
@@ -12068,6 +12205,19 @@ function App(){
     });
   },[hydrated,profile,tasks,supplements,books,snapNW,snapA,snapD]);
 
+  // Fill the demo with sample data (only when nobody is signed in and there's no profile)
+  const demoLoaded=useRef(false);
+  useEffect(()=>{
+    if(!hydrated||profile||authUser||demoLoaded.current)return;
+    try{if(localStorage.getItem("exec_token"))return;}catch{}
+    const d=buildDemoData();demoLoaded.current=true;
+    setTransactions(d.transactions);setDebts(d.debts);setProperties(d.properties);setBills(d.bills);
+    setHoldings(d.holdings);setCryptoHoldings(d.cryptoHoldings);setCommodityHoldings(d.commodityHoldings);setAltAssets(d.altAssets);
+    setSuperLog(d.superLog);setDividends(d.dividends);setWatchlist(d.watchlist);setCalendarItems(d.calendarItems);
+    setWorkouts(d.workouts);setBodyLog(d.bodyLog);setJournal(d.journal);setNotes(d.notes);setServices(d.services);
+    setTaxDeductions(d.taxDeductions);setBooks(d.books);setGoals(d.goals);setCompleted(d.completed);
+    setHistory(d.history);setHabitLog(d.habitLog);setDailySnaps(d.dailySnaps);setNwHistory(d.nwHistory);setBudgets(d.budgets);
+  },[hydrated,profile,authUser]);
   if(splash){
     return (
       <div style={{position:"fixed",inset:0,background:"#080808",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",zIndex:9999,minHeight:"100vh",WebkitMinHeight:"-webkit-fill-available"}}>
@@ -12128,6 +12278,14 @@ function App(){
   }
 
   const handleSignIn=async()=>{
+    // Clear the demo's sample data first so none of it carries into a real account
+    if(demoLoaded.current){
+      demoLoaded.current=false;
+      setTransactions([]);setDebts([]);setProperties([]);setBills([]);setHoldings([]);setCryptoHoldings([]);setCommodityHoldings([]);setAltAssets([]);
+      setSuperLog([]);setDividends([]);setWatchlist([]);setCalendarItems([]);setWorkouts([]);setBodyLog([]);setJournal([]);setNotes([]);setServices([]);
+      setTaxDeductions([]);setBooks([]);setGoals([]);setCompleted([]);setHistory({});setHabitLog({});setDailySnaps({});setNwHistory({});setBudgets({});
+      setTasks([]);setSupplements([]);setHabits([]);
+    }
     setAuthLoading(true);setAuthError("");
     try{
       const res = await supabase.signIn(authEmail, authPassword);
@@ -12366,8 +12524,8 @@ function App(){
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:bgPhoto&&bgPhoto!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
-      <BgPhotoLayer photoId={bgPhoto}/>
+    <div style={{display:"flex",minHeight:"100vh",background:shownBg&&shownBg!=="none"?"#080808":t.BG,color:t.TEXT,position:"relative",zIndex:1}}>
+      <BgPhotoLayer photoId={shownBg}/>
       <style>{`@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}`}</style>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;}} /* exec-no-spill */ body,#root{overflow-x:hidden;} .exec-main{overflow-wrap:break-word;} .exec-main [data-page]{min-width:0;max-width:100%;} .exec-main [style*=\"display: grid\"]>*{min-width:0;} .exec-main input,.exec-main select,.exec-main textarea{min-width:0;max-width:100%;}"}</style>
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} onNativePurchase={handleNativePurchase} onRestorePurchases={handleRestorePurchases} loading={upgradeLoading}/>}
@@ -12404,7 +12562,7 @@ function App(){
         </div>
       )}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel} authUser={authUser} setShowAuth={setShowAuth}/>
-      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto",marginLeft:isMobile?0:(sidebarCollapsed?54:200),transition:"margin-left .2s"}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto",marginLeft:isMobile?0:(sidebarCollapsed?54:200),transition:"margin-left .2s",position:"relative",zIndex:1}}>
         {profile&&!authUser&&!showAuth&&(
           <div style={{margin:isMobile?"calc(14px + env(safe-area-inset-top)) 14px 0":"0",background:t.RED+"14",border:"1px solid "+t.RED+"44",borderRadius:isMobile?10:0,padding:isMobile?"10px 14px":"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
             <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",minWidth:0}}>Your data is only saved on this device. Create a free account to back it up and sync it.</div>
