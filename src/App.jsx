@@ -9278,7 +9278,9 @@ function SetupChecklist({data,setProfile,setPage}){
     </Card>
   );
 }
-function SetupPage({onComplete}){
+function SetupPage({onComplete,allowDemo}){
+  // Set the Obsidian look before the first paint (the welcome screen was showing grey on light-mode devices)
+  useState(()=>{_themeKey="obsidian";return true;});
   const t=T();
   const isMobile=useIsMobile();
   const STEPS=["welcome","country","you","money","life","look","done"];
@@ -9335,7 +9337,7 @@ function SetupPage({onComplete}){
         <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",fontFamily:"'Montserrat',sans-serif",marginBottom:36}}>Everything stays private to your account.</div>
         <button onClick={next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:12,padding:"15px 44px",color:"#080808",cursor:"pointer",fontSize:13,fontFamily:"'Montserrat',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Begin</button>
         <br/>
-        <button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textDecoration:"underline"}}>Explore the demo first</button>
+        {allowDemo&&<button onClick={()=>onComplete(null)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.35)",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textDecoration:"underline"}}>Explore the demo first</button>}
       </div>
     </div>
   );
@@ -11735,8 +11737,8 @@ function App(){
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
-        saveData(dataToSave);
-        if(authToken && authUser?.id){
+        if(profile)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
+        if(authToken && authUser?.id && profile){
           if(!navigator.onLine){
             // Mark as pending — will sync when back online
             setPendingSave(true);
@@ -11783,8 +11785,8 @@ function App(){
     const flush=()=>{
       if(!readyToSave)return;
       const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
-      saveData(dataToSave);
-      if(authToken && authUser?.id){
+      if(profile)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
+      if(authToken && authUser?.id && profile){
         try{
           fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:withCloudBase(authUser.id,dataToSave),updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
         }catch{}
@@ -12122,7 +12124,7 @@ function App(){
   }
 
   if(showSetup){
-    return <SetupPage onComplete={handleSetupComplete}/>;
+    return <SetupPage onComplete={handleSetupComplete} allowDemo={!authUser}/>;
   }
 
   const handleSignIn=async()=>{
@@ -12242,10 +12244,15 @@ function App(){
     setAuthLoading(true);setAuthError("");
     try{
       const res = await supabase.signUp(authEmail, authPassword);
-      if(res.id||res.user?.id){
-        setAuthError("");
+      if(res.access_token){
+        // Account created and a session came back: sign straight in (new accounts go to onboarding)
         setAuthMode("signin");
-        setAuthError("Account created! Please sign in.");
+        setAuthLoading(false);
+        await handleSignIn();
+        return;
+      }else if(res.id||res.user?.id){
+        setAuthMode("signin");
+        setAuthError("Account created! Check your email to confirm it, then sign in here.");
       }else{
         setAuthError(res.error_description||res.msg||"Sign up failed");
       }
@@ -12378,7 +12385,7 @@ function App(){
           <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>The Executive</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>{authMode==="signin"?"Sign In":"Create Account"}</div>
-            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>{authMode==="signin"?"Your data syncs across all devices":"Free account - your data stays private"}</div>
+            <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>{authMode==="signin"?"Your data syncs across all devices":"Free to create. Your data stays private and syncs across your devices."}</div>
             <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
               <input type="email" value={authEmail} onChange={e=>setAuthEmail(e.target.value)} placeholder="Email address" style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
               <input type="password" value={authPassword} onChange={e=>setAuthPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(authMode==="signin"?handleSignIn():handleSignUp())} placeholder="Password (min 6 chars)" style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"10px 12px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
@@ -12391,25 +12398,31 @@ function App(){
               <button onClick={()=>{setAuthMode(m=>m==="signin"?"signup":"signin");setAuthError("");}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textDecoration:"underline",padding:"4px 0"}}>
                 {authMode==="signin"?"No account? Create one free":"Already have an account? Sign in"}
               </button>
-              <button onClick={()=>setShowAuth(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,opacity:.6}}>Continue without account</button>
+              <button onClick={()=>setShowAuth(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,opacity:.75}}>{profile?"Continue on this device only":"Explore the demo first"}</button>
             </div>
           </div>
         </div>
       )}
       <Sidebar page={page} setPage={setPage} profile={activeProfile} theme={theme} setTheme={setTheme} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} savedLabel={savedLabel} authUser={authUser} setShowAuth={setShowAuth}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,width:isMobile?"100%":"auto",marginLeft:isMobile?0:(sidebarCollapsed?54:200),transition:"margin-left .2s"}}>
+        {profile&&!authUser&&!showAuth&&(
+          <div style={{margin:isMobile?"calc(14px + env(safe-area-inset-top)) 14px 0":"0",background:t.RED+"14",border:"1px solid "+t.RED+"44",borderRadius:isMobile?10:0,padding:isMobile?"10px 14px":"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+            <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",minWidth:0}}>Your data is only saved on this device. Create a free account to back it up and sync it.</div>
+            <button onClick={()=>{setAuthMode("signup");setAuthError("");setShowAuth(true);}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"5px 12px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700,flexShrink:0}}>Back it up</button>
+          </div>
+        )}
         {!profile&&(isMobile?(
           <div style={{margin:"0 14px",marginTop:"calc(14px + env(safe-area-inset-top))",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Demo Mode</div>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Tap to set up your profile</div>
+              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>Sample dashboard - changes are not saved</div>
             </div>
-            <button onClick={()=>setPage("profile")} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"8px 14px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,fontWeight:700,flexShrink:0}}>Set Up</button>
+            <button onClick={()=>{if(authUser){setShowSetup(true);}else{setAuthMode("signup");setAuthError("");setShowAuth(true);}}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"8px 14px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,fontWeight:700,flexShrink:0}}>Start my own</button>
           </div>
         ):(
           <div style={{background:t.GOLD+"14",borderBottom:"1px solid "+t.GOLD+"33",padding:"7px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>Demo Mode - William Sterling</div>
-            <button onClick={()=>setShowSetup(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700}}>Set Up Profile</button>
+            <div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif"}}>Demo - a sample dashboard for William Sterling. Changes are not saved.</div>
+            <button onClick={()=>{if(authUser){setShowSetup(true);}else{setAuthMode("signup");setAuthError("");setShowAuth(true);}}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"4px 12px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700}}>Start my own dashboard</button>
           </div>
         ))}
         <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",alignItems:isMobile?"stretch":"center",minHeight:"100vh",background:"transparent",position:"relative",zIndex:1,transform:"translateZ(0)"}}>
