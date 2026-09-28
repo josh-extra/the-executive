@@ -27,12 +27,14 @@ const THEMES={
 const THEME_ALIASES={dark:"obsidian",light:"parchment"};
 const BG_PHOTOS=[
   {id:"none",label:"None",url:null,thumb:null,anim:"kb-zoom"},
-  {id:"bg1",label:"Dark Architecture",url:"/bg/bg1.jpg",thumb:"/bg/bg1-thumb.jpg",anim:"kb-zoom"},
-  {id:"bg2",label:"Aerial Yacht",url:"/bg/bg2.jpg",thumb:"/bg/bg2-thumb.jpg",anim:"kb-drift"},
-  {id:"bg3",label:"Lakeside Cottage",url:"/bg/bg3.jpg",thumb:"/bg/bg3-thumb.jpg",anim:"kb-pan"},
-  {id:"bg4",label:"Infinity Pool",url:"/bg/bg4.jpg",thumb:"/bg/bg4-thumb.jpg",anim:"kb-breathe"},
-  {id:"bg5",label:"Lake Como",url:"/bg/bg5.jpg",thumb:"/bg/bg5-thumb.jpg",anim:"kb-zoom"},
-  {id:"bg6",label:"Castle Study",url:"/bg/bg6.jpg",thumb:"/bg/bg6-thumb.jpg",anim:"kb-drift"},
+  {id:"bg1",label:"Private Library",url:"/bg/bg1.jpg",thumb:"/bg/bg1-thumb.jpg",anim:"kb-zoom"},
+  {id:"bg2",label:"Penthouse Skyline",url:"/bg/bg2.jpg",thumb:"/bg/bg2-thumb.jpg",anim:"kb-drift"},
+  {id:"bg3",label:"Black Marble",url:"/bg/bg3.jpg",thumb:"/bg/bg3-thumb.jpg",anim:"kb-breathe"},
+  {id:"bg4",label:"The King",url:"/bg/bg4.jpg",thumb:"/bg/bg4-thumb.jpg",anim:"kb-zoom"},
+  {id:"bg5",label:"Private Jet",url:"/bg/bg5.jpg",thumb:"/bg/bg5-thumb.jpg",anim:"kb-pan"},
+  {id:"bg6",label:"The Desk",url:"/bg/bg6.jpg",thumb:"/bg/bg6-thumb.jpg",anim:"kb-breathe"},
+  {id:"bg7",label:"Coastal Estate",url:"/bg/bg7.jpg",thumb:"/bg/bg7-thumb.jpg",anim:"kb-drift"},
+  {id:"bg8",label:"Wine Cellar",url:"/bg/bg8.jpg",thumb:"/bg/bg8-thumb.jpg",anim:"kb-zoom"},
 ];
 let _themeKey=(()=>{
   // Default to system preference on first load
@@ -8628,7 +8630,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
           ))}
         </div>
         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Background Photo</div>
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(3,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {BG_PHOTOS.map(p=>{
             const active=(bgPhoto||"none")===p.id;
             return(
