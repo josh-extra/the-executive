@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#080808"/>
-  <rect x="24" y="24" width="464" height="464" fill="none" stroke="#C9A84C" stroke-width="12"/>
-  <text x="256" y="310" font-family="Georgia, serif" font-size="280" font-weight="bold" fill="#C9A84C" text-anchor="middle">E</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#060606"/>
+  <circle cx="512" cy="512" r="317.5" fill="none" stroke="#1A1A1A" stroke-width="72"/>
+  <circle cx="512" cy="512" r="317.5" fill="none" stroke="#C9A84C" stroke-width="72" stroke-linecap="butt"
+          pathLength="100" stroke-dasharray="41 59" transform="rotate(-90 512 512)"/>
 </svg>

@@ -18,7 +18,7 @@
       "launchAutoHide": true,
       "backgroundColor": "#080808",
       "spinnerColor": "#C9A84C",
-      "showSpinner": true,
+      "showSpinner": false,
       "splashFullScreen": true,
       "splashImmersive": true
     },

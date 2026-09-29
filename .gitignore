@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 *.bak-*
+
+# patch backups
+*.bak_*
