@@ -229,7 +229,7 @@ const NAV=[
   ["bills","🔁","Bills"],
   ["budget","📊","Budget"],["debt","📉","Debt"],
   ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
-  ["workout","🏋","Workout"],["recipes","🍽","Recipes"],["weekly","📊","Weekly"],["calendar","📅","Calendar"],["advisor","🤖","Executive AI"],
+  ["workout","🏋","Workout"],["weekly","📊","Weekly"],["calendar","📅","Calendar"],["advisor","🤖","Executive AI"],
   ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
   ["profile","👤","Profile"]
 ];
@@ -945,7 +945,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     ["Command",["dashboard","weekly","calendar","advisor","news","learn","notes","services"]],
     ["Execute",["tasks","habits","goals","journal","reading"]],
     ["Wealth",["wealth","property","cashflow","bills","budget","debt","invest","projector","dividends","tax"]],
-    ["Health",["health","body","workout","recipes"]],
+    ["Health",["health","body","workout"]],
     ["Settings",["profile"]]
   ];
 
@@ -10024,7 +10024,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
         <div>
           <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>Search across</div>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,minmax(0,1fr))",gap:8}}>
-            {[{l:"Tasks",c:t.GREEN,pg:"tasks"},{l:"Goals",c:t.GOLD,pg:"goals"},{l:"Journal",c:t.PURPLE,pg:"journal"},{l:"Books",c:t.BLUE,pg:"reading"},{l:"Workouts",c:"#D4956A",pg:"workout"},{l:"Recipes",c:t.RED,pg:"recipes"}].map(x=>(
+            {[{l:"Tasks",c:t.GREEN,pg:"tasks"},{l:"Goals",c:t.GOLD,pg:"goals"},{l:"Journal",c:t.PURPLE,pg:"journal"},{l:"Books",c:t.BLUE,pg:"reading"},{l:"Workouts",c:"#D4956A",pg:"workout"}].map(x=>(
               <div key={x.l} onClick={()=>setPage(x.pg)} style={{background:x.c+"18",border:"1px solid "+x.c+"33",borderRadius:8,padding:"12px 10px",textAlign:"center",cursor:"pointer"}}>
                 <div style={{fontSize:12,color:x.c,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{x.l}</div>
               </div>
@@ -12604,7 +12604,7 @@ function App(){
           {page==="dividends"&&<DividendPage holdings={holdings} cryptoHoldings={cryptoHoldings} portfolio={portfolio} divs={dividends} setDivs={setDividends}/>}
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
-          {page==="recipes"&&<RecipesPage profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/> }
+          {/* RECIPES_HIDDEN: Recipes page switched off for now - add ["recipes",...] back to NAV and this line to restore */}
           {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
