@@ -11606,9 +11606,11 @@ function App(){
   useEffect(()=>{
     const tid=setTimeout(()=>{
       setSplash(false);
-      // If no saved token, prompt to sign in after splash
+      // If no saved token, prompt to sign in after splash - unless they came to see the demo (/app?demo=1)
       if(!localStorage.getItem("exec_token")){
-        setShowAuth(true);
+        let wantsDemo=false;
+        try{wantsDemo=new URLSearchParams(window.location.search).get("demo")==="1";if(wantsDemo)window.history.replaceState({},"","/app");}catch{}
+        if(!wantsDemo)setShowAuth(true);
       }
     },2500);
     return()=>clearTimeout(tid);
