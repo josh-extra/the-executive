@@ -260,6 +260,25 @@ const POPULAR_COINS=[
 
 // Price fetching removed - manual price updates used instead
 
+// POLISH_OCT_V1: shared helpers
+const HABIT_ICON_WORDS={Sun:"\u{1F305}",Ice:"\u{1F9CA}",Lift:"\u{1F3CB}\uFE0F",Book:"\u{1F4DA}",Zen:"\u{1F9D8}"};
+const HABIT_ICON_NAMES={"morning routine":"\u{1F305}","cold exposure":"\u{1F9CA}","meditation":"\u{1F9D8}","journalling":"\u270D\uFE0F","journaling":"\u270D\uFE0F","strength training":"\u{1F3CB}\uFE0F","reading daily":"\u{1F4DA}","reading":"\u{1F4DA}","intermittent fasting":"\u23F0","no alcohol":"\u{1F4A7}","evening walk":"\u{1F6B6}","gratitude practice":"\u{1F64F}"};
+const habitIcon=h=>{const ic=String((h&&h.icon)||"").trim();if(HABIT_ICON_WORDS[ic])return HABIT_ICON_WORDS[ic];if(!ic||/^[A-Za-z]{1,5}$/.test(ic))return HABIT_ICON_NAMES[String((h&&h.name)||"").toLowerCase().trim()]||"\u2728";return ic;};
+const Tick=()=>(<svg width="1.15em" height="1.15em" viewBox="0 0 12 12" fill="none" style={{display:"block"}} aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>);
+const Chevron=({dir="down"})=>(<svg width="1.1em" height="1.1em" viewBox="0 0 12 12" fill="none" style={{display:"block",transform:dir==="up"?"rotate(180deg)":dir==="right"?"rotate(-90deg)":"none"}} aria-hidden="true"><path d="M3 4.6l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>);
+const downloadFile=async(blob,name)=>{
+  // iOS app: the web view ignores download links, so use the share sheet (Save to Files, AirDrop, Mail)
+  try{const f=new File([blob],name,{type:blob.type});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+};
+const exportCSV=(rows,name)=>{
+  if(!rows||!rows.length)return;
+  const cols=[...new Set(rows.flatMap(r=>Object.keys(r||{})))];
+  const cell=v=>{if(v==null)return "";const s=typeof v==="object"?JSON.stringify(v):String(v);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv=[cols.join(","),...rows.map(r=>cols.map(c=>cell(r[c])).join(","))].join("\n");
+  downloadFile(new Blob([csv],{type:"text/csv"}),name);
+};
+
 const SK="exec_v1";
 const loadData=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};
 const saveData=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
@@ -332,11 +351,11 @@ const D_BOOKS=[
   {id:2,title:"The 48 Laws of Power",author:"Robert Greene",status:"next",cur:0,tot:452}
 ];
 const D_HABITS=[
-  {id:1,name:"Morning Routine",icon:"Sun",color:"#C9A84C",target:7},
-  {id:2,name:"Cold Exposure",icon:"Ice",color:"#7EB8C9",target:5},
-  {id:3,name:"Strength Training",icon:"Lift",color:"#7A9E7E",target:4},
-  {id:4,name:"Reading Daily",icon:"Book",color:"#B07EC9",target:7},
-  {id:5,name:"Meditation",icon:"Zen",color:"#D4956A",target:7}
+  {id:1,name:"Morning Routine",icon:"\u{1F305}",color:"#C9A84C",target:7},
+  {id:2,name:"Cold Exposure",icon:"\u{1F9CA}",color:"#7EB8C9",target:5},
+  {id:3,name:"Strength Training",icon:"\u{1F3CB}\uFE0F",color:"#7A9E7E",target:4},
+  {id:4,name:"Reading Daily",icon:"\u{1F4DA}",color:"#B07EC9",target:7},
+  {id:5,name:"Meditation",icon:"\u{1F9D8}",color:"#D4956A",target:7}
 ];
 
 const DEFAULT_TICKERS=[
@@ -1026,7 +1045,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
           )}
           {/* Theme toggle */}
           <button onClick={()=>{const order=["obsidian","charcoal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-            <span style={{fontSize:16,lineHeight:1}}>{theme==="obsidian"||theme==="charcoal"?"Sun":"Moon"}</span>
+            <span style={{fontSize:16,lineHeight:1,display:"flex"}}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></span>
             <span style={{fontSize:9,letterSpacing:.3}}>Theme</span>
           </button>
           {/* More button */}
@@ -1483,7 +1502,7 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
               return (
                 <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
                   <div style={{width:24,height:24,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .2s"}} className={done?"tick-pop":""}>
-                    {h.icon}
+                    {habitIcon(h)}
                   </div>
                   <span style={{flex:1,fontSize:11,color:done?t.MUTED:t.TEXT,fontFamily:"'Montserrat',sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
                   {streak>0&&<div style={{display:"flex",alignItems:"center",gap:2,background:h.color+"22",borderRadius:8,padding:"1px 6px",flexShrink:0}}>
@@ -1598,7 +1617,7 @@ function TasksPage({tasks,setTasks}){
                   {i>0&&<Divider/>}
                   <div onClick={()=>setTasks(ts=>ts.map(x=>x.id===tk.id?{...x,done:!x.done}:x))} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",cursor:"pointer"}}>
                     <div style={{width:19,height:19,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}>V</span>}
+                      {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}><Tick/></span>}
                     </div>
                     <span style={{flex:1,fontSize:13,color:tk.done?t.MUTED:t.TEXT,textDecoration:tk.done?"line-through":"none",fontFamily:"'Montserrat',sans-serif"}}>{tk.text}</span>
                     {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>{tk.recurDays?.length?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].filter((_,i)=>tk.recurDays.includes(i)).join(", "):"daily"}</span>}
@@ -1801,7 +1820,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     {/* Icon tap to toggle today */}
                     <div onClick={()=>tog(h.id,todayStr())} style={{width:32,height:32,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:15,transition:"all .2s"}}>
-                      {h.icon}
+                      {habitIcon(h)}
                     </div>
                     {/* Name + streak */}
                     <div style={{flex:1,minWidth:0}}>
@@ -1821,14 +1840,14 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                         const isT=d===todayStr();
                         return (
                           <div key={d} onClick={()=>tog(h.id,d)} style={{width:18,height:18,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s",flexShrink:0}}>
-                            {done&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}>V</span>}
+                            {done&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}><Tick/></span>}
                           </div>
                         );
                       })}
                     </div>
                     {/* Controls */}
                     <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
-                      <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.7,padding:"2px 4px"}}>{isExpanded?"^":"v"}</button>
+                      <button onClick={()=>setExpandHabit(x=>({...x,[h.id]:!x[h.id]}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.7,padding:"2px 4px"}}><Chevron dir={isExpanded?"up":"down"}/></button>
                       <div style={{display:"flex",flexDirection:"column",gap:1}}>
                         <button onClick={()=>moveUp(allIdx)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▲</button>
                         <button onClick={()=>moveDown(allIdx,(habits||[]).length)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:8,lineHeight:1,opacity:.5,padding:0}}>▼</button>
@@ -2340,7 +2359,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{cps.length?doneCps+"/"+cps.length:""}</div>
                           </div>
                           {/* Collapse chevron */}
-                          <div style={{color:t.MUTED,fontSize:12,transition:"transform .2s",transform:isCollapsed?"rotate(0deg)":"rotate(180deg)"}}>v</div>
+                          <div style={{color:t.MUTED,fontSize:12,transition:"transform .2s",transform:isCollapsed?"rotate(0deg)":"rotate(180deg)"}}><Chevron/></div>
                           {/* Edit + delete — stop propagation */}
                           <div onClick={e=>e.stopPropagation()} style={{display:"flex",gap:5}}>
                             <button onClick={()=>{setEditForm({title:g.title,category:g.category,period:g.period,startDate:g.startDate||todayStr(),endDate:g.endDate||"",notes:g.notes||""});setEditingGoalId(g.id);setCollapsed(c=>({...c,[g.id]:false}));}} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Edit</button>
@@ -2384,7 +2403,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                                 ):(
                                   <div style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0"}}>
                                     <div onClick={()=>toggleCheckpoint(g.id,cp.id)} style={{width:20,height:20,borderRadius:"50%",border:"1.5px solid "+(cp.done?col:t.BORDER2),background:cp.done?col:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .2s"}}>
-                                      {cp.done&&<span style={{color:"#080808",fontSize:10,fontWeight:700}}>V</span>}
+                                      {cp.done&&<span style={{color:"#080808",fontSize:10,fontWeight:700}}><Tick/></span>}
                                     </div>
                                     <div style={{flex:1,minWidth:0}}>
                                       <div style={{fontSize:12,color:cp.done?t.MUTED:t.TEXT,fontFamily:"'Montserrat',sans-serif",textDecoration:cp.done?"line-through":"none"}}>{cp.text}</div>
@@ -2439,7 +2458,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                 <div style={{fontSize:12,color:t.MUTED,textDecoration:"line-through",fontFamily:"'Montserrat',sans-serif"}}>{g.title}</div>
                 <div style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{"Completed "+fmtDateNum(g.completedAt)}</div>
               </div>
-              <div style={{fontSize:16,color:t.GREEN}}>V</div>
+              <div style={{fontSize:16,color:t.GREEN}}><Tick/></div>
             </div>
           ))}
         </div>
@@ -5308,7 +5327,7 @@ Categorisation rules:
                 {extracted.map((tx,i)=>(
                   <div key={tx.id} onClick={()=>setSelected(s=>({...s,[tx.id]:!s[tx.id]}))} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderBottom:i<extracted.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:selected[tx.id]?t.GOLD+"08":tx.dupe?t.RED+"08":"transparent"}}>
                     <div style={{width:14,height:14,borderRadius:3,border:"1.5px solid "+(selected[tx.id]?t.GOLD:t.BORDER2),background:selected[tx.id]?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      {selected[tx.id]&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}>V</span>}
+                      {selected[tx.id]&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}><Tick/></span>}
                     </div>
                     <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",width:80,flexShrink:0}}>{tx.date}</div>
                     <div style={{flex:1,minWidth:0}}>
@@ -6057,39 +6076,17 @@ function InvestPage({profile,properties,subscription,setShowUpgrade,watchlist,se
     }catch(e){setAiError("Connection error — check your internet and try again.");}
     setLoading(false);
   };
-  const ideas=[
-    {name:"ASX Small Caps",cls:"Equities",ret:"+34% YTD",risk:"Med-High",note:"Rate cuts fuelling risk appetite in Australian small caps."},
-    {name:"Global REITs",cls:"Property",ret:"+18%",risk:"Low-Med",note:"Rate normalisation creating re-rating opportunity."},
-    {name:"Bitcoin ETF",cls:"Digital",ret:"+94% 1yr",risk:"High",note:"Post-ETF institutional adoption driving demand."},
-    {name:"Private Credit",cls:"Fixed Income",ret:"9-13% pa",risk:"Low-Med",note:"Senior secured mid-market lending, floating rate."},
-    {name:"AI Infrastructure",cls:"Equity",ret:"Varies",risk:"Med-High",note:"GPU cloud and data centre buildout continuing."}
-  ];
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Capital Deployment</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Opportunities</div>
       <div style={{display:"flex",gap:7,marginBottom:14}}>
-        {[["watchlist","Watchlist"],["live","Live AI Search"],["ideas","Curated Ideas"]].map(([id,label])=>(
+        {[["watchlist","Watchlist"],["live","Live AI Search"]].map(([id,label])=>(
           <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:"8px",borderRadius:7,border:"1px solid "+(tab===id?t.GOLD:t.BORDER),background:tab===id?t.GOLD+"18":"transparent",color:tab===id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
             {label}
           </button>
         ))}
       </div>
-      {tab==="ideas"&&ideas.map((idea,i)=>(
-        <Card key={i} style={{marginBottom:8,borderLeft:"3px solid "+t.GOLD}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:5}}>
-            <div>
-              <div style={{fontSize:13,color:t.TEXT,marginBottom:2}}>{idea.name}</div>
-              <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1}}>{idea.cls}</div>
-            </div>
-            <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}>
-              <div style={{fontSize:11,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{idea.ret}</div>
-              <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{idea.risk}</div>
-            </div>
-          </div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.6}}>{idea.note}</div>
-        </Card>
-      ))}
       {tab==="live"&&(
         <Card style={{borderColor:t.GOLD+"33"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:aiOpps||aiError?12:0}}>
@@ -7350,7 +7347,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                         onClick={()=>setExpandNotes(x=>({...x,[b.id]:!x[b.id]}))}
                         style={{background:"none",border:"none",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10,padding:0,display:"flex",alignItems:"center",gap:4}}
                       >
-                        <span style={{fontSize:10}}>{showingNotes?"v":">"}</span>
+                        <span style={{fontSize:10}}><Chevron dir={showingNotes?"down":"right"}/></span>
                         {notes.length+" reading "+(notes.length===1?"note":"notes")}
                       </button>
                       {showingNotes&&(
@@ -8663,7 +8660,7 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
                   <div style={{fontSize:11,color:active?t.GOLD:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:active?600:400}}>{loc.label}</div>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{loc.currency}</div>
                 </div>
-                {active&&<span style={{marginLeft:"auto",color:t.GOLD,fontSize:11}}>V</span>}
+                {active&&<span style={{marginLeft:"auto",color:t.GOLD,fontSize:11}}><Tick/></span>}
               </button>
             );
           })}
@@ -8791,24 +8788,16 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
         <SectionLabel>Export Data</SectionLabel>
         {/* Full backup — most important */}
         <button onClick={()=>{
-          const backup={
-            exportedAt:new Date().toISOString(),
-            version:"1.0",
-            profile,tasks,goals,completed,habits,habitLog,
-            supplements,workouts,journal,books,bodyLog,
-            transactions,bills,debts,taxDeductions,notes,nwHistory,history,
-            weeklyReflections,holdings,cryptoHoldings,
-            commodityHoldings,altAssets,properties,budgets,
-          };
-          const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
-          const url=URL.createObjectURL(blob);
-          const a=document.createElement("a");a.href=url;
-          a.download="the-executive-backup-"+todayStr()+".json";
-          a.click();URL.revokeObjectURL(url);
+          // Everything the app saves (same data as the cloud sync), so nothing new is ever left out
+          if(_isDemo)return alert("The demo isn't saved, so there's nothing to back up. Create your account to start your own.");
+          const saved=loadData();
+          if(!saved)return alert("Nothing saved yet.");
+          const backup={app:"The Executive",exportedAt:new Date().toISOString(),version:"2.0",...saved};
+          downloadFile(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}),"the-executive-backup-"+todayStr()+".json");
         }} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+"18,"+t.GOLD+"08)",border:"1px solid "+t.GOLD+"44",borderRadius:8,padding:"12px 14px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:12,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div>
             <div style={{fontWeight:600,marginBottom:2}}>Download Full Backup</div>
-            <div style={{fontSize:10,color:t.MUTED}}>All data as JSON — restore any time</div>
+            <div style={{fontSize:10,color:t.MUTED}}>Everything in your account, as one JSON file</div>
           </div>
           <span style={{fontSize:11,fontWeight:700}}>JSON ↓</span>
         </button>
@@ -8822,8 +8811,8 @@ function ProfilePage({profile,setProfile,properties,onReset,onRecalibrate,theme,
             {l:"Workouts",fn:()=>workouts.length?exportCSV(workouts.map(w=>({date:w.date,type:w.type,duration:w.duration,exercises:w.sets?.length||0})),"workouts.csv"):alert("No workouts.")},
             {l:"Transactions",fn:()=>transactions.length?exportCSV(transactions.map(({id,...r})=>r),"transactions.csv"):alert("No transactions.")},
             {l:"Journal",fn:()=>journal.length?exportCSV(journal.map(({id,...r})=>r),"journal.csv"):alert("No journal entries.")},
-            {l:"Body Metrics",fn:()=>bodyLog.length?exportCSV(bodyLog.map(({id,...r})=>r),"body-metrics.csv"):alert("No body data.")},
-            {l:"Score History",fn:()=>{const h=Object.entries(history||{});if(!h.length)return alert("No history.");exportCSV(h.map(([d,v])=>({date:d,...v})),"score-history.csv");}},
+            {l:"Body Metrics",fn:()=>{const b=(loadData()||{}).bodyLog||[];b.length?exportCSV(b.map(({id,...r})=>r),"body-metrics.csv"):alert("No body data.");}},
+            {l:"Score History",fn:()=>{const h=Object.entries((loadData()||{}).history||{});if(!h.length)return alert("No history.");exportCSV(h.map(([d,v])=>({date:d,...v})),"score-history.csv");}},
           ].map(ex=>(
             <button key={ex.l} onClick={ex.fn} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"8px 10px",color:t.TEXT,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               {ex.l}<span style={{color:t.MUTED,fontSize:9}}>CSV</span>
@@ -9768,7 +9757,7 @@ function RecipesPage({profile,subscription,setShowUpgrade,authToken}){
                         style={{display:"flex",alignItems:"center",gap:12,padding:"13px 14px",borderBottom:i<items.length-1?"1px solid "+t.BORDER:"none",cursor:"pointer",background:item.checked?t.CARD2:"transparent",transition:"background .15s"}}>
                         {/* Checkbox */}
                         <div style={{width:24,height:24,borderRadius:"50%",border:"2px solid "+(item.checked?t.GREEN:t.BORDER),background:item.checked?t.GREEN:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all .2s"}}>
-                          {item.checked&&<span style={{fontSize:11,color:t.BG,fontWeight:700}}>V</span>}
+                          {item.checked&&<span style={{fontSize:11,color:t.BG,fontWeight:700}}><Tick/></span>}
                         </div>
                         {/* Item details */}
                         <div style={{flex:1,minWidth:0}}>
@@ -10675,7 +10664,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
                         <div style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:500}}>{r.title}</div>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{r.type+" - Completed "+(r.completedAt||"")}</div>
                       </div>
-                      <div style={{fontSize:16,color:t.GREEN}}>V</div>
+                      <div style={{fontSize:16,color:t.GREEN}}><Tick/></div>
                     </div>
                   </div>
                 ))}
@@ -12099,7 +12088,7 @@ function App(){
     // Build habits from selected habit names
     const habitColors=["#C9A84C","#7A9E7E","#7EB8C9","#B07EC9","#C97E7E","#D4956A"];
     const habitEmojis={"Morning Routine":"A","Cold Exposure":"C","Meditation":"M","Journalling":"J","Strength Training":"W","Reading Daily":"B","Intermittent Fasting":"F","No Alcohol":"N","Evening Walk":"V","Gratitude Practice":"G"};
-    setHabits((data.profile.currentHabits||[]).map((name,i)=>({id:Date.now()+i,name,icon:habitEmojis[name]||"X",color:habitColors[i%habitColors.length],target:7,timeOfDay:"morning"})));
+    setHabits((data.profile.currentHabits||[]).map((name,i)=>({id:Date.now()+i,name,icon:habitIcon({name,icon:""}),color:habitColors[i%habitColors.length],target:7,timeOfDay:"morning"})));
     setHabitLog({});setHoldings([]);setCryptoHoldings([]);
     setDebts([]);setProperties([]);setCommodityHoldings([]);setAltAssets([]);setSuperLog([]);
     setSeenMilestones([]);setNwHistory({});setBudgets({});
