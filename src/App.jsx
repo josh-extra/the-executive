@@ -38,10 +38,7 @@ const BG_PHOTOS=[
 ];
 let _themeKey=(()=>{
   // Default to system preference on first load
-  if(typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches){
-    return "charcoal"; // closest dark-but-lighter theme for light mode users
-  }
-  return "obsidian";
+  return "obsidian"; // brand look for everyone; Charcoal stays available in settings
 })();
 let _bgPhotoId="none";
 const hasPhoto=()=>_bgPhotoId&&_bgPhotoId!=="none";
@@ -223,15 +220,15 @@ const WTYPES=["Strength","Hypertrophy","Cardio","HIIT","Mobility","Sport"];
 const WCOLORS={Strength:"#C9A84C",Hypertrophy:"#B07EC9",Cardio:"#7A9E7E",HIIT:"#C97E7E",Mobility:"#7EB8C9",Sport:"#D4956A"};
 const JP=["What is my number 1 priority today?","What am I grateful for?","What would make today a win?","What obstacle must I overcome?","What did I learn yesterday?"];
 const NAV=[
-  ["dashboard","🏠","Dashboard"],["tasks","📝","Tasks"],["habits","🔥","Habits"],
-  ["goals","🎯","Goals"],["journal","📓","Journal"],["reading","📚","Reading"],
-  ["wealth","💸","Wealth"],["property","🏘","Property"],["cashflow","💰","Cash Flow"],
-  ["bills","🔁","Bills"],
-  ["budget","📊","Budget"],["debt","📉","Debt"],
-  ["invest","💵","Invest"],["projector","📈","Forecast"],["dividends","💰","Dividends"],["tax","🧾","Tax"],["news","📰","News"],["health","💊","Health"],["body","💪","Body"],
-  ["workout","🏋","Workout"],["weekly","📊","Weekly"],["calendar","📅","Calendar"],["advisor","🤖","Executive AI"],
-  ["learn","🎓","Learn"],["notes","📋","Notes"],["services","👔","Services"],
-  ["profile","👤","Profile"]
+  ["dashboard","layout-dashboard","Dashboard"],["tasks","list-checks","Tasks"],["habits","flame","Habits"],
+  ["goals","target","Goals"],["journal","notebook-pen","Journal"],["reading","book-open","Reading"],
+  ["wealth","gem","Wealth"],["property","building-2","Property"],["cashflow","arrow-left-right","Cash Flow"],
+  ["bills","receipt","Bills"],
+  ["budget","chart-pie","Budget"],["debt","trending-down","Debt"],
+  ["invest","chart-candlestick","Invest"],["projector","telescope","Forecast"],["dividends","coins","Dividends"],["tax","calculator","Tax"],["news","newspaper","News"],["health","heart-pulse","Health"],["body","scale","Body"],
+  ["workout","dumbbell","Workout"],["weekly","calendar-range","Weekly"],["calendar","calendar-days","Calendar"],["advisor","sparkles","Executive AI"],
+  ["learn","graduation-cap","Learn"],["notes","sticky-note","Notes"],["services","briefcase","Services"],
+  ["profile","user-round","Profile"]
 ];
 const POPULAR_COMMODITIES=[
   {ticker:"GC=F",name:"Gold",unit:"oz",symbol:"Au"},
@@ -261,9 +258,15 @@ const POPULAR_COINS=[
 // Price fetching removed - manual price updates used instead
 
 // POLISH_OCT_V1: shared helpers
-const HABIT_ICON_WORDS={Sun:"\u{1F305}",Ice:"\u{1F9CA}",Lift:"\u{1F3CB}\uFE0F",Book:"\u{1F4DA}",Zen:"\u{1F9D8}"};
-const HABIT_ICON_NAMES={"morning routine":"\u{1F305}","cold exposure":"\u{1F9CA}","meditation":"\u{1F9D8}","journalling":"\u270D\uFE0F","journaling":"\u270D\uFE0F","strength training":"\u{1F3CB}\uFE0F","reading daily":"\u{1F4DA}","reading":"\u{1F4DA}","intermittent fasting":"\u23F0","no alcohol":"\u{1F4A7}","evening walk":"\u{1F6B6}","gratitude practice":"\u{1F64F}"};
-const habitIcon=h=>{const ic=String((h&&h.icon)||"").trim();if(HABIT_ICON_WORDS[ic])return HABIT_ICON_WORDS[ic];if(!ic||/^[A-Za-z]{1,5}$/.test(ic))return HABIT_ICON_NAMES[String((h&&h.name)||"").toLowerCase().trim()]||"\u2728";return ic;};
+// LINE_ICONS_V1: line icons from Lucide (lucide.dev, ISC licence)
+const ICONS={"layout-dashboard":"<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\" />","list-checks":"<path d=\"M13 5h8\" /><path d=\"M13 12h8\" /><path d=\"M13 19h8\" /><path d=\"m3 17 2 2 4-4\" /><path d=\"m3 7 2 2 4-4\" />","flame":"<path d=\"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4\" />","target":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><circle cx=\"12\" cy=\"12\" r=\"6\" /><circle cx=\"12\" cy=\"12\" r=\"2\" />","notebook-pen":"<path d=\"M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4\" /><path d=\"M2 6h4\" /><path d=\"M2 10h4\" /><path d=\"M2 14h4\" /><path d=\"M2 18h4\" /><path d=\"M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z\" />","book-open":"<path d=\"M12 5v16\" /><path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />","gem":"<path d=\"M10.5 3 8 9l4 13 4-13-2.5-6\" /><path d=\"M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z\" /><path d=\"M2 9h20\" />","building-2":"<path d=\"M10 12h4\" /><path d=\"M10 8h4\" /><path d=\"M14 21v-3a2 2 0 0 0-4 0v3\" /><path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\" /><path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\" />","arrow-left-right":"<path d=\"M8 3 4 7l4 4\" /><path d=\"M4 7h16\" /><path d=\"m16 21 4-4-4-4\" /><path d=\"M20 17H4\" />","receipt":"<path d=\"M12 17V7\" /><path d=\"M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8\" /><path d=\"M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z\" />","chart-pie":"<path d=\"M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z\" /><path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\" />","trending-down":"<path d=\"M16 17h6v-6\" /><path d=\"m22 17-8.5-8.5-5 5L2 7\" />","chart-candlestick":"<path d=\"M9 5v4\" /><rect width=\"4\" height=\"6\" x=\"7\" y=\"9\" rx=\"1\" /><path d=\"M9 15v2\" /><path d=\"M17 3v2\" /><rect width=\"4\" height=\"8\" x=\"15\" y=\"5\" rx=\"1\" /><path d=\"M17 13v3\" /><path d=\"M3 3v16a2 2 0 0 0 2 2h16\" />","telescope":"<path d=\"m10.065 12.493-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44\" /><path d=\"m13.56 11.747 4.332-.924\" /><path d=\"m16 21-3.105-6.21\" /><path d=\"M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455z\" /><path d=\"m6.158 8.633 1.114 4.456\" /><path d=\"m8 21 3.105-6.21\" /><circle cx=\"12\" cy=\"13\" r=\"2\" />","coins":"<path d=\"M13.744 17.736a6 6 0 1 1-7.48-7.48\" /><path d=\"M15 6h1v4\" /><path d=\"m6.134 14.768.866-.5 2 3.464\" /><circle cx=\"16\" cy=\"8\" r=\"6\" />","calculator":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"6\" y2=\"6\" /><line x1=\"16\" x2=\"16\" y1=\"14\" y2=\"18\" /><path d=\"M16 10h.01\" /><path d=\"M12 10h.01\" /><path d=\"M8 10h.01\" /><path d=\"M12 14h.01\" /><path d=\"M8 14h.01\" /><path d=\"M12 18h.01\" /><path d=\"M8 18h.01\" />","newspaper":"<path d=\"M15 18h-5\" /><path d=\"M18 14h-8\" /><path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2\" /><rect width=\"8\" height=\"4\" x=\"10\" y=\"6\" rx=\"1\" />","heart-pulse":"<path d=\"M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5\" /><path d=\"M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27\" />","scale":"<path d=\"M12 3v18\" /><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\" /><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M7 21h10\" />","dumbbell":"<path d=\"M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z\" /><path d=\"m2.5 21.5 1.4-1.4\" /><path d=\"m20.1 3.9 1.4-1.4\" /><path d=\"M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z\" /><path d=\"m9.6 14.4 4.8-4.8\" />","calendar-range":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M16 2v3\" /><path d=\"M3 9h18\" /><path d=\"M8 2v3\" /><path d=\"M17 13h-6\" /><path d=\"M13 17H7\" /><path d=\"M7 13h.01\" /><path d=\"M17 17h.01\" />","calendar-days":"<path d=\"M8 2v3\" /><path d=\"M16 2v3\" /><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M3 9h18\" /><path d=\"M8 13h.01\" /><path d=\"M12 13h.01\" /><path d=\"M16 13h.01\" /><path d=\"M8 17h.01\" /><path d=\"M12 17h.01\" /><path d=\"M16 17h.01\" />","sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\" /><path d=\"M20 2v4\" /><path d=\"M22 4h-4\" /><circle cx=\"4\" cy=\"20\" r=\"2\" />","graduation-cap":"<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\" /><path d=\"M22 10v6\" /><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\" />","sticky-note":"<path d=\"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" /><path d=\"M15 3v5a1 1 0 0 0 1 1h5\" />","briefcase":"<path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\" /><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\" />","user-round":"<circle cx=\"12\" cy=\"8\" r=\"5\" /><path d=\"M20 21a8 8 0 0 0-16 0\" />","menu":"<path d=\"M4 5h16\" /><path d=\"M4 12h16\" /><path d=\"M4 19h16\" />","x":"<path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" />","refresh-cw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /><path d=\"M21 3v5h-5\" /><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /><path d=\"M8 16H3v5\" />","panel-left":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /><path d=\"M9 3v18\" />","search":"<path d=\"m21 21-4.34-4.34\" /><circle cx=\"11\" cy=\"11\" r=\"8\" />","sunrise":"<path d=\"M12 2v8\" /><path d=\"m4.93 10.93 1.41 1.41\" /><path d=\"M2 18h2\" /><path d=\"M20 18h2\" /><path d=\"m19.07 10.93-1.41 1.41\" /><path d=\"M22 22H2\" /><path d=\"m8 6 4-4 4 4\" /><path d=\"M16 18a4 4 0 0 0-8 0\" />","moon":"<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />","alarm-clock":"<circle cx=\"12\" cy=\"13\" r=\"8\" /><path d=\"M12 9v4l2 2\" /><path d=\"M5 3 2 6\" /><path d=\"m22 6-3-3\" /><path d=\"M6.38 18.7 4 21\" /><path d=\"M17.64 18.67 20 21\" />","bed":"<path d=\"M2 4v16\" /><path d=\"M2 8h18a2 2 0 0 1 2 2v10\" /><path d=\"M2 17h20\" /><path d=\"M6 8v9\" />","droplet":"<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />","snowflake":"<path d=\"m10 20-1.25-2.5L6 18\" /><path d=\"M10 4 8.75 6.5 6 6\" /><path d=\"m14 20 1.25-2.5L18 18\" /><path d=\"m14 4 1.25 2.5L18 6\" /><path d=\"m17 21-3-6h-4\" /><path d=\"m17 3-3 6 1.5 3\" /><path d=\"M2 12h6.5L10 9\" /><path d=\"m20 10-1.5 2 1.5 2\" /><path d=\"M22 12h-6.5L14 15\" /><path d=\"m4 10 1.5 2L4 14\" /><path d=\"m7 21 3-6-1.5-3\" /><path d=\"m7 3 3 6h4\" />","footprints":"<path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\" /><path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\" /><path d=\"M16 17h4\" /><path d=\"M4 13h4\" />","bike":"<circle cx=\"18.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"5.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"15\" cy=\"5\" r=\"1\" /><path d=\"M12 17.5V14l-3-3 4-3 2 3h2\" />","waves":"<path d=\"M2 12q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 19q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 5q2.5 2 5 0t5 0 5 0 5 0\" />","mountain":"<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\" />","apple":"<path d=\"M12 6.528V3a1 1 0 0 1 1-1h0\" /><path d=\"M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21\" />","salad":"<path d=\"M7 21h10\" /><path d=\"M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z\" /><path d=\"M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1\" /><path d=\"m13 12 4-4\" /><path d=\"M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2\" />","pill":"<path d=\"m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z\" /><path d=\"m8.5 8.5 7 7\" />","glass-water":"<path d=\"M5.116 4.104A1 1 0 0 1 6.11 3h11.78a1 1 0 0 1 .994 1.105L17.19 20.21A2 2 0 0 1 15.2 22H8.8a2 2 0 0 1-2-1.79z\" /><path d=\"M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0\" />","coffee":"<path d=\"M10 2v2\" /><path d=\"M14 2v2\" /><path d=\"M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1\" /><path d=\"M6 2v2\" />","cigarette-off":"<path d=\"M12 12H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h13\" /><path d=\"M18 8c0-2.5-2-2.5-2-5\" /><path d=\"m2 2 20 20\" /><path d=\"M21 12a1 1 0 0 1 1 1v2a1 1 0 0 1-.5.866\" /><path d=\"M22 8c0-2.5-2-2.5-2-5\" /><path d=\"M7 12v4\" />","wine-off":"<path d=\"M8 22h8\" /><path d=\"M7 10h3m7 0h-1.343\" /><path d=\"M12 15v7\" /><path d=\"M7.307 7.307A12.33 12.33 0 0 0 7 10a5 5 0 0 0 7.391 4.391M8.638 2.981C8.75 2.668 8.872 2.34 9 2h6c1.5 4 2 6 2 8 0 .407-.05.809-.145 1.198\" /><line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\" />","brain":"<path d=\"M12 18V5\" /><path d=\"M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4\" /><path d=\"M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5\" /><path d=\"M17.997 5.125a4 4 0 0 1 2.526 5.77\" /><path d=\"M18 18a4 4 0 0 0 2-7.464\" /><path d=\"M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517\" /><path d=\"M6 18a4 4 0 0 1-2-7.464\" /><path d=\"M6.003 5.125a4 4 0 0 0-2.526 5.77\" />","pen-line":"<path d=\"M13 21h8\" /><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\" />","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /><path d=\"M9 18h6\" /><path d=\"M10 22h4\" />","languages":"<path d=\"m5 8 6 6\" /><path d=\"m4 14 6-6 2-3\" /><path d=\"M2 5h12\" /><path d=\"M7 2h1\" /><path d=\"m22 22-5-10-5 10\" /><path d=\"M14 18h6\" />","music":"<path d=\"M9 18V5l12-2v13\" /><circle cx=\"6\" cy=\"18\" r=\"3\" /><circle cx=\"18\" cy=\"16\" r=\"3\" />","flower-2":"<path d=\"M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1\" /><circle cx=\"12\" cy=\"8\" r=\"2\" /><path d=\"M12 10v12\" /><path d=\"M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z\" /><path d=\"M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z\" />","leaf":"<path d=\"M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20\" /><path d=\"M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13\" />","sprout":"<path d=\"M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3\" /><path d=\"M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4\" /><path d=\"M5 21h14\" />","trees":"<path d=\"M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z\" /><path d=\"M7 16v6\" /><path d=\"M13 19v3\" /><path d=\"M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5\" />","smile":"<path d=\"M15 10V9\" /><path d=\"M16.472 15a6 6 0 01-8.943 0\" /><path d=\"M9 10V9\" /><circle cx=\"12\" cy=\"12\" r=\"10\" />","hand-heart":"<path d=\"M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16\" /><path d=\"m14.45 13.39 5.05-4.694C20.196 8 21 6.85 21 5.75a2.75 2.75 0 0 0-4.797-1.837.276.276 0 0 1-.406 0A2.75 2.75 0 0 0 11 5.75c0 1.2.802 2.248 1.5 2.946L16 11.95\" /><path d=\"m2 15 6 6\" /><path d=\"m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a1 1 0 0 0-2.75-2.91\" />","phone-off":"<path d=\"M10.1 13.9a14 14 0 0 0 3.732 2.668 1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2 18 18 0 0 1-12.728-5.272\" /><path d=\"M22 2 2 22\" /><path d=\"M4.76 13.582A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 .244.473\" />","piggy-bank":"<path d=\"M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z\" /><path d=\"M16 10h.01\" /><path d=\"M2 8v1a2 2 0 0 0 2 2h1\" />","wallet":"<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\" /><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\" />","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /><path d=\"M16 3.128a4 4 0 0 1 0 7.744\" /><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /><circle cx=\"9\" cy=\"7\" r=\"4\" />","timer":"<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\" /><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\" /><circle cx=\"12\" cy=\"14\" r=\"8\" />","shower-head":"<path d=\"m4 4 2.5 2.5\" /><path d=\"M13.5 6.5a4.95 4.95 0 0 0-7 7\" /><path d=\"M15 5 5 15\" /><path d=\"M14 17v.01\" /><path d=\"M10 16v.01\" /><path d=\"M13 13v.01\" /><path d=\"M16 10v.01\" /><path d=\"M11 20v.01\" /><path d=\"M17 14v.01\" /><path d=\"M20 11v.01\" />"};
+const Icon=({name,size="1.1em",stroke=1.6,style})=>{const d=ICONS[name];if(!d)return null;return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{display:"block",flexShrink:0,...style}} aria-hidden="true" dangerouslySetInnerHTML={{__html:d}}/>);};
+const HABIT_ICON_CHOICES=["flame","sunrise","moon","sun","alarm-clock","bed","shower-head","droplet","glass-water","snowflake","dumbbell","footprints","bike","waves","mountain","heart-pulse","apple","salad","pill","coffee","cigarette-off","wine-off","brain","book-open","pen-line","notebook-pen","target","lightbulb","graduation-cap","languages","music","flower-2","leaf","sprout","trees","smile","hand-heart","phone-off","piggy-bank","wallet","briefcase","users","timer","sparkles"];
+const HABIT_EMOJI_TO_ICON={"\u{1F4AA}":"dumbbell","\u{1F3CB}":"dumbbell","\u{1F3C3}":"footprints","\u{1F6B6}":"footprints","\u{1F6B4}":"bike","\u{1F3CA}":"waves","\u{1F30A}":"waves","\u{1F9D8}":"flower-2","\u{1F48A}":"pill","\u{1F957}":"salad","\u{1F966}":"salad","\u{1F4A7}":"droplet","\u{1F34E}":"apple","\u2764":"heart-pulse","\u{1FAC0}":"heart-pulse","\u{1F9E0}":"brain","\u{1F4DA}":"book-open","\u{1F4D6}":"book-open","\u270D":"pen-line","\u{1F4DD}":"pen-line","\u270F":"pen-line","\u{1F3AF}":"target","\u{1F4A1}":"lightbulb","\u{1F393}":"graduation-cap","\u{1F305}":"sunrise","\u{1F319}":"moon","\u2600":"sun","\u23F0":"alarm-clock","\u{1F6CF}":"bed","\u{1F6BF}":"shower-head","\u{1F525}":"flame","\u{1F9CA}":"snowflake","\u{1F33F}":"leaf","\u{1F343}":"leaf","\u{1F333}":"trees","\u{1F3D4}":"mountain","\u{1F64F}":"hand-heart","\u2728":"sparkles","\u26A1":"sparkles"};
+const HABIT_ICON_WORDS={Sun:"sunrise",Ice:"snowflake",Lift:"dumbbell",Book:"book-open",Zen:"flower-2"};
+const HABIT_ICON_NAMES={"morning routine":"sunrise","cold exposure":"snowflake","meditation":"flower-2","journalling":"pen-line","journaling":"pen-line","strength training":"dumbbell","reading daily":"book-open","reading":"book-open","intermittent fasting":"timer","no alcohol":"wine-off","evening walk":"footprints","gratitude practice":"hand-heart"};
+const habitIcon=h=>{const ic=String((h&&h.icon)||"").trim();if(ICONS[ic])return ic;if(HABIT_ICON_WORDS[ic])return HABIT_ICON_WORDS[ic];const bare=ic.replace(/[\uFE0F\u200D]/g,"");if(HABIT_EMOJI_TO_ICON[bare])return HABIT_EMOJI_TO_ICON[bare];if(!ic||/^[A-Za-z]{1,5}$/.test(ic))return HABIT_ICON_NAMES[String((h&&h.name)||"").toLowerCase().trim()]||"sparkles";return ic;};
+const HabitGlyph=({h,size=16})=>{const v=habitIcon(h);return ICONS[v]?<Icon name={v} size={size} stroke={1.7}/>:<span style={{fontSize:size-2,lineHeight:1}}>{v}</span>;};
 const Tick=()=>(<svg width="1.15em" height="1.15em" viewBox="0 0 12 12" fill="none" style={{display:"block"}} aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"/></svg>);
 const Chevron=({dir="down"})=>(<svg width="1.1em" height="1.1em" viewBox="0 0 12 12" fill="none" style={{display:"block",transform:dir==="up"?"rotate(180deg)":dir==="right"?"rotate(-90deg)":"none"}} aria-hidden="true"><path d="M3 4.6l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>);
 const downloadFile=async(blob,name)=>{
@@ -351,11 +354,11 @@ const D_BOOKS=[
   {id:2,title:"The 48 Laws of Power",author:"Robert Greene",status:"next",cur:0,tot:452}
 ];
 const D_HABITS=[
-  {id:1,name:"Morning Routine",icon:"\u{1F305}",color:"#C9A84C",target:7},
-  {id:2,name:"Cold Exposure",icon:"\u{1F9CA}",color:"#7EB8C9",target:5},
-  {id:3,name:"Strength Training",icon:"\u{1F3CB}\uFE0F",color:"#7A9E7E",target:4},
-  {id:4,name:"Reading Daily",icon:"\u{1F4DA}",color:"#B07EC9",target:7},
-  {id:5,name:"Meditation",icon:"\u{1F9D8}",color:"#D4956A",target:7}
+  {id:1,name:"Morning Routine",icon:"sunrise",color:"#C9A84C",target:7},
+  {id:2,name:"Cold Exposure",icon:"snowflake",color:"#7EB8C9",target:5},
+  {id:3,name:"Strength Training",icon:"dumbbell",color:"#7A9E7E",target:4},
+  {id:4,name:"Reading Daily",icon:"book-open",color:"#B07EC9",target:7},
+  {id:5,name:"Meditation",icon:"flower-2",color:"#D4956A",target:7}
 ];
 
 const DEFAULT_TICKERS=[
@@ -835,7 +838,7 @@ function Modal({children,onClose,title}){
       <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
         <div style={{padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
           <div style={{fontSize:14,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{title}</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}>X</button>
+          <button onClick={onClose} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}><Icon name="x"/></button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:20}}>{children}</div>
       </div>
@@ -953,11 +956,11 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
 
   // Bottom tab bar items - most used pages
   const BOTTOM_TABS=[
-    ["dashboard","🏠","Home"],
-    ["tasks","📝","Tasks"],
-    ["habits","🔥","Habits"],
-    ["wealth","💸","Wealth"],
-    ["advisor","🤖","AI"],
+    ["dashboard","layout-dashboard","Home"],
+    ["tasks","list-checks","Tasks"],
+    ["habits","flame","Habits"],
+    ["wealth","gem","Wealth"],
+    ["advisor","sparkles","AI"],
   ];
 
   const groups=[
@@ -980,7 +983,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             <div style={{position:"relative",zIndex:1,background:t.BG,display:"flex",flexDirection:"column",height:"100%",overflowY:"auto"}}>
             <div style={{padding:"16px 20px",paddingTop:"calc(16px + env(safe-area-inset-top))",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
               <div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>The Executive</div>
-              <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:22,lineHeight:1}}>X</button>
+              <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:22,lineHeight:1}}><Icon name="x"/></button>
             </div>
             <div style={{flex:1,padding:"8px 0"}}>
               {groups.map(([group,pages])=>(
@@ -992,7 +995,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                     const active=page===id;
                     return (
                       <button key={id} onClick={()=>{setPage(id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"12px 20px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"3px solid "+t.GOLD:"3px solid transparent",color:active?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:14,textAlign:"left"}}>
-                        <span style={{fontSize:18,lineHeight:1}}>{nav[1]}</span>
+                        <span style={{display:"flex"}}><Icon name={nav[1]} size={19} stroke={active?1.8:1.5}/></span>
                         <span>{nav[2]}</span>
                       </button>
                     );
@@ -1026,7 +1029,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             const active=page===id;
             return (
               <button key={id} onClick={()=>setPage(id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-                <span style={{fontSize:20,lineHeight:1}}>{icon}</span>
+                <span style={{display:"flex"}}><Icon name={icon} size={21} stroke={active?1.8:1.5}/></span>
                 <span style={{fontSize:9,letterSpacing:.3}}>{label}</span>
               </button>
             );
@@ -1039,18 +1042,18 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             </button>
           ):(
             <button onClick={()=>setShowAuth(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid "+t.GOLD+"66",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-              <span style={{fontSize:16,lineHeight:1}}>👤</span>
+              <span style={{display:"flex"}}><Icon name="user-round" size={20} stroke={1.5}/></span>
               <span style={{fontSize:9,letterSpacing:.3}}>Sign In</span>
             </button>
           )}
           {/* Theme toggle */}
           <button onClick={()=>{const order=["obsidian","charcoal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-            <span style={{fontSize:16,lineHeight:1,display:"flex"}}><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></span>
+            <span style={{fontSize:16,lineHeight:1,display:"flex"}}><svg width="19" height="19" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></span>
             <span style={{fontSize:9,letterSpacing:.3}}>Theme</span>
           </button>
           {/* More button */}
           <button onClick={()=>setMenuOpen(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-            <span style={{fontSize:20,lineHeight:1}}>☰</span>
+            <span style={{display:"flex"}}><Icon name="menu" size={21} stroke={1.5}/></span>
             <span style={{fontSize:9,letterSpacing:.3}}>More</span>
           </button>
         </div>
@@ -1064,7 +1067,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     <div style={{width:collapsed?54:200,flexShrink:0,background:t.CARD,borderRight:"1px solid "+t.BORDER,display:"flex",flexDirection:"column",height:"100vh",position:"fixed",top:0,left:0,zIndex:50,transition:"width .2s",overflow:"hidden"}}>
       <div style={{padding:collapsed?"12px 8px":"14px 14px",borderBottom:"1px solid "+t.BORDER,display:"flex",alignItems:"center",justifyContent:collapsed?"center":"space-between"}}>
         {!collapsed&&<div style={{fontSize:9,letterSpacing:4,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>The Executive</div>}
-        <button onClick={()=>setCollapsed(x=>!x)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:14,lineHeight:1,flexShrink:0}}>M</button>
+        <button onClick={()=>setCollapsed(x=>!x)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:14,lineHeight:1,flexShrink:0,display:"flex"}} aria-label="Collapse menu"><Icon name="panel-left" size={16} stroke={1.5}/></button>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
         {groups.map(([group,pages])=>(
@@ -1076,7 +1079,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               const active=page===id;
               return (
                 <button key={id} onClick={()=>setPage(id)} title={nav[2]} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:collapsed?"9px 0":"6px 14px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textAlign:"left",justifyContent:collapsed?"center":"flex-start",transition:"all .15s"}}>
-                  <span style={{fontSize:14,flexShrink:0,lineHeight:1}}>{nav[1]}</span>
+                  <span style={{display:"flex",flexShrink:0}}><Icon name={nav[1]} size={16} stroke={active?1.8:1.5}/></span>
                   {!collapsed&&<span style={{whiteSpace:"nowrap"}}>{nav[2]}</span>}
                 </button>
               );
@@ -1094,7 +1097,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             </div>
           </div>
           <div style={{display:"flex",gap:4}}>
-            {[{id:"obsidian",l:"Ob"},{id:"charcoal",l:"Ch"}].map(th=>(
+            {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
               <button key={th.id} onClick={()=>setTheme(th.id)} style={{flex:1,padding:"4px 2px",borderRadius:5,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"'Montserrat',sans-serif"}}>
                 {th.l}
               </button>
@@ -1305,7 +1308,7 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
           <SectionLabel action={
             <div style={{display:"flex",gap:6,alignItems:"center"}}>
               {market.lastUpdated&&<span style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{market.lastUpdated.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</span>}
-              <button onClick={market.refresh} style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:10}}>R</button>
+              <button onClick={market.refresh} style={{background:t.GOLD+"22",border:"1px solid "+t.GOLD+"44",borderRadius:4,padding:"2px 6px",color:t.GOLD,cursor:"pointer",fontSize:11,display:"flex",alignItems:"center"}} aria-label="Refresh prices"><Icon name="refresh-cw" stroke={1.8}/></button>
               <button onClick={()=>setShowMktEdit(s=>!s)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.MUTED,cursor:"pointer",fontSize:10}}>Edit</button>
             </div>
           }>Markets</SectionLabel>
@@ -1502,11 +1505,11 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
               return (
                 <div key={h.id} onClick={()=>togHabit(h.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid "+t.BORDER,cursor:"pointer"}}>
                   <div style={{width:24,height:24,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(done?h.color:t.BORDER2),flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all .2s"}} className={done?"tick-pop":""}>
-                    {habitIcon(h)}
+                    <span style={{color:done?"#080808":h.color,display:"flex"}}><HabitGlyph h={h} size={13}/></span>
                   </div>
                   <span style={{flex:1,fontSize:11,color:done?t.MUTED:t.TEXT,fontFamily:"'Montserrat',sans-serif",textDecoration:done?"line-through":"none"}}>{h.name}</span>
                   {streak>0&&<div style={{display:"flex",alignItems:"center",gap:2,background:h.color+"22",borderRadius:8,padding:"1px 6px",flexShrink:0}}>
-                    <span style={{fontSize:9}}>🔥</span>
+                    <span style={{display:"flex",color:h.color}}><Icon name="flame" size={10} stroke={2}/></span>
                     <span style={{fontSize:9,color:h.color,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{streak}</span>
                   </div>}
                 </div>
@@ -1621,7 +1624,7 @@ function TasksPage({tasks,setTasks}){
                     </div>
                     <span style={{flex:1,fontSize:13,color:tk.done?t.MUTED:t.TEXT,textDecoration:tk.done?"line-through":"none",fontFamily:"'Montserrat',sans-serif"}}>{tk.text}</span>
                     {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>{tk.recurDays?.length?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].filter((_,i)=>tk.recurDays.includes(i)).join(", "):"daily"}</span>}
-                    <button onClick={e=>{e.stopPropagation();setTasks(ts=>ts.filter(x=>x.id!==tk.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                    <button onClick={e=>{e.stopPropagation();setTasks(ts=>ts.filter(x=>x.id!==tk.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}><Icon name="x"/></button>
                   </div>
                 </div>
               ))}
@@ -1638,7 +1641,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
-  const[form,setForm]=useState({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
+  const[form,setForm]=useState({name:"",icon:"flame",color:"#C9A84C",target:7,timeOfDay:"morning"});
   const[showEmojiPicker,setShowEmojiPicker]=useState(false);
   const[expandHabit,setExpandHabit]=useState({});
   const[editingHabit,setEditingHabit]=useState(null);
@@ -1701,7 +1704,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
   const addHabit=()=>{
     if(!form.name)return;
     setHabits(hs=>[...hs,{...form,id:Date.now()}]);
-    setForm({name:"",icon:"🔥",color:"#C9A84C",target:7,timeOfDay:"morning"});
+    setForm({name:"",icon:"flame",color:"#C9A84C",target:7,timeOfDay:"morning"});
     setShowAdd(false);setShowEmojiPicker(false);
   };
 
@@ -1764,18 +1767,18 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
       </div>
 
       {showAdd&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
+        <Card style={{marginBottom:14,borderColor:t.GOLD+"44",position:"relative",zIndex:30}}>
           <SectionLabel>New Habit</SectionLabel>
           <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
             <div style={{position:"relative"}}>
               <button onClick={()=>setShowEmojiPicker(s=>!s)} style={{width:44,height:44,borderRadius:8,border:"1px solid "+t.BORDER,background:t.CARD2,fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {form.icon}
+                <span style={{color:form.color||t.GOLD,display:"flex"}}><HabitGlyph h={form} size={22}/></span>
               </button>
               {showEmojiPicker&&(
-                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(8,minmax(0,1fr))",gap:3,width:280,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
-                  {EMOJIS.map((e,ei)=>(
-                    <button key={ei} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",padding:4,borderRadius:5,textAlign:"center"}}>
-                      {e}
+                <div style={{position:"absolute",top:48,left:0,zIndex:100,background:t.BG,border:"1px solid "+t.BORDER,borderRadius:10,padding:10,display:"grid",gridTemplateColumns:"repeat(8,minmax(0,1fr))",gap:3,width:280,maxHeight:220,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.4)"}}>
+                  {HABIT_ICON_CHOICES.map((e,ei)=>(
+                    <button key={ei} onClick={()=>{setForm(f=>({...f,icon:e}));setShowEmojiPicker(false);}} aria-label={e} style={{background:form.icon===e?t.GOLD+"22":"none",border:"none",color:form.icon===e?t.GOLD:t.TEXT,cursor:"pointer",padding:6,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <Icon name={e} size={20} stroke={1.5}/>
                     </button>
                   ))}
                 </div>
@@ -1820,14 +1823,14 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     {/* Icon tap to toggle today */}
                     <div onClick={()=>tog(h.id,todayStr())} style={{width:32,height:32,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:15,transition:"all .2s"}}>
-                      {habitIcon(h)}
+                      <span style={{color:habitLog[h.id+"_"+todayStr()]?"#080808":h.color,display:"flex"}}><HabitGlyph h={h} size={16}/></span>
                     </div>
                     {/* Name + streak */}
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
                         <span style={{fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.name}</span>
                         {streak>0&&<div style={{display:"flex",alignItems:"center",gap:2,background:h.color+"22",borderRadius:8,padding:"1px 5px",flexShrink:0}}>
-                          <span style={{fontSize:9}}>🔥</span>
+                          <span style={{display:"flex",color:h.color}}><Icon name="flame" size={10} stroke={2}/></span>
                           <span style={{fontSize:9,color:h.color,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{streak}</span>
                         </div>}
                       </div>
@@ -1860,7 +1863,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                           <button onClick={()=>setConfirmDelete(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"1px 5px",color:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"'Montserrat',sans-serif"}}>N</button>
                         </div>
                       ):(
-                        <button onClick={()=>setConfirmDelete(h.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,padding:"2px 4px"}}>X</button>
+                        <button onClick={()=>setConfirmDelete(h.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,padding:"2px 4px"}}><Icon name="x"/></button>
                       )}
                     </div>
                   </div>
@@ -1881,13 +1884,13 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                       <div>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Icon — tap to select</div>
                         <div style={{display:"flex",flexWrap:"wrap",gap:3,background:t.CARD2,borderRadius:7,padding:8,maxHeight:160,overflowY:"auto"}}>
-                          {EMOJIS.map((e,ei)=>(
-                            <button key={ei} onClick={()=>setEditForm(f=>({...f,icon:e}))} style={{background:editForm.icon===e?t.GOLD+"44":"transparent",border:"1.5px solid "+(editForm.icon===e?t.GOLD:"transparent"),borderRadius:6,padding:"4px 5px",cursor:"pointer",fontSize:20,lineHeight:1,transition:"all .15s"}}>
-                              {e}
+                          {HABIT_ICON_CHOICES.map((e,ei)=>(
+                            <button key={ei} aria-label={e} onClick={()=>setEditForm(f=>({...f,icon:e}))} style={{background:editForm.icon===e?t.GOLD+"44":"transparent",border:"1.5px solid "+(editForm.icon===e?t.GOLD:"transparent"),borderRadius:6,padding:"4px 5px",cursor:"pointer",fontSize:20,lineHeight:1,transition:"all .15s"}}>
+                              <span style={{display:"flex",color:editForm.icon===e?t.GOLD:t.TEXT}}><Icon name={e} size={20} stroke={1.5}/></span>
                             </button>
                           ))}
                         </div>
-                        {editForm.icon&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>Selected: <span style={{fontSize:18}}>{editForm.icon}</span></div>}
+                        {editForm.icon&&<div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4}}>Selected: <span style={{display:"inline-flex",verticalAlign:"middle",color:editForm.color||t.GOLD}}><HabitGlyph h={editForm} size={18}/></span></div>}
                       </div>
                       <div>
                         <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Colour:</div>
@@ -1984,7 +1987,7 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
       })}
       {!(habits||[]).length&&(
         <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-          <div style={{fontSize:32,marginBottom:10}}>🔥</div>
+          <div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="flame" stroke={1.2}/></div>
           <div>No habits yet - tap + Add to start</div>
         </div>
       )}
@@ -2369,7 +2372,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                                 <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>No</button>
                               </>
                             ):(
-                              <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}>X</button>
+                              <button onClick={()=>setConfirmDel(g.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}><Icon name="x"/></button>
                             )}
                           </div>
                         </div>
@@ -2410,7 +2413,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                                       {cp.dueDate&&<div style={{fontSize:9,color:cp.done?t.GREEN:overdue?t.RED:soon?"#D4956A":t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:1}}>{cp.done?"Done "+fmtDateNum(cp.doneAt):overdue?"Overdue · "+fmtDateNum(cp.dueDate):soon?"Due soon · "+fmtDateNum(cp.dueDate):"By "+fmtDateNum(cp.dueDate)}</div>}
                                     </div>
                                     <button onClick={()=>{setEditingCp({goalId:g.id,cpId:cp.id});setEditCpForm({text:cp.text,dueDate:cp.dueDate||""});}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:10,opacity:.5,flexShrink:0}}>E</button>
-                                    <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}>X</button>
+                                    <button onClick={()=>deleteCheckpoint(g.id,cp.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4,flexShrink:0}}><Icon name="x"/></button>
                                   </div>
                                 )}
                               </div>
@@ -2466,7 +2469,7 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
 
       {filtered.length===0&&(
         <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-          <div style={{fontSize:28,marginBottom:10}}>O</div>
+          <div style={{fontSize:28,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="target" stroke={1.2}/></div>
           <div style={{fontSize:14,marginBottom:8}}>{filter==="all"?"No goals yet":"No "+filter+" goals"}</div>
           <div style={{fontSize:12,marginBottom:16}}>Add a goal and use AI to build out checkpoints</div>
           <Btn onClick={()=>setShowAdd(true)}>+ Add First Goal</Btn>
@@ -2677,7 +2680,7 @@ function JournalPage({entries,setEntries}){
               style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:8,padding:"8px 12px 8px 32px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,outline:"none",boxSizing:"border-box"}}
             />
             <div style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:13,opacity:.4}}>S</div>
-            {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12}}>X</button>}
+            {search&&<button onClick={()=>setSearch("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12}}><Icon name="x"/></button>}
           </div>
           <Sel value={moodFilter} onChange={e=>setMoodFilter(e.target.value)} style={{width:100,flexShrink:0}}>
             <option value="all">All moods</option>
@@ -2693,7 +2696,7 @@ function JournalPage({entries,setEntries}){
             <div style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{entry.date}</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:10,color:MOODS.find(m=>m.v===entry.mood)?.c||t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{MOODS.find(m=>m.v===entry.mood)?.l}</span>
-              <button onClick={ev=>{ev.stopPropagation();setConfirmDel(entry.id);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+              <button onClick={ev=>{ev.stopPropagation();setConfirmDel(entry.id);}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}><Icon name="x"/></button>
             </div>
           </div>
           {confirmDel===entry.id&&(
@@ -2717,7 +2720,7 @@ function JournalPage({entries,setEntries}){
         </div>
       )}
 
-      {!(entries||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>J</div><div>No entries yet</div></div>}
+      {!(entries||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="notebook-pen" stroke={1.2}/></div><div>No entries yet</div></div>}
     </div>
   );
 }
@@ -4051,7 +4054,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
                     {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"cost "+fmt(cb||0)}</div>}
                   </div>
                   <button onClick={()=>{setEditShareId(h.id);setEditShareForm({ticker:h.ticker,shares:h.shares,avgCost:h.avgCost||"",name:h.name});}} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 8px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
-                  <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
+                  <button onClick={()=>setHoldings(hs=>(hs||[]).filter(x=>x.id!==h.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}><Icon name="x"/></button>
                 </div>
               )}
             </div>
@@ -4190,7 +4193,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
                     {h.avgCost&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{"cost "+fmt(cb||0)}</div>}
                   </div>
                   <button onClick={()=>{setEditCryptoIdx(i);setEditCryptoForm({id:h.id,amount:h.amount,avgCost:h.avgCost||"",name:h.name||h.id});}} style={{background:t.PURPLE+"18",border:"1px solid "+t.PURPLE+"33",borderRadius:5,padding:"3px 8px",color:t.PURPLE,cursor:"pointer",fontSize:10,marginLeft:8}}>Edit</button>
-                  <button onClick={()=>setCryptoHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}>X</button>
+                  <button onClick={()=>setCryptoHoldings(cs=>(cs||[]).filter(x=>x.ticker!==h.ticker))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,marginLeft:6,opacity:.5}}><Icon name="x"/></button>
                 </div>
               )}
             </div>
@@ -4324,7 +4327,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
                     if(newVal!==null&&!isNaN(parseFloat(newVal)))
                       setAltAssets(as=>(as||[]).map(x=>x.id===a.id?{...x,currentValue:parseFloat(newVal),updatedAt:todayStr()}:x));
                   }} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"3px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,marginLeft:8}}>Update</button>
-                  <button onClick={()=>setAltAssets(as=>(as||[]).filter(x=>x.id!==a.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,marginLeft:6,opacity:.5}}>X</button>
+                  <button onClick={()=>setAltAssets(as=>(as||[]).filter(x=>x.id!==a.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,marginLeft:6,opacity:.5}}><Icon name="x"/></button>
                 </div>
               </div>
             );
@@ -5073,7 +5076,7 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
 
       {!allDebts.length&&(
         <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-          <div style={{fontSize:32,marginBottom:12}}>D</div>
+          <div style={{fontSize:32,marginBottom:12,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="trending-down" stroke={1.2}/></div>
           <div style={{fontSize:14,marginBottom:8}}>No debts tracked</div>
           <div style={{fontSize:12,marginBottom:16}}>Add your debts to get a personalised payoff strategy</div>
           <Btn onClick={()=>{setForm(emptyForm);setEditing(null);setShowAdd(true);}}>+ Add First Debt</Btn>
@@ -5502,7 +5505,7 @@ Categorisation rules:
               </div>
             </Card>
           )}
-          {shown.length===0?<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:28,marginBottom:10}}>T</div><div>No transactions yet</div></div>:
+          {shown.length===0?<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:28,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="arrow-left-right" stroke={1.2}/></div><div>No transactions yet</div></div>:
           <Card>
             {shown.map((tx,i)=>(
               <div key={tx.id}>
@@ -5514,7 +5517,7 @@ Categorisation rules:
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
                     <div style={{fontSize:13,color:tx.type==="income"?t.GREEN:t.RED,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{(tx.type==="income"?"+":"-")+fmt(tx.amount)}</div>
-                    <button onClick={()=>setTransactions(ts=>ts.filter(x=>x.id!==tx.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                    <button onClick={()=>setTransactions(ts=>ts.filter(x=>x.id!==tx.id))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}><Icon name="x"/></button>
                   </div>
                 </div>
               </div>
@@ -5796,7 +5799,7 @@ function BillsPage({bills,setBills,debts,setPage}){
                             <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:4,padding:"2px 6px",color:t.MUTED,cursor:"pointer",fontSize:9,fontFamily:"'Montserrat',sans-serif"}}>No</button>
                           </div>
                         ):(
-                          <button onClick={()=>setConfirmDel(b.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}>X</button>
+                          <button onClick={()=>setConfirmDel(b.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}><Icon name="x"/></button>
                         )}
                       </div>
                     </div>
@@ -6650,7 +6653,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
             <div key={s.id} style={{display:"flex",justifyContent:"space-between",padding:"3px 8px",background:t.CARD2,borderRadius:4,marginBottom:3}}>
               <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{s.exercise}</span>
               <span style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{s.sets+"x"+s.reps+(s.weight?" @ "+s.weight+"kg":"")}</span>
-              <button onClick={()=>setWf(f=>({...f,sets:f.sets.filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.RED,cursor:"pointer",fontSize:10}}>X</button>
+              <button onClick={()=>setWf(f=>({...f,sets:f.sets.filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.RED,cursor:"pointer",fontSize:10}}><Icon name="x"/></button>
             </div>
           ))}
           <textarea spellCheck={true} autoCorrect="on" autoCapitalize="sentences" value={wf.notes} onChange={e=>setWf(f=>({...f,notes:e.target.value}))} placeholder="Notes..." rows={2} style={{width:"100%",background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:6,padding:"7px 10px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,outline:"none",resize:"vertical",marginTop:7,boxSizing:"border-box"}}/>
@@ -6726,7 +6729,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
       })()}
       {tab==="log"&&(
         <div>
-          {!(workouts||[]).length&&!showAdd&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>W</div><div>No sessions yet</div></div>}
+          {!(workouts||[]).length&&!showAdd&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="dumbbell" stroke={1.2}/></div><div>No sessions yet</div></div>}
           {(workouts||[]).map(w=>(
             <Card key={w.id} style={{marginBottom:8,borderLeft:"3px solid "+(WCOLORS[w.type]||t.GOLD)}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -7215,7 +7218,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
                         </div>
                       )}
                       <button onClick={()=>setEditingBook(editingBook===b.id?null:b.id)} style={{background:t.GOLD+"14",border:"1px solid "+t.GOLD+"33",borderRadius:5,padding:"2px 7px",color:t.GOLD,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>Edit</button>
-                      <button onClick={()=>setConfirmDel({kind:"book",bookId:b.id})} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}>X</button>
+                      <button onClick={()=>setConfirmDel({kind:"book",bookId:b.id})} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.6}}><Icon name="x"/></button>
                     </div>
                   </div>
                   {confirmDel&&confirmDel.kind==="book"&&confirmDel.bookId===b.id&&confirmBar("Delete \""+b.title+"\""+(notes.length?" and its "+notes.length+" "+(notes.length===1?"note":"notes"):"")+"? This can't be undone.",()=>deleteBook(b.id))}
@@ -7363,7 +7366,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
           </div>
         );
       })}
-      {!(books||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>B</div><div>No books yet</div></div>}
+      {!(books||[]).length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="book-open" stroke={1.2}/></div><div>No books yet</div></div>}
     </div>
   );
 }
@@ -9973,7 +9976,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
             autoFocus
             style={{fontSize:15,padding:"13px 16px",borderRadius:12}}
           />
-          {query&&<button onClick={()=>setQuery("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}>X</button>}
+          {query&&<button onClick={()=>setQuery("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:16}}><Icon name="x"/></button>}
         </div>
       </div>
 
@@ -9983,7 +9986,7 @@ function SearchPage({tasks,goals,journal,books,workouts,setPage}){
 
       {q.length>=2&&results.length===0&&(
         <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-          <div style={{fontSize:28,marginBottom:10}}>S</div>
+          <div style={{fontSize:28,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="search" stroke={1.2}/></div>
           <div style={{fontSize:14,marginBottom:4}}>No results for "{query}"</div>
           <div style={{fontSize:12}}>Try searching tasks, goals, journal entries, books or workouts</div>
         </div>
@@ -10674,7 +10677,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
 
           {library.length===0&&(
             <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-              <div style={{fontSize:28,marginBottom:10}}>B</div>
+              <div style={{fontSize:28,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="graduation-cap" stroke={1.2}/></div>
               <div style={{fontSize:13,marginBottom:8}}>Your library is empty</div>
               <div style={{fontSize:11,marginBottom:16}}>Go to Discover and save recommendations to build your library</div>
               <Btn onClick={()=>setTab("discover")}>Go to Discover</Btn>
@@ -10763,7 +10766,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{fontSize:12,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{s.minutes>=60?Math.floor(s.minutes/60)+"h "+(s.minutes%60>0?s.minutes%60+"m":""):s.minutes+"m"}</div>
-                      <button onClick={()=>setLearnData(d=>({...d,sessions:(d.sessions||[]).filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}>X</button>
+                      <button onClick={()=>setLearnData(d=>({...d,sessions:(d.sessions||[]).filter(x=>x.id!==s.id)}))} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.4}}><Icon name="x"/></button>
                     </div>
                   </div>
                 </div>
@@ -10773,7 +10776,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
 
           {sessions.length===0&&(
             <div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>
-              <div style={{fontSize:28,marginBottom:10}}>G</div>
+              <div style={{fontSize:28,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="graduation-cap" stroke={1.2}/></div>
               <div style={{fontSize:13,marginBottom:8}}>No sessions logged yet</div>
               <Btn onClick={()=>setShowLog(true)}>+ Log First Session</Btn>
             </div>
@@ -10864,7 +10867,7 @@ function NotesPage({notes,setNotes}){
         ))}
       </div>
 
-      {shown.length===0&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>N</div><div style={{fontSize:14,marginBottom:8}}>No notes yet</div><div style={{fontSize:12}}>Tap + New Note to start capturing ideas</div></div>}
+      {shown.length===0&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="sticky-note" stroke={1.2}/></div><div style={{fontSize:14,marginBottom:8}}>No notes yet</div><div style={{fontSize:12}}>Tap + New Note to start capturing ideas</div></div>}
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
         {shown.map(n=>(
@@ -11004,7 +11007,7 @@ function ServicesPage({services,setServices}){
                           <button onClick={()=>setConfirmDel(null)} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"3px 7px",color:t.MUTED,cursor:"pointer",fontSize:10,fontFamily:"'Montserrat',sans-serif"}}>No</button>
                         </div>
                       ):(
-                        <button onClick={()=>setConfirmDel(s.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}>X</button>
+                        <button onClick={()=>setConfirmDel(s.id)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:11,opacity:.5}}><Icon name="x"/></button>
                       )}
                     </div>
                   </div>
@@ -11016,7 +11019,7 @@ function ServicesPage({services,setServices}){
         );
       })}
 
-      {!services.length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10}}>P</div><div style={{fontSize:14,marginBottom:8}}>No contacts yet</div><div style={{fontSize:12}}>Add your financial advisor, accountant, mortgage broker and other key contacts</div></div>}
+      {!services.length&&<div style={{textAlign:"center",padding:40,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}><div style={{fontSize:32,marginBottom:10,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name="briefcase" stroke={1.2}/></div><div style={{fontSize:14,marginBottom:8}}>No contacts yet</div><div style={{fontSize:12}}>Add your financial advisor, accountant, mortgage broker and other key contacts</div></div>}
     </div>
   );
 }
@@ -11025,11 +11028,11 @@ function ServicesPage({services,setServices}){
 function PaywallPage({onUpgrade,feature}){
   const t=T();
   const featureMap={
-    advisor:{icon:"🤖",title:"Executive AI",desc:"Your private AI with full visibility of your dashboard and history, web search, and honest assessments."},
-    invest:{icon:"📈",title:"Invest Intelligence",desc:"Live market prices, AI-powered opportunities, and a personalised watchlist."},
-    tax:{icon:"🧾",title:"Tax Planner",desc:"Australian tax bracket estimator, deduction tracker and refund calculator."},
-    learn:{icon:"🎓",title:"Learn",desc:"AI-curated education and courses tailored to your goals and career."},
-    services:{icon:"👔",title:"Services",desc:"Professional service recommendations based on your financial profile."},
+    advisor:{icon:"sparkles",title:"Executive AI",desc:"Your private AI with full visibility of your dashboard and history, web search, and honest assessments."},
+    invest:{icon:"chart-candlestick",title:"Invest Intelligence",desc:"Live market prices, AI-powered opportunities, and a personalised watchlist."},
+    tax:{icon:"calculator",title:"Tax Planner",desc:"Australian tax bracket estimator, deduction tracker and refund calculator."},
+    learn:{icon:"graduation-cap",title:"Learn",desc:"AI-curated education and courses tailored to your goals and career."},
+    services:{icon:"briefcase",title:"Services",desc:"Professional service recommendations based on your financial profile."},
   };
   const ctx=feature&&featureMap[feature]?featureMap[feature]:null;
   const proFeatures=[
@@ -11048,7 +11051,7 @@ function PaywallPage({onUpgrade,feature}){
     <div style={{maxWidth:440,margin:"0 auto",padding:"40px 20px",textAlign:"center"}}>
       {ctx?(
         <>
-          <div style={{fontSize:40,marginBottom:12}}>{ctx.icon}</div>
+          <div style={{fontSize:40,marginBottom:12,display:"flex",justifyContent:"center",color:t.GOLD}}><Icon name={ctx.icon} stroke={1.1}/></div>
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:8}}>Executive Feature</div>
           <div style={{fontSize:22,color:t.TEXT,marginBottom:8}}>{ctx.title}</div>
           <div style={{fontSize:13,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:24,lineHeight:1.75}}>{ctx.desc}</div>
@@ -11612,9 +11615,7 @@ function App(){
       const saved=localStorage.getItem(SK);
       if(saved){const d=JSON.parse(saved);if(d.theme)return d.theme;}
     }catch{}
-    // Fall back to system preference
-    if(typeof window!=="undefined"&&window.matchMedia?.("(prefers-color-scheme: light)").matches)return "charcoal";
-    return "obsidian";
+    return "obsidian"; // default look for everyone
   });
   // Global micro-animation styles injected once
   if(typeof document!=="undefined"&&!document.getElementById("exec-animations")){
@@ -12001,7 +12002,7 @@ function App(){
       // Only auto-switch if user hasn't saved a manual theme preference
       const saved=localStorage.getItem(SK);
       if(saved){try{const d=JSON.parse(saved);if(d.theme)return;}catch{}}
-      const newTheme=e.matches?"charcoal":"obsidian";
+      const newTheme="obsidian";
       _themeKey=newTheme;setThemeState(newTheme);
     };
     mq.addEventListener("change",handler);
