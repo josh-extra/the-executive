@@ -959,6 +959,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
     ["dashboard","layout-dashboard","Home"],
     ["tasks","list-checks","Tasks"],
     ["habits","flame","Habits"],
+    ["calendar","calendar-days","Calendar"],
     ["wealth","gem","Wealth"],
     ["advisor","sparkles","AI"],
   ];
@@ -1004,13 +1005,22 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               ))}
             </div>
             <div style={{borderTop:"1px solid "+t.BORDER,padding:"14px 20px"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <button onClick={()=>{setPage("profile");setMenuOpen(false);}} aria-label="Open profile" style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,width:"100%",background:"none",border:"none",padding:0,cursor:"pointer",textAlign:"left"}}>
                 <div style={{width:36,height:36,borderRadius:"50%",background:t.GOLD+"33",border:"1px solid "+t.GOLD+"55",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:t.GOLD,fontWeight:700,flexShrink:0}}>{initials||"W"}</div>
-                <div>
-                  <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{profile.firstName} {profile.lastName}</div>
-                  <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>{profile.occupation||"The Executive"}</div>
+                <div style={{minWidth:0,flex:1}}>
+                  <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.firstName} {profile.lastName}</div>
+                  {authUser?(
+                    <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",marginTop:2,minWidth:0}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
+                      <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authUser.email}</span>
+                    </div>
+                  ):(
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{profile.occupation||"The Executive"}</div>
+                  )}
                 </div>
-              </div>
+                <span style={{color:t.MUTED,display:"flex",flexShrink:0}}><Chevron dir="right"/></span>
+              </button>
+              <div style={{fontSize:8,letterSpacing:2,color:t.MUTED,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:6}}>Theme</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:5}}>
                 {[{id:"obsidian",l:"Obsidian"},{id:"charcoal",l:"Charcoal"}].map(th=>(
                   <button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:"6px 4px",borderRadius:7,border:"1px solid "+(theme===th.id?t.GOLD:t.BORDER),background:theme===th.id?t.GOLD+"18":"transparent",color:theme===th.id?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>
@@ -1034,23 +1044,13 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               </button>
             );
           })}
-          {/* Sign in or user indicator */}
-          {authUser?(
-            <button onClick={()=>setPage("profile")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",cursor:"pointer"}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:t.GREEN}}/>
-              <span style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",letterSpacing:.3}}>{authUser.email?.split("@")[0]?.slice(0,8)}</span>
-            </button>
-          ):(
+          {/* NAV_TIDY_V1: signed-out people get a Sign In tab; account and theme now live in the More menu */}
+          {!authUser&&(
             <button onClick={()=>setShowAuth(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid "+t.GOLD+"66",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
               <span style={{display:"flex"}}><Icon name="user-round" size={20} stroke={1.5}/></span>
               <span style={{fontSize:9,letterSpacing:.3}}>Sign In</span>
             </button>
           )}
-          {/* Theme toggle */}
-          <button onClick={()=>{const order=["obsidian","charcoal"];const next=order[(order.indexOf(theme)+1)%order.length];setTheme(next);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
-            <span style={{fontSize:16,lineHeight:1,display:"flex"}}><svg width="19" height="19" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></span>
-            <span style={{fontSize:9,letterSpacing:.3}}>Theme</span>
-          </button>
           {/* More button */}
           <button onClick={()=>setMenuOpen(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid transparent",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
             <span style={{display:"flex"}}><Icon name="menu" size={21} stroke={1.5}/></span>
