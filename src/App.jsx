@@ -994,7 +994,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
                     if(!nav)return null;
                     const active=page===id;
                     return (
-                      <button key={id} onClick={()=>{setPage(id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"12px 20px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"3px solid "+t.GOLD:"3px solid transparent",color:active?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:14,textAlign:"left"}}>
+                      <button key={id} onClick={()=>{if(active){try{window.scrollTo(0,0);}catch{}}setPage(id);setMenuOpen(false);}} style={{display:"flex",alignItems:"center",gap:14,width:"100%",padding:"12px 20px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"3px solid "+t.GOLD:"3px solid transparent",color:active?t.GOLD:t.TEXT,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:14,textAlign:"left"}}>
                         <span style={{display:"flex"}}><Icon name={nav[1]} size={19} stroke={active?1.8:1.5}/></span>
                         <span>{nav[2]}</span>
                       </button>
@@ -1028,7 +1028,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
           {BOTTOM_TABS.map(([id,icon,label])=>{
             const active=page===id;
             return (
-              <button key={id} onClick={()=>setPage(id)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
+              <button key={id} onClick={()=>{if(active){try{window.scrollTo({top:0,behavior:"smooth"});}catch{window.scrollTo(0,0);}}setPage(id);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
                 <span style={{display:"flex"}}><Icon name={icon} size={21} stroke={active?1.8:1.5}/></span>
                 <span style={{fontSize:9,letterSpacing:.3}}>{label}</span>
               </button>
@@ -1078,7 +1078,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
               if(!nav)return null;
               const active=page===id;
               return (
-                <button key={id} onClick={()=>setPage(id)} title={nav[2]} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:collapsed?"9px 0":"6px 14px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textAlign:"left",justifyContent:collapsed?"center":"flex-start",transition:"all .15s"}}>
+                <button key={id} onClick={()=>{if(active){try{window.scrollTo({top:0,behavior:"smooth"});}catch{window.scrollTo(0,0);}}setPage(id);}} title={nav[2]} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:collapsed?"9px 0":"6px 14px",background:active?t.GOLD+"18":"none",border:"none",borderLeft:active?"2px solid "+t.GOLD:"2px solid transparent",color:active?t.GOLD:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,textAlign:"left",justifyContent:collapsed?"center":"flex-start",transition:"all .15s"}}>
                   <span style={{display:"flex",flexShrink:0}}><Icon name={nav[1]} size={16} stroke={active?1.8:1.5}/></span>
                   {!collapsed&&<span style={{whiteSpace:"nowrap"}}>{nav[2]}</span>}
                 </button>
@@ -11642,6 +11642,12 @@ function App(){
   },[]);
   const[profile,setProfile]=useState(null);
   const[page,setPage]=useState("dashboard");
+  // PAGE_TOP_V1: a newly opened page always starts at the top
+  useEffect(()=>{
+    const top=()=>{try{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0;}catch{}};
+    top();const raf=requestAnimationFrame(top);const t1=setTimeout(top,80);
+    return()=>{cancelAnimationFrame(raf);clearTimeout(t1);};
+  },[page]);
   const[theme,setThemeState]=useState(()=>{
     // Use saved theme if exists in localStorage
     try{

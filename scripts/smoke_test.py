@@ -323,6 +323,15 @@ def main():
             pg.evaluate(KB_HIDE); pg.wait_for_timeout(250)
         js = [e for e in errs if e.startswith("JS error")]
         results.append(("FAIL" if (hidden or js or not checked) else "PASS", "Keyboard: text boxes stay visible (%d pages)" % checked, ("hidden behind the keyboard on: " + ", ".join(hidden)) if hidden else (js[0] if js else ("" if checked else "no text boxes found"))))
+        # 5. Switching page always opens the new page at the top (phone)
+        tops = []
+        SY = "()=>Math.round(window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0)"
+        for pid, label in [pg_ for pg_ in pages if pg_[0] in ("wealth", "tasks", "bills", "habits", "debt", "calendar", "profile", "dashboard")]:
+            pg.evaluate("()=>window.scrollTo(0,99999)"); pg.wait_for_timeout(120)
+            if not go(pg, pid, label, True): continue
+            pg.wait_for_timeout(350)
+            if pg.evaluate(SY) > 2: tops.append(label)
+        results.append(("FAIL" if tops else "PASS", "Pages open at the top when switching (phone)", ("opened part-way down: " + ", ".join(tops)) if tops else ""))
         ctx.close()
         browser.close()
     httpd.shutdown()
