@@ -10063,6 +10063,12 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
 
   // Merge holdings for autocomplete
   const allHoldings=[...(holdings||[]).map(h=>({ticker:h.ticker,name:h.name||h.ticker,shares:h.shares}))];
+  // DIV_TICKER_V1: suggestion list for the ticker box - one row per holding, closes when a row is picked
+  const[tickOpen,setTickOpen]=useState(false);
+  const tickQ=(form.ticker||"").trim().toUpperCase();
+  const tickMatches=tickQ?allHoldings.filter((h,i,a)=>h.ticker&&a.findIndex(x=>x.ticker===h.ticker)===i&&(String(h.ticker).toUpperCase().startsWith(tickQ)||String(h.name||"").toUpperCase().includes(tickQ))).slice(0,5):[];
+  const tickHeld=tickQ?allHoldings.find(h=>String(h.ticker).toUpperCase()===tickQ):null;
+  const pickTicker=h=>{setForm(f=>({...f,ticker:String(h.ticker).toUpperCase(),name:h.name||""}));setTickOpen(false);};
 
   const annualIncome=d=>{
     const shares=(holdings||[]).find(h=>h.ticker===d.ticker)?.shares||d.shares||0;
@@ -10162,19 +10168,26 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Ticker</div>
                 <div style={{position:"relative"}}>
-                  <Inp value={form.ticker} onChange={e=>setForm(f=>({...f,ticker:e.target.value.toUpperCase()}))} placeholder="e.g. CBA.AX"/>
-                  {form.ticker.length>0&&allHoldings.filter(h=>h.ticker.startsWith(form.ticker)).length>0&&(
-                    <div style={{position:"absolute",top:"100%",left:0,right:0,background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,zIndex:10,overflow:"hidden"}}>
-                      {allHoldings.filter(h=>h.ticker.startsWith(form.ticker)).slice(0,4).map(h=>(
-                        <div key={h.ticker} onClick={()=>setForm(f=>({...f,ticker:h.ticker,name:h.name}))}
-                          style={{padding:"8px 10px",cursor:"pointer",fontSize:12,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}
-                          onMouseEnter={e=>e.currentTarget.style.background=t.GOLD+"14"}
-                          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                          {h.ticker} — {h.name}
-                        </div>
+                  <input type="text" value={form.ticker} spellCheck={false} autoCapitalize="characters" autoCorrect="off" autoComplete="off"
+                    onChange={e=>{const v=e.target.value.toUpperCase();setForm(f=>({...f,ticker:v,name:""}));setTickOpen(true);}}
+                    onFocus={()=>setTickOpen(true)} onBlur={()=>setTimeout(()=>setTickOpen(false),180)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&tickOpen&&tickMatches.length){e.preventDefault();pickTicker(tickMatches[0]);}else if(e.key==="Escape")setTickOpen(false);}}
+                    placeholder="e.g. CBA.AX"
+                    style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+                  {tickOpen&&tickMatches.length>0&&(
+                    <div role="listbox" style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:isMobile?"calc(-100% - 8px)":0,background:t.BG,border:"1px solid "+t.GOLD+"55",borderRadius:8,zIndex:300,boxShadow:"0 8px 24px rgba(0,0,0,.6)",overflow:"hidden",maxHeight:230,overflowY:"auto"}}>
+                      {tickMatches.map((h,hi)=>(
+                        <button type="button" role="option" key={h.ticker} onPointerDown={e=>e.preventDefault()} onClick={()=>pickTicker(h)}
+                          style={{display:"block",width:"100%",textAlign:"left",background:"transparent",border:"none",borderBottom:hi<tickMatches.length-1?"1px solid "+t.BORDER:"none",padding:"11px 12px",cursor:"pointer",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,lineHeight:1.35}}>
+                          <span style={{color:t.GOLD,fontWeight:700}}>{h.ticker}</span>
+                          <span style={{marginLeft:8}}>{h.name&&h.name!==h.ticker?h.name:""}</span>
+                          <span style={{display:"block",fontSize:10,color:t.MUTED,marginTop:2}}>{(Number(h.shares)||0).toLocaleString()+" shares held - tap to select"}</span>
+                        </button>
                       ))}
                     </div>
                   )}
+                  {!tickOpen&&tickHeld&&<div style={{fontSize:10,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",marginTop:4,lineHeight:1.4}}>{(tickHeld.name&&tickHeld.name!==tickHeld.ticker?tickHeld.name+" - ":"")+(Number(tickHeld.shares)||0).toLocaleString()+" shares held"}</div>}
+                  {!tickOpen&&!tickHeld&&tickQ.length>=2&&<div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:4,lineHeight:1.4}}>Not in your shares yet. Add the holding on the Wealth page so the income can be worked out.</div>}
                 </div>
               </div>
               <div>
