@@ -282,6 +282,48 @@ def main():
                 if len(local.get(k) or []) < len(data[k]): problems.append(k + " not saved on the device")
             results.append(("FAIL" if problems else "PASS", "Save: Super update reaches Supabase with full account", "; ".join(problems[:4])))
         ctx.close()
+
+        # 4. On-screen keyboard (phone): whatever is being typed into stays visible above the keyboard.
+        #    The keyboard is simulated with the same event the iOS app sends (336px tall).
+        errs = []; KB = 336
+        kdata = seed()
+        kdata["advisorMessages"] = [{"role": "user", "content": "Question", "timestamp": 1}, {"role": "assistant", "content": ("Answer line. " * 60) + "END-OF-LAST-MESSAGE", "timestamp": 2}]
+        ctx, pg = open_signed_in(browser, url, 393, 852, kdata, [], errs)
+        KB_SHOW = """([sel,kb])=>{const el=document.querySelector(sel);if(!el)return false;el.focus();const e=new Event('keyboardWillShow');e.keyboardHeight=kb;window.dispatchEvent(e);return true;}"""
+        KB_RECT = """([sel,kb])=>{const el=document.querySelector(sel);if(!el)return null;const r=el.getBoundingClientRect();return {top:Math.round(r.top),bottom:Math.round(r.bottom),ok:r.top>=0&&r.bottom<=window.innerHeight-kb+1};}"""
+        KB_HIDE = """()=>{window.dispatchEvent(new Event('keyboardWillHide'));const a=document.activeElement;a&&a.blur&&a.blur();}"""
+        KB_MARK = """()=>{let i=0;for(const el of document.querySelectorAll('input,textarea,select')){const t=(el.type||'').toLowerCase();if(/^(checkbox|radio|range|button|submit|file|color|hidden)$/.test(t)||el.disabled)continue;const r=el.getBoundingClientRect();const cs=getComputedStyle(el);if(r.width<8||r.height<8||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.05)continue;el.setAttribute('data-kbt',String(i));i++;}return i;}"""
+        # Executive AI chat: the box and the end of the last message
+        if go(pg, "advisor", "Executive AI", True):
+            pg.wait_for_timeout(1200)
+            sel = 'input[placeholder="Ask anything..."]'
+            if pg.evaluate(KB_SHOW, [sel, KB]):
+                pg.wait_for_timeout(1300)
+                r = pg.evaluate(KB_RECT, [sel, KB])
+                last = pg.evaluate("""()=>{const e=[...document.querySelectorAll('[data-kb-own] div')].filter(d=>d.children.length===0&&/END-OF-LAST-MESSAGE/.test(d.textContent||''))[0];return e?Math.round(e.getBoundingClientRect().bottom):null;}""")
+                prob = []
+                if not r or not r["ok"]: prob.append("the message box is behind the keyboard")
+                if r and (last is None or last > r["top"] or last < 60): prob.append("the end of the last message isn't visible above the box")
+                results.append(("FAIL" if prob else "PASS", "Keyboard: Executive AI chat", "; ".join(prob)))
+                pg.evaluate(KB_HIDE); pg.wait_for_timeout(400)
+            else:
+                results.append(("FAIL", "Keyboard: Executive AI chat", "message box not found"))
+        # Every page: the lowest text box on the page (the one most likely to be covered)
+        hidden = []; checked = 0
+        for pid, label in pages:
+            if pid == "advisor" or not go(pg, pid, label, True): continue
+            pg.wait_for_timeout(450)
+            n = pg.evaluate(KB_MARK)
+            if not n: continue
+            sel = '[data-kbt="%d"]' % (n - 1)
+            if not pg.evaluate(KB_SHOW, [sel, KB]): continue
+            pg.wait_for_timeout(1100)
+            r = pg.evaluate(KB_RECT, [sel, KB]); checked += 1
+            if r and not r["ok"]: hidden.append(label)
+            pg.evaluate(KB_HIDE); pg.wait_for_timeout(250)
+        js = [e for e in errs if e.startswith("JS error")]
+        results.append(("FAIL" if (hidden or js or not checked) else "PASS", "Keyboard: text boxes stay visible (%d pages)" % checked, ("hidden behind the keyboard on: " + ", ".join(hidden)) if hidden else (js[0] if js else ("" if checked else "no text boxes found"))))
+        ctx.close()
         browser.close()
     httpd.shutdown()
 

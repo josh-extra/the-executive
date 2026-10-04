@@ -834,7 +834,7 @@ function SparkLine({data,color,height=48,labels,target}){
 function Modal({children,onClose,title}){
   const t=T();
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:520,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
         <div style={{padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+t.BORDER}}>
           <div style={{fontSize:14,color:t.TEXT,fontFamily:"'Montserrat',sans-serif"}}>{title}</div>
@@ -1024,7 +1024,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
         )}
 
         {/* Bottom tab bar */}
-        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:t.CARD,borderTop:"1px solid "+t.BORDER,display:"flex",alignItems:"stretch",paddingBottom:"calc(env(safe-area-inset-bottom) + 4px)"}}>
+        <div className="exec-tabbar" style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,background:t.CARD,borderTop:"1px solid "+t.BORDER,display:"flex",alignItems:"stretch",paddingBottom:"calc(env(safe-area-inset-bottom) + 4px)"}}>
           {BOTTOM_TABS.map(([id,icon,label])=>{
             const active=page===id;
             return (
@@ -8369,8 +8369,28 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
   const initMsg={role:"assistant",content:"Good to have you here, "+profile.firstName+". I can see your dashboard and your history. Ask me anything, or say 'review my dashboard' for an honest assessment."};
   const msgs=messages&&messages.length>0?messages:[initMsg];
   const[input,setInput]=useState("");const[loading,setLoading]=useState(false);
-  const bottomRef=useRef(null);
-  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[msgs,loading]);
+  const bottomRef=useRef(null);const listRef=useRef(null);const boxRef=useRef(null);
+  const[boxH,setBoxH]=useState(null);const[kbOpen,setKbOpen]=useState(false);
+  const toBottom=smooth=>{const el=listRef.current;if(el){try{el.scrollTo({top:el.scrollHeight,behavior:smooth?"smooth":"auto"});}catch{el.scrollTop=el.scrollHeight;}}};
+  useEffect(()=>{toBottom(true);},[msgs,loading]);
+  // KEYBOARD_V1: size the chat to the visible screen - down to the tab bar, or to the top of the keyboard when it's open
+  useEffect(()=>{
+    const fit=()=>{
+      const el=boxRef.current;if(!el)return;
+      const kb=parseFloat(document.documentElement.style.getPropertyValue("--kb"))||0;
+      const open=kb>0;setKbOpen(open);
+      if(open){try{window.scrollTo(0,0);document.body.scrollTop=0;document.documentElement.scrollTop=0;}catch{}}
+      const bar=document.querySelector(".exec-tabbar");
+      const barH=!open&&bar?bar.getBoundingClientRect().height:0;
+      const top=el.getBoundingClientRect().top+(open?0:(window.scrollY||document.body.scrollTop||0));
+      const limit=window.innerHeight-(open?kb:barH)-((open||barH)?10:28);
+      setBoxH(Math.max(240,Math.round(limit-top)));
+      setTimeout(()=>toBottom(false),80);
+    };
+    fit();const t1=setTimeout(fit,300);const t2=setTimeout(fit,900);
+    window.addEventListener("exec-kb",fit);window.addEventListener("resize",fit);
+    return()=>{clearTimeout(t1);clearTimeout(t2);window.removeEventListener("exec-kb",fit);window.removeEventListener("resize",fit);};
+  },[]);
   const tDone=(tasks||[]).filter(tk=>tk.done).length;
   const sDone=(supplements||[]).filter(s=>s.taken).length;
   const hDone=(habits||[]).filter(h=>!!habitLog?.[h.id+"_"+todayStr()]).length;
@@ -8413,12 +8433,12 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
   };
   const PROMPTS=["Review my dashboard","What should I prioritise?","ASX market update","Accelerate my net worth","Debt payoff strategy","Investing concepts for me","Habits to add or swap","Morning briefing"];
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 100px)",maxWidth:900,margin:"0 auto"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14,flexShrink:0}}>
+    <div ref={boxRef} data-kb-own="true" style={{display:"flex",flexDirection:"column",height:boxH?boxH:"calc(100vh - 100px)",maxWidth:900,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:kbOpen?8:14,flexShrink:0}}>
         <div>
-          <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>Private Intelligence</div>
-          <div style={{fontSize:26,color:t.TEXT}}>Executive AI</div>
-          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>
+          {!kbOpen&&<div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>Private Intelligence</div>}
+          <div style={{fontSize:kbOpen?18:26,color:t.TEXT}}>Executive AI</div>
+          <div style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2,display:kbOpen?"none":"block"}}>
             Full dashboard and history · Web search
             {lastMsgLabel&&<span style={{color:t.GOLD}}> · Memory from {lastMsgLabel}</span>}
           </div>
@@ -8428,7 +8448,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
           {msgs.length>1&&<button onClick={()=>setMessages([])} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 9px",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10}}>Clear</button>}
         </div>
       </div>
-      {showPrompts&&(
+      {showPrompts&&!kbOpen&&(
         <div style={{marginBottom:12,flexShrink:0}}>
           {msgs.length>1&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Quick start for today</div>}
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
@@ -8438,7 +8458,7 @@ function AdvisorPage({profile,properties,tasks,goals,supplements,habits,habitLog
           </div>
         </div>
       )}
-      <div style={{flex:1,overflowY:"auto",paddingRight:4,marginBottom:10}}>
+      <div ref={listRef} style={{flex:1,minHeight:0,overflowY:"auto",paddingRight:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
         {msgs.map((m,i)=>(
           <div key={i} style={{marginBottom:14,display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",alignItems:"flex-start",gap:9}}>
             {m.role==="assistant"&&(
@@ -11090,7 +11110,7 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
   const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
   const PRO_FEATURES=["Everything in Free","Executive AI — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:520,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{padding:"24px 24px 20px"}}>
           {/* Header */}
@@ -11630,9 +11650,63 @@ function App(){
       @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
       .tick-pop{animation:tickPop .35s cubic-bezier(.36,.07,.19,.97)}
       .score-up{animation:scoreUp .6s ease forwards}
+      /* KEYBOARD_V1: the iOS keyboard plugin resizes <body>; keep scrolling on the page itself and handle the keyboard here */
+      body{height:auto !important}
+      html.kb-open body{padding-bottom:var(--kb-pad,0px) !important}
+      html.kb-open body:has([data-kb-own]){padding-bottom:0 !important}
+      html.kb-open .exec-tabbar{display:none !important}
+      html.kb-open .exec-main{padding-bottom:24px !important}
+      html.kb-open .exec-main:has([data-kb-own]){padding-bottom:0 !important}
+      html.kb-open .exec-overlay{bottom:var(--kb,0px) !important;align-items:flex-start !important;overflow-y:auto !important}
+      html.kb-open .exec-overlay>*{margin:auto !important;max-height:calc(100vh - var(--kb,0px) - 24px) !important}
+      html.kb-open .exec-kb-hide{display:none !important}
     `;
     document.head.appendChild(s);
   }
+  // KEYBOARD_V1: track the on-screen keyboard so nothing being typed into is hidden behind it.
+  // Sources: the iOS app's keyboard events (Capacitor) and the browser's visual viewport (Safari / home-screen app).
+  useEffect(()=>{
+    if(typeof window==="undefined")return;
+    const root=document.documentElement;let plug=0,last=-1,timer=null;
+    const isField=el=>!!el&&/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)&&!/^(checkbox|radio|range|button|submit|file|color)$/.test(el.type||"");
+    const scroller=el=>{let p=el.parentElement;while(p&&p!==document.documentElement){const cs=getComputedStyle(p);if(/(auto|scroll)/.test(cs.overflowY)&&p.scrollHeight>p.clientHeight+4)return p;p=p.parentElement;}return null;};
+    const hidden=el=>{const kb=parseFloat(root.style.getPropertyValue("--kb"))||0;const r=el.getBoundingClientRect();const vis=window.innerHeight-kb;return {r,vis,out:r.bottom>vis-12||r.top<64};};
+    const reveal=()=>{
+      const el=document.activeElement;if(!isField(el)||el.closest("[data-kb-own]"))return;
+      const h=hidden(el);if(!h.out)return;
+      // put the field in the middle of the space above the keyboard (tall boxes: top of the box near the top)
+      const want=Math.max(72,Math.round((h.vis-h.r.height)/2));const delta=h.r.top-want;const sc=scroller(el);
+      try{(sc||window).scrollBy({top:delta,behavior:"smooth"});}catch{(sc||window).scrollBy(0,delta);}
+      setTimeout(()=>{if(document.activeElement===el&&hidden(el).out){try{el.scrollIntoView({block:"center"});}catch{}}},500);
+    };
+    const apply=()=>{
+      const vv=window.visualViewport;
+      const web=vv?Math.max(0,Math.round(window.innerHeight-vv.height-vv.offsetTop)):0;
+      const kb=Math.max(plug,web);const open=kb>100;const val=open?kb:0;
+      root.style.setProperty("--kb",val+"px");
+      root.style.setProperty("--kb-pad",val+"px");
+      root.classList.toggle("kb-open",open);
+      if(val!==last){last=val;window.dispatchEvent(new CustomEvent("exec-kb",{detail:{open,height:val}}));}
+      if(open){clearTimeout(timer);timer=setTimeout(reveal,120);}
+    };
+    const show=e=>{plug=(e&&e.keyboardHeight)||plug||0;apply();setTimeout(apply,250);};
+    const hide=()=>{plug=0;apply();setTimeout(apply,250);};
+    const onFocus=e=>{if(isField(e.target)){clearTimeout(timer);timer=setTimeout(()=>{apply();reveal();},350);}};
+    const onBlur=()=>setTimeout(apply,150);
+    window.addEventListener("keyboardWillShow",show);window.addEventListener("keyboardDidShow",show);
+    window.addEventListener("keyboardWillHide",hide);window.addEventListener("keyboardDidHide",hide);
+    const vv=window.visualViewport;
+    if(vv){vv.addEventListener("resize",apply);vv.addEventListener("scroll",apply);}
+    document.addEventListener("focusin",onFocus);document.addEventListener("focusout",onBlur);
+    apply();
+    return()=>{
+      clearTimeout(timer);
+      window.removeEventListener("keyboardWillShow",show);window.removeEventListener("keyboardDidShow",show);
+      window.removeEventListener("keyboardWillHide",hide);window.removeEventListener("keyboardDidHide",hide);
+      if(vv){vv.removeEventListener("resize",apply);vv.removeEventListener("scroll",apply);}
+      document.removeEventListener("focusin",onFocus);document.removeEventListener("focusout",onBlur);
+    };
+  },[]);
   const[bgPhoto,setBgPhoto]=useState("none");
   const[sidebarCollapsed,setSidebarCollapsed]=useState(false);
   const[showSetup,setShowSetup]=useState(false);
@@ -12531,7 +12605,7 @@ function App(){
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       
       {showAuth&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>The Executive</div>
             <div style={{fontSize:22,color:t.TEXT,marginBottom:6}}>{authMode==="signin"?"Sign In":"Create Account"}</div>
