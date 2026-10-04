@@ -4430,11 +4430,11 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
             <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
               <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Update Super</div>
               <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                <div style={{flex:"2 1 150px",minWidth:0}}>
+                <div style={{flex:"1 1 140px",minWidth:0,order:1}}>{/* SUPER_FORM_V1 */}
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>New Balance ($)</div>
                   <Inp type="number" value={superForm.balance} onChange={e=>setSuperForm(f=>({...f,balance:e.target.value}))} placeholder={profile.superBalance||"0"}/>
                 </div>
-                <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={{flex:"1 1 100%",minWidth:0,order:3}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Type</div>
                   <Sel value={superForm.type} onChange={e=>setSuperForm(f=>({...f,type:e.target.value}))}>
                     <option value="balance">Balance Update</option>
@@ -4443,7 +4443,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
                     <option value="growth">Investment Growth</option>
                   </Sel>
                 </div>
-                <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={{flex:"1 1 140px",minWidth:0,order:2}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Date</div>
                   <Inp type="date" value={superForm.date} onChange={e=>setSuperForm(f=>({...f,date:e.target.value}))}/>
                 </div>
