@@ -323,6 +323,29 @@ def main():
             pg.evaluate(KB_HIDE); pg.wait_for_timeout(250)
         js = [e for e in errs if e.startswith("JS error")]
         results.append(("FAIL" if (hidden or js or not checked) else "PASS", "Keyboard: text boxes stay visible (%d pages)" % checked, ("hidden behind the keyboard on: " + ", ".join(hidden)) if hidden else (js[0] if js else ("" if checked else "no text boxes found"))))
+        # 4b. The iPhone app's keyboard plugin shrinks <body> when the keyboard opens. That must not throw the
+        #     page back to the top (it did before Oct 2026): the place you were typing has to stay in view.
+        if go(pg, "wealth", "Wealth", True):
+            pg.wait_for_timeout(600)
+            try:
+                btn = pg.get_by_role("button", name="+ Update Balance", exact=True).last
+                btn.scroll_into_view_if_needed(); btn.click(); pg.wait_for_timeout(400)
+                f = pg.locator('input[type="number"]').last
+                f.scroll_into_view_if_needed(); pg.wait_for_timeout(200)
+                y0 = pg.evaluate("()=>Math.round(window.scrollY+document.body.scrollTop)")
+                f.focus()
+                pg.evaluate("""kb=>{document.body.style.height=(window.innerHeight-kb)+'px';for(const n of ['keyboardWillShow','keyboardDidShow']){const e=new Event(n);e.keyboardHeight=kb;window.dispatchEvent(e);}}""", KB)
+                pg.wait_for_timeout(1300)
+                y1 = pg.evaluate("()=>Math.round(window.scrollY+document.body.scrollTop)")
+                bb = f.bounding_box()
+                prob = []
+                if y0 > 150 and y1 < 20: prob.append("the page jumped back to the top when the keyboard opened")
+                if not bb or bb["y"] < 0 or bb["y"] + bb["height"] > 852 - KB + 1: prob.append("the box being typed in isn't visible above the keyboard")
+                results.append(("FAIL" if prob else "PASS", "Keyboard: page keeps its place when typing lower down", "; ".join(prob)))
+                pg.evaluate("()=>{document.body.style.height='';window.dispatchEvent(new Event('keyboardWillHide'));const a=document.activeElement;a&&a.blur&&a.blur();}"); pg.wait_for_timeout(300)
+            except Exception as e:
+                results.append(("FAIL", "Keyboard: page keeps its place when typing lower down", str(e)[:120]))
+
         # 5. Switching page always opens the new page at the top (phone)
         tops = []
         SY = "()=>Math.round(window.scrollY||document.documentElement.scrollTop||document.body.scrollTop||0)"
