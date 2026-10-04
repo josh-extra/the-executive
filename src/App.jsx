@@ -2049,15 +2049,15 @@ function GoalForm({value,onChange,onSave,onCancel,saveLabel="Create Goal"}){
             <option value="longterm">Long Term</option>
           </Sel>
         </div>
-        <div style={{display:"flex",gap:8}}>
-          <div style={{flex:1}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 140px",minWidth:0}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>Start Date</div>
             <Inp type="date" value={value.startDate||""} onChange={e=>{
               const ns=e.target.value;
               onChange(f=>({...f,startDate:ns,endDate:autoEndDate(f.period||"year",ns)}));
             }}/>
           </div>
-          <div style={{flex:1}}>
+          <div style={{flex:"1 1 140px",minWidth:0}}>
             <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3,textTransform:"uppercase",letterSpacing:1}}>End Date (optional)</div>
             <Inp type="date" value={value.endDate||""} onChange={e=>onChange(f=>({...f,endDate:e.target.value}))}/>
           </div>
@@ -2394,9 +2394,9 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                                 {i>0&&<Divider/>}
                                 {isCpEditing?(
                                   <div style={{padding:"8px 0"}}>
-                                    <div style={{display:"flex",gap:7,marginBottom:7}}>
-                                      <Inp value={editCpForm.text} onChange={e=>setEditCpForm(f=>({...f,text:e.target.value}))} style={{flex:2,fontSize:12}} onKeyDown={e=>e.key==="Enter"&&saveEditCp()}/>
-                                      <Inp type="date" value={editCpForm.dueDate} onChange={e=>setEditCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
+                                    <div style={{display:"flex",gap:7,marginBottom:7,flexWrap:"wrap"}}>
+                                      <Inp value={editCpForm.text} onChange={e=>setEditCpForm(f=>({...f,text:e.target.value}))} style={{flex:"2 1 150px",fontSize:12}} onKeyDown={e=>e.key==="Enter"&&saveEditCp()}/>
+                                      <Inp type="date" value={editCpForm.dueDate} onChange={e=>setEditCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:"1 1 140px",fontSize:11}}/>
                                     </div>
                                     <div style={{display:"flex",gap:6}}>
                                       <Btn onClick={saveEditCp} style={{fontSize:11}}>Save</Btn>
@@ -2423,9 +2423,9 @@ Return JSON: [{title, category (wealth/health/career/education/personal/mindset)
                           {/* Add checkpoint row */}
                           {addCpGoalId===g.id?(
                             <div style={{marginTop:8,borderTop:"1px solid "+t.BORDER,paddingTop:10}}>
-                              <div style={{display:"flex",gap:7,marginBottom:7}}>
-                                <Inp value={cpForm.text} onChange={e=>setCpForm(f=>({...f,text:e.target.value}))} placeholder="Checkpoint..." style={{flex:2,fontSize:12}} onKeyDown={e=>e.key==="Enter"&&addCheckpoint(g.id)}/>
-                                <Inp type="date" value={cpForm.dueDate} onChange={e=>setCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:1,fontSize:11}}/>
+                              <div style={{display:"flex",gap:7,marginBottom:7,flexWrap:"wrap"}}>
+                                <Inp value={cpForm.text} onChange={e=>setCpForm(f=>({...f,text:e.target.value}))} placeholder="Checkpoint..." style={{flex:"2 1 150px",fontSize:12}} onKeyDown={e=>e.key==="Enter"&&addCheckpoint(g.id)}/>
+                                <Inp type="date" value={cpForm.dueDate} onChange={e=>setCpForm(f=>({...f,dueDate:e.target.value}))} style={{flex:"1 1 140px",fontSize:11}}/>
                               </div>
                               <div style={{display:"flex",gap:7}}>
                                 <Btn onClick={()=>addCheckpoint(g.id)} style={{fontSize:11}}>Add</Btn>
@@ -4367,12 +4367,12 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
           {showCashAdd&&(
             <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
               <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Update Bank Accounts</div>
-              <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <div style={{flex:2}}>
+              <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                <div style={{flex:"2 1 150px",minWidth:0}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Total across your bank accounts ($)</div>
                   <Inp type="number" value={cashForm.balance} onChange={e=>setCashForm(f=>({...f,balance:e.target.value}))} placeholder={String(cashManual||0)}/>
                 </div>
-                <div style={{flex:1}}>
+                <div style={{flex:"1 1 140px",minWidth:0}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Date</div>
                   <Inp type="date" value={cashForm.date} onChange={e=>setCashForm(f=>({...f,date:e.target.value}))}/>
                 </div>
@@ -4429,12 +4429,12 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
           {showSuperAdd&&(
             <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
               <div style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Update Super</div>
-              <div style={{display:"flex",gap:8,marginBottom:8}}>
-                <div style={{flex:2}}>
+              <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                <div style={{flex:"2 1 150px",minWidth:0}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>New Balance ($)</div>
                   <Inp type="number" value={superForm.balance} onChange={e=>setSuperForm(f=>({...f,balance:e.target.value}))} placeholder={profile.superBalance||"0"}/>
                 </div>
-                <div style={{flex:1}}>
+                <div style={{flex:"1 1 140px",minWidth:0}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Type</div>
                   <Sel value={superForm.type} onChange={e=>setSuperForm(f=>({...f,type:e.target.value}))}>
                     <option value="balance">Balance Update</option>
@@ -4443,7 +4443,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
                     <option value="growth">Investment Growth</option>
                   </Sel>
                 </div>
-                <div style={{flex:1}}>
+                <div style={{flex:"1 1 140px",minWidth:0}}>
                   <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Date</div>
                   <Inp type="date" value={superForm.date} onChange={e=>setSuperForm(f=>({...f,date:e.target.value}))}/>
                 </div>
@@ -5452,9 +5452,9 @@ Categorisation rules:
                 ))}
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:9}}>
-                <div style={{display:"flex",gap:7}}>
-                  <Inp type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={{flex:1}}/>
-                  <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1.5}}>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                  <Inp type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} style={{flex:"1 1 140px"}}/>
+                  <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:"1.5 1 150px"}}>
                     {EXP_CATS[form.type].map(c=><option key={c}>{c}</option>)}
                   </Sel>
                 </div>
@@ -5657,14 +5657,14 @@ function BillsPage({bills,setBills,debts,setPage}){
                 {billCats.map(c=><option key={c}>{c}</option>)}
               </Sel>
             </div>
-            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
-              <div style={{flex:1}}>
+            <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Last Paid / Start Date</div>
                 <Inp type="date" value={form.lastPaid} onChange={e=>setForm(f=>({...f,lastPaid:e.target.value}))} style={{flex:1}}/>
               </div>
-              <div style={{flex:1}}>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Next Due (auto)</div>
-                <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",fontSize:12,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>
+                <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"0 12px",minHeight:39,display:"flex",alignItems:"center",boxSizing:"border-box",fontSize:13,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",whiteSpace:"nowrap",overflow:"hidden"}}>
                   {form.lastPaid&&form.frequency?new Date(advanceDate(form.lastPaid,form.frequency)+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"Select date"}
                 </div>
               </div>
@@ -6634,7 +6634,7 @@ function WorkoutPage({workouts,setWorkouts,profile,subscription,setShowUpgrade,a
         <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
           <SectionLabel>New Session</SectionLabel>
           <div style={{display:"flex",gap:7,marginBottom:8,flexWrap:"wrap"}}>
-            <Inp type="date" value={wf.date} onChange={e=>setWf(f=>({...f,date:e.target.value}))} style={{flex:1,minWidth:120}}/>
+            <Inp type="date" value={wf.date} onChange={e=>setWf(f=>({...f,date:e.target.value}))} style={{flex:"1 1 140px",minWidth:140}}/>
             <Sel value={wf.type} onChange={e=>setWf(f=>({...f,type:e.target.value}))} style={{flex:1}}>
               {WTYPES.map(wt=><option key={wt}>{wt}</option>)}
             </Sel>
@@ -10571,12 +10571,12 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
           <SectionLabel>Log Learning Session</SectionLabel>
           <div style={{display:"flex",flexDirection:"column",gap:9}}>
             <Inp value={logForm.title} onChange={e=>setLogForm(f=>({...f,title:e.target.value}))} placeholder="What did you learn? (podcast, book, video...)"/>
-            <div style={{display:"flex",gap:8}}>
-              <Sel value={logForm.type} onChange={e=>setLogForm(f=>({...f,type:e.target.value}))} style={{flex:1}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Sel value={logForm.type} onChange={e=>setLogForm(f=>({...f,type:e.target.value}))} style={{flex:"1 1 110px"}}>
                 {["podcast","book","youtube","course","article"].map(t=><option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
               </Sel>
-              <Inp type="number" value={logForm.minutes} onChange={e=>setLogForm(f=>({...f,minutes:e.target.value}))} placeholder="Minutes" style={{flex:1}}/>
-              <Inp type="date" value={logForm.date} onChange={e=>setLogForm(f=>({...f,date:e.target.value}))} style={{flex:1}}/>
+              <Inp type="number" value={logForm.minutes} onChange={e=>setLogForm(f=>({...f,minutes:e.target.value}))} placeholder="Minutes" style={{flex:"1 1 90px"}}/>
+              <Inp type="date" value={logForm.date} onChange={e=>setLogForm(f=>({...f,date:e.target.value}))} style={{flex:"1 1 140px"}}/>
             </div>
             <div style={{display:"flex",gap:8}}><Btn onClick={logSession}>Save</Btn><Btn onClick={()=>setShowLog(false)} variant="ghost">Cancel</Btn></div>
           </div>
@@ -11660,6 +11660,9 @@ function App(){
       html.kb-open .exec-overlay{bottom:var(--kb,0px) !important;align-items:flex-start !important;overflow-y:auto !important}
       html.kb-open .exec-overlay>*{margin:auto !important;max-height:calc(100vh - var(--kb,0px) - 24px) !important}
       html.kb-open .exec-kb-hide{display:none !important}
+      /* DATE_ROWS_V1: iPhone date boxes ignore their width and spill over the next box unless told otherwise */
+      input[type="date"],input[type="month"],input[type="time"]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%;display:block;min-height:39px;text-align:left}
+      input[type="date"]::-webkit-date-and-time-value,input[type="month"]::-webkit-date-and-time-value,input[type="time"]::-webkit-date-and-time-value{text-align:left;margin:0}
     `;
     document.head.appendChild(s);
   }
