@@ -1,5 +1,6 @@
 import{useState,useEffect,useRef,useCallback,Component}from"react";
 import{Capacitor}from"@capacitor/core";
+import{StatusBar,Style as StatusBarStyle}from"@capacitor/status-bar";
 import{Purchases}from"@revenuecat/purchases-capacitor";
 
 // RevenueCat public API key (iOS) - safe to expose client-side, same as
@@ -891,17 +892,33 @@ function Modal({children,onClose,title}){
   );
 }
 function MilestoneCelebration({milestone,onClose}){
+  // IOS_POLISH_V1: a small card at the top instead of a full-screen takeover
   const t=T();
-  useEffect(()=>{const id=setTimeout(onClose,5000);return()=>clearTimeout(id);},[]);
+  useEffect(()=>{const id=setTimeout(onClose,6000);return()=>clearTimeout(id);},[]);
   return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1001,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",textAlign:"center",padding:32}}>
-      <div style={{fontSize:56,marginBottom:12}}>*</div>
-      <div style={{fontSize:11,letterSpacing:4,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",marginBottom:8}}>MILESTONE REACHED</div>
-      <div style={{fontSize:40,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700,marginBottom:8}}>{fmt(milestone)}</div>
-      <div style={{fontSize:16,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",marginBottom:28}}>Net Worth Milestone Unlocked</div>
-      <Btn onClick={onClose}>Keep Building</Btn>
+    <div role="status" style={{position:"fixed",top:"calc(env(safe-area-inset-top) + 12px)",left:12,right:12,zIndex:1001,display:"flex",justifyContent:"center",pointerEvents:"none"}}>
+      <div style={{pointerEvents:"auto",width:"100%",maxWidth:420,boxSizing:"border-box",background:t.CARD,border:"1px solid "+t.GOLD+"66",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 10px 30px rgba(0,0,0,.45)"}}>
+        <div style={{width:34,height:34,borderRadius:"50%",background:t.GOLD+"1F",border:"1px solid "+t.GOLD+"55",display:"flex",alignItems:"center",justifyContent:"center",color:t.GOLD,flexShrink:0}}><Icon name="target" size={17} stroke={1.8}/></div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:9,letterSpacing:2,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",marginBottom:2}}>Milestone reached</div>
+          <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>{fmt(milestone)+" net worth"}</div>
+        </div>
+        <button aria-label="Close" onClick={onClose} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",padding:6,display:"flex",flexShrink:0}}><Icon name="x"/></button>
+      </div>
     </div>
   );
+}
+// IOS_POLISH_V1: band behind the clock / battery so content scrolls underneath it, and readable clock text on every theme
+function StatusStrip(){
+  const t=T();
+  useEffect(()=>{
+    if(!Capacitor.isNativePlatform())return;
+    const h=String(t.BG||"#080808").replace("#","");
+    const r=parseInt(h.slice(0,2),16)||0,g=parseInt(h.slice(2,4),16)||0,b=parseInt(h.slice(4,6),16)||0;
+    const light=(r*299+g*587+b*114)/1000>150;
+    try{StatusBar.setStyle({style:light?StatusBarStyle.Light:StatusBarStyle.Dark}).catch(()=>{});}catch{}
+  },[t.BG]);
+  return <div aria-hidden="true" className="exec-statusstrip" style={{position:"fixed",top:0,left:0,right:0,height:"env(safe-area-inset-top)",background:t.BG,zIndex:950,pointerEvents:"none"}}/>;
 }
 function RecalibrateModal({profile,properties,onSave,onClose}){
   const[form,setForm]=useState({
@@ -12695,6 +12712,7 @@ function App(){
           <button onClick={()=>{setSessionExpired(false);setShowAuth(true);}} style={{background:t.GOLD,border:"none",borderRadius:5,padding:"4px 10px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700}}>Reconnect</button>
         </div>
       )}
+      <StatusStrip/>
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       
