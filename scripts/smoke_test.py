@@ -128,7 +128,8 @@ def make_context(browser, width, height, data, posts, signed_in=True):
             return route.fulfill(status=200, content_type="application/json", body=json.dumps({"id": "u1", "email": "smoke@test.com"}))
         if "/rest/v1/user_data" in u:
             if m == "GET":
-                return route.fulfill(status=200, content_type="application/json", body=json.dumps([{"data": data}]))
+                # like the real database: return the latest saved copy
+                return route.fulfill(status=200, content_type="application/json", body=json.dumps([{"data": posts[-1] if posts else data}]))
             try: posts.append(json.loads(route.request.post_data)["data"])
             except Exception: pass
             return route.fulfill(status=201, content_type="application/json", body="[]")
@@ -180,6 +181,69 @@ def go(page, pid, label, phone):
             ok = page.evaluate("""l=>{const b=[...document.querySelectorAll('button')].reverse().find(b=>{const s=b.querySelectorAll('span');return s.length&&s[s.length-1].textContent.trim()===l;});if(b){b.click();return true;}return false;}""", label)
         return ok
     return page.evaluate("""l=>{const b=document.querySelector('button[title="'+l+'"]');if(b){b.click();return true;}return false;}""", label)
+
+# ---------------------------------------------------------------- two devices, one account
+TWO_DEV_INIT = """(()=>{const RD=Date;let off=window.__OFF0||0;Object.defineProperty(window,'__off',{get:()=>off,set:v=>{off=v}});
+class D extends RD{constructor(...a){if(a.length===0){super(RD.now()+off);}else{super(...a);}} static now(){return RD.now()+off;}}
+D.UTC=RD.UTC;D.parse=RD.parse;window.Date=D;
+let vis='visible';Object.defineProperty(document,'visibilityState',{get:()=>vis,configurable:true});Object.defineProperty(document,'hidden',{get:()=>vis==='hidden',configurable:true});
+const OF=window.fetch;window.__getDelay=0;window.fetch=async(u,o)=>{const m=((o&&o.method)||'GET').toUpperCase();if(String(u).includes('/rest/v1/user_data')&&m==='GET'&&window.__getDelay){await new Promise(r=>setTimeout(r,window.__getDelay));}return OF(u,o);};
+window.__setVis=v=>{vis=v;document.dispatchEvent(new Event('visibilitychange'));if(v==='visible')window.dispatchEvent(new Event('focus'));};})();"""
+
+def two_device_context(browser, url, store, width, height, day_offset_ms):
+    """A signed-in device whose Supabase reads/writes go to one shared in-memory account (store)."""
+    ctx = browser.new_context(viewport={"width": width, "height": height}, timezone_id="Australia/Brisbane")
+    ctx.add_init_script("window.__OFF0=%d;" % day_offset_ms + TWO_DEV_INIT)
+    ctx.route(re.compile(r"^https?://(?!127\.0\.0\.1).*"), lambda r: r.fulfill(status=200, body="") if r.request.resource_type in ("image", "font", "stylesheet") else r.abort())
+    def supa(route):
+        u, m = route.request.url, route.request.method
+        if "/auth/v1/" in u: return route.fulfill(status=200, content_type="application/json", body=json.dumps({"id": "u1", "email": "smoke@test.com"}))
+        if "/rest/v1/user_data" in u:
+            if m == "GET": return route.fulfill(status=200, content_type="application/json", body=json.dumps([{"data": store["data"]}]))
+            try: store["data"] = json.loads(route.request.post_data)["data"]
+            except Exception: pass
+            return route.fulfill(status=201, content_type="application/json", body="[]")
+        if "/rest/v1/subscriptions" in u: return route.fulfill(status=200, content_type="application/json", body=json.dumps([{"status": "active", "plan": "annual"}]))
+        return route.fulfill(status=200, content_type="application/json", body="[]")
+    ctx.route("**/*supabase.co/**", supa)
+    ctx.route("**/api/**", lambda r: r.fulfill(status=200, content_type="application/json", body="{}"))
+    pg = ctx.new_page(); pg.goto(url)
+    pg.evaluate("d=>{localStorage.setItem('exec_token','x.eyJzdWIiOiJ1MSIsImV4cCI6OTk5OTk5OTk5OX0.x');localStorage.setItem('exec_v1',JSON.stringify(d));}", store["data"])
+    pg.reload(); pg.wait_for_timeout(5000)
+    for label in ("Keep Building", "Close", "Dismiss", "Got it"):
+        try: pg.get_by_role("button", name=label, exact=True).first.click(timeout=300)
+        except Exception: pass
+    return ctx, pg
+
+def two_device_checks(browser, url, results):
+    import copy as _copy
+    DAY = 86400000
+    base = seed(); base["lastSavedDate"] = ds(3)
+    def texts(store): return [t.get("text") for t in (store["data"] or {}).get("tasks", [])]
+    def add_task(pg, text, phone):
+        go(pg, "tasks", "Tasks", phone); pg.wait_for_timeout(400)
+        pg.locator('input[placeholder="Add a task..."]').fill(text); pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
+    # A. phone last used yesterday wakes up on a slow connection after the Mac changed something
+    store = {"data": _copy.deepcopy(base)}
+    phone, pp = two_device_context(browser, url, store, 393, 852, -DAY)
+    pp.evaluate("()=>window.__setVis('hidden')"); pp.wait_for_timeout(600)
+    mac, mp = two_device_context(browser, url, store, 1280, 900, 0)
+    add_task(mp, "MAC MORNING TASK", False)
+    mp.evaluate("()=>window.__setVis('hidden')"); mp.wait_for_timeout(600)
+    pp.evaluate("()=>{window.__off=0;window.__getDelay=1500;window.__setVis('visible');}"); pp.wait_for_timeout(4000)
+    mp.evaluate("()=>window.__setVis('visible')"); mp.wait_for_timeout(2500)
+    go(mp, "tasks", "Tasks", False); mp.wait_for_timeout(500)
+    ok = "MAC MORNING TASK" in texts(store) and mp.get_by_text("MAC MORNING TASK").count() > 0
+    results.append(("PASS" if ok else "FAIL", "Two devices: an out-of-date phone waking up keeps the Mac's changes", "" if ok else "the Mac's new task was wiped"))
+    phone.close(); mac.close()
+    # B. both open at once, both add something
+    store = {"data": _copy.deepcopy(base)}
+    phone, pp = two_device_context(browser, url, store, 393, 852, 0)
+    mac, mp = two_device_context(browser, url, store, 1280, 900, 0)
+    add_task(mp, "FROM MAC", False); add_task(pp, "FROM PHONE", True)
+    ok = "FROM MAC" in texts(store) and "FROM PHONE" in texts(store)
+    results.append(("PASS" if ok else "FAIL", "Two devices: both add something, both are kept", "" if ok else "account has: " + ", ".join(texts(store)[-4:])))
+    phone.close(); mac.close()
 
 # ---------------------------------------------------------------- run
 def main():
@@ -356,6 +420,11 @@ def main():
             if pg.evaluate(SY) > 2: tops.append(label)
         results.append(("FAIL" if tops else "PASS", "Pages open at the top when switching (phone)", ("opened part-way down: " + ", ".join(tops)) if tops else ""))
         ctx.close()
+
+        # 6. Two devices on one account must never wipe each other's changes
+        if only != "desktop":
+            try: two_device_checks(browser, url, results)
+            except Exception as e: results.append(("FAIL", "Two devices: sync checks", str(e)[:140]))
         browser.close()
     httpd.shutdown()
 

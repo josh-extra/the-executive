@@ -63,6 +63,37 @@ const sbH=(token)=>({"Content-Type":"application/json","apikey":SUPABASE_KEY,"Au
 let _cloudBase={uid:null,data:{}};
 const rememberCloud=(uid,d)=>{if(uid&&d&&typeof d==="object")_cloudBase={uid,data:d};};
 const withCloudBase=(uid,d)=>(_cloudBase.uid===uid?{..._cloudBase.data,...d}:d);
+// SAFE_MERGE_V1: three-way merge so one device can never wipe another device's changes.
+// b = the copy this device last synced, l = this device now, r = the cloud now.
+const _J=x=>{try{return JSON.stringify(x===undefined?null:x);}catch{return String(x);}};
+const _isObj=x=>!!x&&typeof x==="object"&&!Array.isArray(x);
+const _idList=a=>Array.isArray(a)&&a.every(x=>_isObj(x)&&x.id!==undefined&&x.id!==null);
+const merge3=(b,l,r)=>{
+  const jb=_J(b),jl=_J(l),jr=_J(r);
+  if(jl===jb)return r;            // only the cloud changed (or nothing did)
+  if(jr===jb||jr===jl)return l;   // only this device changed it
+  if(_isObj(l)&&_isObj(r)){
+    const bo=_isObj(b)?b:{};const out={};
+    for(const k of new Set([...Object.keys(r),...Object.keys(l),...Object.keys(bo)])){const v=merge3(bo[k],l[k],r[k]);if(v!==undefined)out[k]=v;}
+    return out;
+  }
+  if(_idList(l)&&_idList(r)){
+    const key=x=>String(x.id);
+    const bm=new Map((_idList(b)?b:[]).map(x=>[key(x),x])),lm=new Map(l.map(x=>[key(x),x])),rm=new Map(r.map(x=>[key(x),x]));
+    const order=[...r.map(key),...l.map(key).filter(k=>!rm.has(k))];
+    const out=[];
+    for(const k of order){
+      const bv=bm.get(k),lv=lm.get(k),rv=rm.get(k);
+      if(lv===undefined&&rv===undefined)continue;
+      if(lv===undefined){if(bv!==undefined&&_J(rv)===_J(bv))continue;out.push(rv);continue;} // removed here / added on the other device
+      if(rv===undefined){if(bv!==undefined&&_J(lv)===_J(bv))continue;out.push(lv);continue;} // removed there / added here
+      out.push(merge3(bv,lv,rv));
+    }
+    return out;
+  }
+  return l; // both changed the same single value: this device's latest wins
+};
+const _unchanged=(base,d)=>!!base&&Object.keys(d).every(k=>_J(d[k])===_J(base[k]));
 const supabase={
   async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
   async signIn(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
@@ -70,7 +101,21 @@ const supabase={
   async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
   async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();const d=rows&&rows[0]?rows[0].data:null;rememberCloud(userId,d);return d;},
-  async save(userId,token,data){const merged=withCloudBase(userId,data);const r=await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data:merged,updated_at:new Date().toISOString()})});if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error("Save failed: "+r.status+" "+JSON.stringify(err));}rememberCloud(userId,merged);return r;},
+  async save(userId,token,data){
+    const base=_cloudBase.uid===userId?_cloudBase.data:null;
+    const local=base?{...base,...data}:data;   // keep keys this app version doesn't know about
+    if(_unchanged(base,local))return {skipped:true,data:base,remoteChanged:false};
+    // Read the latest copy first so changes made on another device are kept
+    const g=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});
+    if(!g.ok)throw new Error("Save failed: "+g.status+" (read)");
+    const rows=await g.json().catch(()=>[]);
+    const fresh=rows&&rows[0]?rows[0].data:null;
+    const merged=!fresh?local:(base?merge3(base,local,fresh):{...fresh,...local});
+    const r=await fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(token),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:userId,data:merged,updated_at:new Date().toISOString()})});
+    if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error("Save failed: "+r.status+" "+JSON.stringify(err));}
+    rememberCloud(userId,merged);
+    return {data:merged,remoteChanged:Object.keys(merged).some(k=>_J(merged[k])!==_J(local[k]))};
+  },
 };
 
 // Module-level auth token — set by App when user logs in
@@ -11534,7 +11579,8 @@ function App(){
     (async()=>{
       try{
         setSyncing(true);
-        await supabase.save(authUser.id,authToken,dataToSave);
+        const res=await supabase.save(authUser.id,authToken,dataToSave);
+        if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res.data}));
         setPendingSave(false);
         setLastSaved(Date.now());
       }catch{}
@@ -11587,6 +11633,8 @@ function App(){
   useEffect(()=>{
     const checkOnFocus=()=>{
       const today=todayStr();
+      // Signed in and online: the refresh on return applies the new-day reset to the latest copy instead
+      try{if(localStorage.getItem("exec_token")&&navigator.onLine)return;}catch{}
       if(today!==lastResetDate){
         const dayOfWeek=new Date(today+"T12:00:00").getDay();
         setTasks(ts=>(ts||[]).map(tk=>{
@@ -11960,7 +12008,8 @@ function App(){
           }
           try{
             setSyncing(true);
-            await supabase.save(authUser.id, authToken, dataToSave);
+            const res=await supabase.save(authUser.id, authToken, dataToSave);
+            if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res.data}));
             setPendingSave(false);
           }catch(e){
             console.error("[Save failed]",e?.message);
@@ -11976,7 +12025,8 @@ function App(){
                     if(refreshed.refresh_token)localStorage.setItem("exec_refresh",refreshed.refresh_token);
                     setAuthToken(newToken);
                     // Retry save with new token
-                    await supabase.save(authUser.id,newToken,dataToSave);
+                    const res2=await supabase.save(authUser.id,newToken,dataToSave);
+                    if(res2&&res2.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res2.data}));
                     setPendingSave(false);
                   }
                 }catch(re){console.error("[Token refresh failed]",re?.message);setPendingSave(true);}
@@ -11999,26 +12049,13 @@ function App(){
       if(!readyToSave)return;
       const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
       if(profile)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
-      if(authToken && authUser?.id && profile){
+      if(authToken && authUser?.id && profile && !_unchanged(_cloudBase.uid===authUser.id?_cloudBase.data:null,{...(_cloudBase.uid===authUser.id?_cloudBase.data:{}),...dataToSave})){
         try{
           fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:withCloudBase(authUser.id,dataToSave),updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
         }catch{}
       }
     };
-    const onVisibility=()=>{
-      if(document.visibilityState==="hidden") flush();
-      // Re-fetch from Supabase when tab becomes visible — picks up ALL changes from other devices
-      if(document.visibilityState==="visible"&&authToken&&authUser?.id){
-        fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+authUser.id+"&select=data",{headers:sbH(authToken)})
-          .then(r=>r.json()).then(rows=>{
-            let d=rows?.[0]?.data;
-            if(!d)return;
-            rememberCloud(authUser.id,d);
-            // This tab may have been asleep/backgrounded across midnight -
-            // apply the same daily reset logic used on fresh page loads,
-            // so a long-lived tab doesn't carry yesterday's completions
-            // into a new day.
-            d=applyDailyReset(d,todayStr());
+    const applyCloud=d=>{
             // Theme / appearance
             if(d.theme&&d.theme!==theme){const k=THEME_ALIASES[d.theme]||d.theme;_themeKey=k;setThemeState(d.theme);}
             if(d.bgPhoto&&d.bgPhoto!==bgPhoto){_bgPhotoId=d.bgPhoto;setBgPhoto(d.bgPhoto);}
@@ -12077,12 +12114,31 @@ function App(){
                 return merged;
               });
             }
+    };
+    const onMerged=e=>{const d=e&&e.detail;if(d)applyCloud(d);};
+    window.addEventListener("exec-cloud-merged",onMerged);
+    const onVisibility=()=>{
+      if(document.visibilityState==="hidden") flush();
+      // Re-fetch from Supabase when tab becomes visible — picks up ALL changes from other devices
+      if(document.visibilityState==="visible"&&authToken&&authUser?.id){
+        fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+authUser.id+"&select=data",{headers:sbH(authToken)})
+          .then(r=>r.json()).then(rows=>{
+            const fresh=rows?.[0]?.data;
+            if(!fresh)return;
+            // merge with anything this device hasn't saved yet, rather than replacing it
+            const base=_cloudBase.uid===authUser.id?_cloudBase.data:null;
+            const localNow=loadData();
+            let d=(base&&localNow)?merge3(base,{...base,...localNow},fresh):fresh;
+            rememberCloud(authUser.id,fresh);
+            d=applyDailyReset(d,todayStr());
+            applyCloud(d);
           }).catch(()=>{});
       }
     };
     document.addEventListener("visibilitychange",onVisibility);
     window.addEventListener("beforeunload",flush);
     return()=>{
+      window.removeEventListener("exec-cloud-merged",onMerged);
       document.removeEventListener("visibilitychange",onVisibility);
       window.removeEventListener("beforeunload",flush);
     };
