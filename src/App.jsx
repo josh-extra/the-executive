@@ -782,7 +782,7 @@ function StatCard({label,value,color,sub}){
   return (
     <Card style={{textAlign:"center",padding:"14px 10px"}}>
       <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:1,marginBottom:5}}>{label}</div>
-      <div style={{fontSize:18,color:color||t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{value}</div>
+      <div style={{fontSize:value==="Not logged"?13:18,lineHeight:value==="Not logged"?"23px":"normal",color:color||t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:value==="Not logged"?500:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{value}</div>
       {sub&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:3}}>{sub}</div>}
     </Card>
   );
@@ -1458,14 +1458,14 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
             </div>
           )}
           {/* Financial Pulse strip */}
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))"}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(3,minmax(0,1fr))":"repeat(4,minmax(0,1fr))"}}>
             {[
               {l:"Net Worth",v:fmt(nw),c:t.GOLD,sub:Math.round(nw/nwT*100)+"% to target",pct:Math.round(nw/nwT*100),pc:t.GOLD},
               {l:"Bills/mo",v:fmt((bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
               {l:"Total Debt",v:fmt(profile.totalDebt||0),c:t.RED,sub:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100)+"% LVR":"",pct:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100):0,pc:t.RED},
               {l:"Super",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE,sub:"Balance"},
-            ].map((s,i)=>(
-              <div key={s.l} style={{padding:"9px 10px",borderRight:i<3?"1px solid "+t.BORDER:"none"}}>
+            ].filter(s=>!(isMobile&&s.l==="Net Worth")).map((s,i,arr)=>(
+              <div key={s.l} style={{padding:"9px 10px",minWidth:0,overflow:"hidden",borderRight:i<arr.length-1?"1px solid "+t.BORDER:"none"}}>
                 <div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>{s.l}</div>
                 <div style={{fontSize:13,color:s.c,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1.2}}>{s.v}</div>
                 {s.pct!==undefined&&<div style={{height:2,background:t.BORDER,borderRadius:99,overflow:"hidden",marginTop:4}}><div style={{width:Math.min(s.pct,100)+"%",height:"100%",background:s.pc,borderRadius:99}}/></div>}
@@ -1630,9 +1630,9 @@ function TasksPage({tasks,setTasks}){
         <div style={{marginTop:8}}><PB value={visibleTasks.length?Math.round(done/visibleTasks.length*100):0} color={t.GREEN} height={3}/></div>
       </div>
       <Card style={{marginBottom:16,padding:"12px 14px"}}>
-        <div style={{display:"flex",gap:8,marginBottom:recurring?10:0}}>
-          <input value={newTask} onChange={e=>setNewTask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Add a task..." style={{flex:1,background:"transparent",border:"none",outline:"none",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13}}/>
-          <Sel value={pri} onChange={e=>setPri(e.target.value)} style={{width:90}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:recurring?10:0}}>
+          <input value={newTask} onChange={e=>setNewTask(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Add a task..." style={{flex:"1 1 260px",minWidth:0,minHeight:36,background:"transparent",border:"none",outline:"none",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13}}/>
+          <Sel value={pri} onChange={e=>setPri(e.target.value)} style={{flex:"1 1 110px",minWidth:110,maxWidth:160}}>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
@@ -1684,6 +1684,7 @@ function TasksPage({tasks,setTasks}){
 }
 
 function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
+  // POLISH_OCT2_V1
   const t=T();
   const isMobile=useIsMobile();
   const[showAdd,setShowAdd]=useState(false);
@@ -1865,8 +1866,8 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
               const pct=weekPct(h);
               const isExpanded=!!expandHabit[h.id];
               return (
-                <Card key={h.id} style={{marginBottom:6,padding:"8px 12px"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <Card key={h.id} style={{marginBottom:6,padding:isMobile?"10px 12px":"8px 12px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:isMobile?"wrap":"nowrap",rowGap:8}}>
                     {/* Icon tap to toggle today */}
                     <div onClick={()=>tog(h.id,todayStr())} style={{width:32,height:32,borderRadius:"50%",background:habitLog[h.id+"_"+todayStr()]?h.color:t.CARD2,border:"2px solid "+(habitLog[h.id+"_"+todayStr()]?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:15,transition:"all .2s"}}>
                       <span style={{color:habitLog[h.id+"_"+todayStr()]?"#080808":h.color,display:"flex"}}><HabitGlyph h={h} size={16}/></span>
@@ -1883,12 +1884,12 @@ function HabitsPage({habits,setHabits,habitLog,setHabitLog}){
                       <PB value={pct} color={pct>=100?t.GREEN:h.color} height={2}/>
                     </div>
                     {/* 7-day dots inline */}
-                    <div style={{display:"flex",gap:3,flexShrink:0}}>
+                    <div style={isMobile?{display:"flex",justifyContent:"space-between",order:5,width:"100%",paddingLeft:40,boxSizing:"border-box"}:{display:"flex",gap:3,flexShrink:0}}>
                       {last7.map(d=>{
                         const done=!!habitLog[h.id+"_"+d];
                         const isT=d===todayStr();
                         return (
-                          <div key={d} onClick={()=>tog(h.id,d)} style={{width:18,height:18,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s",flexShrink:0}}>
+                          <div key={d} onClick={()=>tog(h.id,d)} style={{width:isMobile?28:18,height:isMobile?28:18,borderRadius:"50%",background:done?h.color:t.CARD2,border:"1.5px solid "+(isT?h.color:done?h.color:t.BORDER2),display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s",flexShrink:0}}>
                             {done&&<span style={{fontSize:8,color:"#080808",fontWeight:700}}><Tick/></span>}
                           </div>
                         );
@@ -5048,7 +5049,7 @@ function DebtPage({profile,setProfile,properties,debts,setDebts,subscription,set
             )}
 
             {/* Key metrics row */}
-            <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:7,marginBottom:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:7,marginBottom:8}}>
               {[
                 {l:"Balance",v:fmt(bal),c:t.RED},
                 {l:"Rate",v:(d.rate||0)+"%",c:t.MUTED},
@@ -6170,8 +6171,10 @@ function InvestPage({profile,properties,subscription,setShowUpgrade,watchlist,se
   );
 }
 
-function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade,authToken}){
-  const t=T();const isMobile=useIsMobile();const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
+function HealthPage({profile,setProfile,supplements,setSupplements,bodyLog,setPage,subscription,setShowUpgrade,authToken}){
+  const t=T();const isMobile=useIsMobile();
+  const[twEdit,setTwEdit]=useState(false);const[twVal,setTwVal]=useState("");
+  const saveTw=()=>{const v=parseFloat(twVal);if(v>0&&setProfile)setProfile(p=>({...(p||{}),targetWeight:String(v)}));setTwEdit(false);};const[showAdd,setShowAdd]=useState(false);const[form,setForm]=useState({name:"",dose:"",time:"morning",purpose:""});
   const[editingSupp,setEditingSupp]=useState(null);
   const[editForm,setEditForm]=useState({});
   const openEditSupp=(s)=>{setEditForm({name:s.name,dose:s.dose||"",time:s.time||"morning",purpose:s.purpose||""});setEditingSupp(s.id);setShowAdd(false);};
@@ -6179,18 +6182,29 @@ function HealthPage({profile,supplements,setSupplements,bodyLog,setPage,subscrip
   const add=()=>{if(!form.name)return;setSupplements(ss=>[...ss,{...form,id:Date.now(),taken:false}]);setForm({name:"",dose:"",time:"morning",purpose:""});setShowAdd(false);};
   const done=(supplements||[]).filter(s=>s.taken).length;
   const latestLog=(bodyLog||[]).length?[...(bodyLog||[])].sort((a,b)=>b.date.localeCompare(a.date))[0]:null;
+  const _w=latestLog?.weight||profile.weight,_bf=latestLog?.bodyFat||profile.bodyFat,_sl=latestLog?.sleep||profile.sleepHours,_hrv=latestLog?.hrv;
+  const twLink={background:"none",border:"none",padding:0,color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:9,textDecoration:"underline",textUnderlineOffset:2};
+  const twSub=twEdit?(
+    <span style={{display:"inline-flex",gap:4,alignItems:"center",marginTop:2}}>
+      <input type="number" inputMode="decimal" autoFocus value={twVal} onChange={e=>setTwVal(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")saveTw();if(e.key==="Escape")setTwEdit(false);}} placeholder="kg"
+        style={{width:58,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:5,padding:"4px 6px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:16,outline:"none",boxSizing:"border-box"}}/>
+      <button onClick={saveTw} style={{background:t.GOLD,border:"none",borderRadius:5,padding:"5px 8px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10,fontWeight:700}}>Save</button>
+    </span>
+  ):profile.targetWeight?(
+    setProfile?<button onClick={()=>{setTwVal(String(profile.targetWeight));setTwEdit(true);}} style={{...twLink,color:t.MUTED,textDecoration:"none"}}>{"Target: "+profile.targetWeight+"kg"}</button>:"Target: "+profile.targetWeight+"kg"
+  ):(setProfile?<button onClick={()=>{setTwVal("");setTwEdit(true);}} style={twLink}>Set a target</button>:"No target set");
   const vitals=[
-    {l:"Weight",v:(latestLog?.weight||profile.weight||"-")+"kg",sub:"Target: "+(profile.targetWeight||"?")+"kg"},
-    {l:"Body Fat",v:(latestLog?.bodyFat||profile.bodyFat||"-")+"%",sub:"Target: 12%"},
-    {l:"Sleep",v:(latestLog?.sleep||profile.sleepHours||"-")+"h",sub:"Target: 8h"},
-    {l:"HRV",v:latestLog?.hrv||"-",sub:"Higher is better"}
+    {l:"Weight",v:_w?_w+"kg":"Not logged",c:_w?undefined:t.MUTED,sub:twSub},
+    {l:"Body Fat",v:_bf?_bf+"%":"Not logged",c:_bf?undefined:t.MUTED,sub:"Target: 12%"},
+    {l:"Sleep",v:_sl?_sl+"h":"Not logged",c:_sl?undefined:t.MUTED,sub:"Target: 8h"},
+    {l:"HRV",v:_hrv||"Not logged",c:_hrv?undefined:t.MUTED,sub:"Higher is better"}
   ];
   return (
     <div data-page="true" style={{maxWidth:720,margin:"0 auto"}}>
       <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Physical Capital</div>
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Health and Vitals</div>
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
-        {vitals.map(v=><StatCard key={v.l} label={v.l} value={v.v} sub={v.sub}/>)}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
+        {vitals.map(v=><StatCard key={v.l} label={v.l} value={v.v} color={v.c} sub={v.sub}/>)}
       </div>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         <button onClick={()=>setPage("body")} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:7,padding:"7px 12px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11}}>Log Metrics</button>
@@ -6308,7 +6322,7 @@ function BodyPage({bodyLog,setBodyLog,profile}){
       <div style={{fontSize:26,color:t.TEXT,marginBottom:16}}>Metrics History</div>
       <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
         <SectionLabel>Log Today</SectionLabel>
-        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:8}}>
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:8}}>
           {[["weight","kg"],["bodyFat","BF%"],["sleep","hrs"],["hrv","HRV"]].map(([k,ph])=>(
             <Inp key={k} type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{fontSize:12}}/>
           ))}
@@ -7093,7 +7107,7 @@ function ReadingPage({books,setBooks,readingGoal,setReadingGoal}){
       {savedFlash&&(
         <div style={{marginBottom:12,padding:"8px 12px",background:t.GREEN+"14",border:"1px solid "+t.GREEN+"44",borderRadius:7,fontSize:11,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>Note saved and syncing to your account</div>
       )}
-      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:8,marginBottom:14}}>
         {[{l:"Reading",v:cats.reading.length,c:t.GOLD},{l:"Up Next",v:cats.next.length,c:t.BLUE},{l:"Done",v:cats.done.length,c:t.GREEN},{l:"Total",v:(books||[]).length,c:t.MUTED}].map(s=>(
           <StatCard key={s.l} label={s.l} value={s.v} color={s.c}/>
         ))}
@@ -8073,11 +8087,12 @@ function CalendarPage({bills,debts,dividends,holdings,goals,calendarItems,setCal
                 const isToday=ds===today,isSel=ds===sel;
                 const sc=ds<today&&history&&history[ds]&&history[ds].score!=null?history[ds].score:null;
                 return(
-                  <div key={ds} data-cal-day={ds} onClick={()=>setSel(ds)} style={{minHeight:isMobile?50:96,padding:isMobile?"4px 3px":"5px 6px",borderRadius:6,background:isSel?t.GOLD+"1A":cellBg,border:"1px solid "+(isSel?t.GOLD+"99":isToday?t.GOLD+"55":t.BORDER),opacity:inMonth?1:.38,cursor:"pointer",overflow:"hidden",minWidth:0,boxSizing:"border-box"}}>
+                  <div key={ds} data-cal-day={ds} onClick={()=>setSel(ds)} style={{position:"relative",minHeight:isMobile?50:96,padding:isMobile?"4px 3px":"5px 6px",borderRadius:6,background:isSel?t.GOLD+"1A":cellBg,border:"1px solid "+(isSel?t.GOLD+"99":isToday?t.GOLD+"55":t.BORDER),opacity:inMonth?1:.38,cursor:"pointer",overflow:"hidden",minWidth:0,boxSizing:"border-box"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                       <span style={{fontSize:isMobile?11:12,color:isToday?t.GOLD:t.TEXT,fontWeight:isToday?700:500,fontFamily:"'Montserrat',sans-serif"}}>{parseInt(ds.slice(8),10)}</span>
-                      {sc!=null&&<span title="Daily score" style={{fontSize:isMobile?7:9,color:scoreCol(sc),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{sc}</span>}
+                      {sc!=null&&!isMobile&&<span title="Daily score" style={{fontSize:9,color:scoreCol(sc),fontFamily:"'Montserrat',sans-serif",fontWeight:700}}>{sc}</span>}
                     </div>
+                    {sc!=null&&isMobile&&<div title={"Daily score "+sc+"%"} style={{position:"absolute",left:4,right:4,bottom:4,height:3,borderRadius:99,background:t.BORDER,overflow:"hidden"}}><div style={{width:Math.max(4,Math.min(sc,100))+"%",height:"100%",background:scoreCol(sc),borderRadius:99}}/></div>}
                     {isMobile?(
                       <div style={{display:"flex",flexWrap:"wrap",gap:2}}>
                         {evs.slice(0,6).map(e=><span key={e.key} style={{width:5,height:5,borderRadius:99,background:CAL_COLORS[e.type],opacity:e.paid||e.done?.45:1}}/>)}
@@ -10178,7 +10193,7 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
       {divs.length>0&&(
         <Card style={{marginBottom:14}}>
           <SectionLabel>Payment Calendar</SectionLabel>
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:6}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:6}}>
             {calMonths.map(({year,month,label})=>{
               const payments=paymentsInMonth(year,month);
               const monthTotal=payments.reduce((s,d)=>s+annualIncome(d)/(FREQS[d.frequency]||4),0);
@@ -10769,7 +10784,7 @@ function LearnPage({profile,goals,habits,learnData,setLearnData}){
       {tab==="progress"&&(
         <div>
           {/* Stats */}
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2,minmax(0,1fr))":"repeat(4,minmax(0,1fr))",gap:10,marginBottom:14}}>
             {[
               {v:weekHrs+"h",l:"This week",c:t.GOLD},
               {v:streak+"d",l:"Streak",c:t.GREEN},
@@ -12750,7 +12765,7 @@ function App(){
           {page==="tax"&&(isFeatureLocked("tax",subscription)?<PaywallPage onUpgrade={()=>setShowUpgrade(true)} feature="tax"/>:<TaxPage profile={liveProfile} transactions={transactions} deductions={taxDeductions} setDeductions={setTaxDeductions}/>)}
           {page==="news"&&<NewsPage/>}
           {/* RECIPES_HIDDEN: Recipes page switched off for now - add ["recipes",...] back to NAV and this line to restore */}
-          {page==="health"&&<HealthPage profile={liveProfile} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
+          {page==="health"&&<HealthPage profile={liveProfile} setProfile={profile?setProfile:null} supplements={supplements} setSupplements={setSupplements} bodyLog={bodyLog} setPage={setPage} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="body"&&<BodyPage bodyLog={bodyLog} setBodyLog={setBodyLog} profile={liveProfile}/>}
           {page==="workout"&&<WorkoutPage workouts={workouts} setWorkouts={setWorkouts} profile={liveProfile} subscription={subscription} setShowUpgrade={setShowUpgrade} authToken={authToken}/>}
           {page==="reading"&&<ReadingPage books={books} setBooks={setBooks} readingGoal={readingGoal} setReadingGoal={setReadingGoal}/>}
