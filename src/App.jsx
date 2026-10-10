@@ -1259,7 +1259,8 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
         </div>
         {/* Quote + Briefing */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 16px 12px",borderBottom:"1px solid "+t.BORDER,gap:16}}>
-          <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Cormorant Garamond',Georgia,serif",fontStyle:"italic",lineHeight:1.6,flex:1}}>"{quote}"</div>
+          {/* QUOTE_SIZE_V1 */}
+          <div style={{fontSize:isMobile?16:18,color:t.TEXT,opacity:.85,fontFamily:"'Cormorant Garamond',Georgia,serif",fontStyle:"italic",lineHeight:1.45,flex:1,minWidth:0}}>"{quote}"</div>
           <button onClick={()=>isPro(subscription)?setShowBriefing(true):setShowUpgrade(true)} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:8,padding:"7px 14px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700,whiteSpace:"nowrap",flexShrink:0}}>
             Open Briefing
           </button>
