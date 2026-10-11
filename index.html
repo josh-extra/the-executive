@@ -17,8 +17,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
 
-    <!-- Meta Pixel -->
+    <!-- Meta Pixel (META_PIXEL_V1: website only - not loaded inside the iPhone app) -->
     <script>
+    window.__execNative=(location.protocol==='capacitor:')||!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+    if(!window.__execNative){
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -27,8 +29,9 @@
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1357563119318237');
+    fbq('init', '1419317479732030');
     fbq('track', 'PageView');
+    }
     </script>
     <!-- End Meta Pixel -->
     <!-- No <noscript> fallback here on purpose: the HTML spec only permits
@@ -42,6 +45,7 @@
          Purchase event can be attributed to the ad click. -->
     <script>
     (function(){
+      if(window.__execNative)return;
       var ANNUAL='price_1Ti01CRwVRKTnmPjQlIcIfaV';
       function cookie(n){
         var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');
@@ -52,6 +56,16 @@
          localStorage. Means we never depend on how create-checkout.js
          happens to name its request fields. */
       function uidFromSession(){
+        try{
+          /* The app keeps its session token under exec_token */
+          var et=localStorage.getItem('exec_token');
+          if(et&&et.split('.').length===3){
+            var eb=et.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+            while(eb.length%4)eb+='=';
+            var ep=JSON.parse(atob(eb));
+            if(ep&&ep.sub)return ep.sub;
+          }
+        }catch(e){}
         try{
           for(var i=0;i<localStorage.length;i++){
             var k=localStorage.key(i);
