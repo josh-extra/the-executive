@@ -97,7 +97,16 @@ const merge3=(b,l,r)=>{
 const _unchanged=(base,d)=>!!base&&Object.keys(d).every(k=>_J(d[k])===_J(base[k]));
 const supabase={
   async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
-  async signIn(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
+  // SIGNIN_DIAG_V1: one automatic retry if it can't connect, and errors that say what actually happened
+  async signIn(email,password){
+    const go=()=>fetch(SUPABASE_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});
+    let r;
+    try{r=await go();}
+    catch(e1){await new Promise(z=>setTimeout(z,900));try{r=await go();}catch(e2){const err=new Error((e2&&e2.message)||String(e2));err.stage="connect";throw err;}}
+    const txt=await r.text();
+    try{return JSON.parse(txt);}
+    catch{const err=new Error("HTTP "+r.status+(txt?" - "+txt.slice(0,80):""));err.stage="response";throw err;}
+  },
   async refresh(refreshToken){const r=await fetch(SUPABASE_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:sbH(),body:JSON.stringify({refresh_token:refreshToken})});return r.json();},
   async signOut(token){await fetch(SUPABASE_URL+"/auth/v1/logout",{method:"POST",headers:sbH(token)});},
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
@@ -12571,7 +12580,11 @@ function App(){
         const errMsg = res.error_description||res.msg||res.error||"";
         setAuthError(errMsg||"Sign in failed. Check your email and password.");
       }
-    }catch(e){setAuthError("Connection error. Please check your internet and try again.");}
+    }catch(e){
+      const why=(e&&e.message)||String(e||"unknown");
+      try{console.error("[signin]",e&&e.stage,why,e);}catch{}
+      setAuthError("Couldn't reach the sign-in service ("+(e&&e.stage==="response"?"":"")+why+"). Please try again.");
+    }
     setAuthLoading(false);
   };
 
