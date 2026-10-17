@@ -1483,14 +1483,22 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
               </div>
             </div>
           )}
-          {/* Financial Pulse strip */}
-          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(3,minmax(0,1fr))":"repeat(4,minmax(0,1fr))"}}>
+          {/* Financial Pulse strip - PULSE_ROWS_V1: 3 columns on a phone, rows in the narrow desktop card */}
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(3,minmax(0,1fr))":"1fr"}}>
             {[
               {l:"Net Worth",v:fmt(nw),c:t.GOLD,sub:Math.round(nw/nwT*100)+"% to target",pct:Math.round(nw/nwT*100),pc:t.GOLD},
               {l:"Bills/mo",v:fmt((bills||[]).reduce((s,b)=>{const m={weekly:52/12,fortnightly:26/12,monthly:1,quarterly:1/3,annually:1/12};return s+parseFloat(b.amount)*(m[b.frequency]||1);},0)),c:t.RED,sub:upcoming.length>0?"Next in "+Math.round((new Date(upcoming[0].nextDue+"T12:00:00")-new Date())/864e5)+"d":"All clear",sc:upcoming.length>0?t.MUTED:t.GREEN},
               {l:"Total Debt",v:fmt(profile.totalDebt||0),c:t.RED,sub:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100)+"% LVR":"",pct:profile.totalAssets>0?Math.round((profile.totalDebt||0)/profile.totalAssets*100):0,pc:t.RED},
               {l:"Super",v:fmt(parseFloat(profile.superBalance)||0),c:t.PURPLE,sub:"Balance"},
-            ].filter(s=>!(isMobile&&s.l==="Net Worth")).map((s,i,arr)=>(
+            ].filter(s=>s.l!=="Net Worth").map((s,i,arr)=>!isMobile?(
+              <div key={s.l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 14px",minWidth:0,borderTop:i>0?"1px solid "+t.BORDER:"none"}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:.8,whiteSpace:"nowrap"}}>{s.l}</div>
+                  {s.sub&&<div style={{fontSize:9,color:s.sc||t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.sub}</div>}
+                </div>
+                <div style={{fontSize:14,color:s.c,fontFamily:"'Montserrat',sans-serif",fontWeight:700,whiteSpace:"nowrap",flexShrink:0}}>{s.v}</div>
+              </div>
+            ):(
               <div key={s.l} style={{padding:"9px 10px",minWidth:0,overflow:"hidden",borderRight:i<arr.length-1?"1px solid "+t.BORDER:"none"}}>
                 <div style={{fontSize:8,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:.5,marginBottom:3}}>{s.l}</div>
                 <div style={{fontSize:13,color:s.c,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1.2}}>{s.v}</div>
