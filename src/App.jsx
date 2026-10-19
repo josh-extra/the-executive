@@ -2,6 +2,7 @@ import{useState,useEffect,useRef,useCallback,Component}from"react";
 import{Capacitor}from"@capacitor/core";
 import{StatusBar,Style as StatusBarStyle}from"@capacitor/status-bar";
 import{Purchases}from"@revenuecat/purchases-capacitor";
+import{MKT_DEMO_KEY,MKT_PROFILE,MKT_QUOTES,buildMarketingData,checkMarketingFigures}from"./marketingDemo.js";
 
 // RevenueCat public API key (iOS) - safe to expose client-side, same as
 // the Supabase publishable key above. Get this from RevenueCat dashboard
@@ -42,6 +43,9 @@ let _themeKey=(()=>{
   return "obsidian"; // brand look for everyone; Charcoal stays available in settings
 })();
 let _bgPhotoId="none";
+// MARKETING_DEMO_V1: the unlisted marketing demo (/app?demo=studio-k7m2). Same mechanism as the
+// William Sterling demo, different data: Obsidian, no photo, fixed prices, nothing read or saved.
+const _mkDemo=(()=>{try{return new URLSearchParams(window.location.search).get("demo")===MKT_DEMO_KEY;}catch{return false;}})();
 const hasPhoto=()=>_bgPhotoId&&_bgPhotoId!=="none";
 const T=()=>THEMES[_themeKey]||THEMES[THEME_ALIASES[_themeKey]]||THEMES.obsidian;
 const LOCALES={
@@ -139,7 +143,7 @@ const setActiveToken = t => {
 // Claude API helper — adds auth token for rate limiting and Pro verification
 const claudeFetch = async (body, token) => {
   // Use explicit token, then module var, then sessionStorage fallback, then localStorage
-  const tok = token || _activeToken || 
+  const tok = _mkDemo ? null : token || _activeToken || 
     (()=>{try{return sessionStorage.getItem("_et")||localStorage.getItem("exec_token");}catch{return null;}})();
   const headers = {"Content-Type": "application/json"};
   if (tok) headers["Authorization"] = "Bearer " + tok;
@@ -435,6 +439,7 @@ const isCryptoSymbol=sym=>CRYPTO_SYMBOLS.has((sym||"").toUpperCase())||(sym||"")
 // simultaneous burst, without slowing down any individual page.
 let __quoteQueueTail=Promise.resolve();
 function quoteFetch(url){
+  if(_mkDemo){const m=/symbol=([^&]+)/.exec(url||"");const q=m&&MKT_QUOTES[decodeURIComponent(m[1])];return Promise.resolve(new Response(JSON.stringify(q||{}),{status:200,headers:{"Content-Type":"application/json"}}));}
   const result=__quoteQueueTail.then(()=>fetch(API_BASE+url));
   __quoteQueueTail=result.then(()=>new Promise(res=>setTimeout(res,180)),()=>new Promise(res=>setTimeout(res,180)));
   return result;
@@ -803,7 +808,7 @@ function Tag({children,color}){
 }
 function UpgradeHint({message,hint,onUpgrade}){
   const t=T();
-  if(!onUpgrade)return null;
+  if(!onUpgrade||_mkDemo)return null;
   const text=hint||message||"✦ Unlock AI features with The Executive";
   return(
     <div onClick={onUpgrade} style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:t.GOLD+"0A",border:"1px dashed "+t.GOLD+"44",borderRadius:9,padding:"10px 14px",cursor:"pointer",marginTop:16}}>
@@ -1116,7 +1121,7 @@ function Sidebar({page,setPage,profile,theme,setTheme,collapsed,setCollapsed,sav
             );
           })}
           {/* NAV_TIDY_V1: signed-out people get a Sign In tab; account and theme now live in the More menu */}
-          {!authUser&&(
+          {!authUser&&!_mkDemo&&(
             <button onClick={()=>setShowAuth(true)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,padding:"8px 4px",background:"none",border:"none",borderTop:"2px solid "+t.GOLD+"66",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif"}}>
               <span style={{display:"flex"}}><Icon name="user-round" size={20} stroke={1.5}/></span>
               <span style={{fontSize:9,letterSpacing:.3}}>Sign In</span>
@@ -1278,7 +1283,7 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
                 <div style={{width:6,height:6,borderRadius:"50%",background:t.GREEN,flexShrink:0}}/>
                 <span style={{fontSize:9,color:t.GREEN,fontFamily:"'Montserrat',sans-serif"}}>{authUser.email?.split("@")[0]}</span>
               </button>
-            ):(
+            ):_mkDemo?null:(
               <button onClick={()=>setShowAuth(true)} style={{background:t.GOLD+"18",border:"1px solid "+t.GOLD+"44",borderRadius:6,padding:"4px 10px",color:t.GOLD,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:10}}>Sign In</button>
             )}
           </div>
@@ -6122,12 +6127,13 @@ function InvestPage({profile,properties,subscription,setShowUpgrade,watchlist,se
   const t=T();
   const[tab,setTab]=useState("watchlist");
   const asOfDate=new Date().toLocaleDateString("en-AU",{day:"numeric",month:"long",year:"numeric"});
-  const[aiOpps,setAiOpps]=useState(()=>{try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
-  const[aiOppsDate,setAiOppsDate]=useState(()=>{try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
+  const[aiOpps,setAiOpps]=useState(()=>{if(_mkDemo)return "";try{return localStorage.getItem("invest_ai_cache")||"";}catch{return "";}});
+  const[aiOppsDate,setAiOppsDate]=useState(()=>{if(_mkDemo)return "";try{return localStorage.getItem("invest_ai_date")||"";}catch{return "";}});
   const[loading,setLoading]=useState(false);
   const[aiError,setAiError]=useState("");
   // One-time carry-over of the old device-only watchlist into the account
   useEffect(()=>{
+    if(_mkDemo)return;
     try{
       const s=localStorage.getItem("invest_watchlist");if(!s)return;
       const old=JSON.parse(s)||[];
@@ -11597,7 +11603,7 @@ function App(){
   const[showSignInPrompt,setShowSignInPrompt]=useState(false);
   const[hydrated,setHydrated]=useState(false);
   const[splash,setSplash]=useState(true);
-  const[authToken,setAuthToken]=useState(()=>{try{const t=localStorage.getItem("exec_token")||null;setActiveToken(t);return t;}catch{return null;}});
+  const[authToken,setAuthToken]=useState(()=>{try{const t=_mkDemo?null:(localStorage.getItem("exec_token")||null);setActiveToken(t);return t;}catch{return null;}});
   // Keep module-level token in sync
   useEffect(()=>{setActiveToken(authToken);},[authToken]);
   const[authUser,setAuthUser]=useState(null);
@@ -11730,6 +11736,7 @@ function App(){
     const tid=setTimeout(()=>{
       setSplash(false);
       // If no saved token, prompt to sign in after splash - unless they came to see the demo (/app?demo=1)
+      if(_mkDemo)return;
       if(!localStorage.getItem("exec_token")){
         let wantsDemo=false;
         try{wantsDemo=new URLSearchParams(window.location.search).get("demo")==="1";if(wantsDemo)window.history.replaceState({},"","/app");}catch{}
@@ -11747,6 +11754,7 @@ function App(){
     return()=>{cancelAnimationFrame(raf);clearTimeout(t1);};
   },[page]);
   const[theme,setThemeState]=useState(()=>{
+    if(_mkDemo)return "obsidian";
     // Use saved theme if exists in localStorage
     try{
       const saved=localStorage.getItem(SK);
@@ -11887,6 +11895,7 @@ function App(){
 
   useEffect(()=>{
     const today=todayStr();
+    if(_mkDemo){setHydrated(true);setTimeout(()=>setReadyToSave(true),500);return;}
     (async()=>{
       const savedToken = localStorage.getItem("exec_token");
       const savedRefresh = localStorage.getItem("exec_refresh");
@@ -12048,7 +12057,7 @@ function App(){
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
-        if(profile)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
+        if(profile&&!_mkDemo)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
         if(authToken && authUser?.id && profile){
           if(!navigator.onLine){
             // Mark as pending — will sync when back online
@@ -12098,7 +12107,7 @@ function App(){
     const flush=()=>{
       if(!readyToSave)return;
       const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
-      if(profile)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
+      if(profile&&!_mkDemo)saveData(dataToSave); // DEMO_NO_SAVE: the demo (no profile) is never saved
       if(authToken && authUser?.id && profile && !_unchanged(_cloudBase.uid===authUser.id?_cloudBase.data:null,{...(_cloudBase.uid===authUser.id?_cloudBase.data:{}),...dataToSave})){
         try{
           fetch(SUPABASE_URL+"/rest/v1/user_data",{method:"POST",headers:{...sbH(authToken),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify({user_id:authUser.id,data:withCloudBase(authUser.id,dataToSave),updated_at:new Date().toISOString()}),keepalive:true}).catch(()=>{});
@@ -12194,7 +12203,7 @@ function App(){
     };
   },[readyToSave,theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,budgets,weeklyReflections,advisorMessages,superLog,marketTickers]);
 
-  const setTheme=th=>{const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
+  const setTheme=th=>{if(_mkDemo)return;const k=THEME_ALIASES[th]||th;_themeKey=k;setThemeState(k);};
 
   // Listen for OS theme changes — only applies if user hasn't manually set a theme
   useEffect(()=>{
@@ -12210,7 +12219,7 @@ function App(){
     mq.addEventListener("change",handler);
     return()=>mq.removeEventListener("change",handler);
   },[]);
-  const setBgPhotoId=id=>{_bgPhotoId=id;setBgPhoto(id);};
+  const setBgPhotoId=id=>{if(_mkDemo)return;_bgPhotoId=id;setBgPhoto(id);};
   const todayT=todayTasks(tasks);
   const tDone=todayT.filter(tk=>tk.done).length;
   const sDone=supplements.filter(s=>s.taken).length;
@@ -12330,10 +12339,11 @@ function App(){
   },[authUser]);
 
   // Computed before the early returns below so the hook order never changes
-  const activeProfile=profile||DEMO;
+  const activeProfile=profile||(_mkDemo?MKT_PROFILE:DEMO);
+  if(_mkDemo&&!profile)_themeKey="obsidian";
   if(activeProfile.locale)_locale=activeProfile.locale;
   // DEMO_BG: the demo (no profile yet) shows a background unless one has been picked
-  const shownBg=!profile&&(!bgPhoto||bgPhoto==="none")?"bg2":bgPhoto;
+  const shownBg=_mkDemo&&!profile?"none":!profile&&(!bgPhoto||bgPhoto==="none")?"bg2":bgPhoto;
   _bgPhotoId=shownBg||"none";
   _isDemo=!profile&&!authUser;
   const liveShareValue=holdings.length>0&&portfolio.totalValue>0?portfolio.totalValue:parseFloat(activeProfile.shareValue)||0;
@@ -12403,8 +12413,9 @@ function App(){
   const demoLoaded=useRef(false);
   useEffect(()=>{
     if(!hydrated||profile||authUser||demoLoaded.current)return;
-    try{if(localStorage.getItem("exec_token"))return;}catch{}
-    const d=buildDemoData();demoLoaded.current=true;
+    if(!_mkDemo){try{if(localStorage.getItem("exec_token"))return;}catch{}}
+    const d=_mkDemo?buildMarketingData():buildDemoData();demoLoaded.current=true;
+    if(_mkDemo){checkMarketingFigures(d);setTasks(d.tasks);setSupplements(d.supplements);setHabits(d.habits);setReadingGoal(d.readingGoal);}
     setTransactions(d.transactions);setDebts(d.debts);setProperties(d.properties);setBills(d.bills);
     setHoldings(d.holdings);setCryptoHoldings(d.cryptoHoldings);setCommodityHoldings(d.commodityHoldings);setAltAssets(d.altAssets);
     setSuperLog(d.superLog);setDividends(d.dividends);setWatchlist(d.watchlist);setCalendarItems(d.calendarItems);
@@ -12707,6 +12718,7 @@ function App(){
   };
 
   const handleReset=()=>{
+    if(_mkDemo)return;
     localStorage.removeItem(SK);
     setProfile(null);setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
@@ -12718,7 +12730,7 @@ function App(){
   };
 
   const t=T();
-  const savedLabel=lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
+  const savedLabel=!_mkDemo&&lastSaved&&Date.now()-lastSaved<4000?"Saved":"";
   const pg={profile:liveProfile,tasks,setTasks,goals,setGoals,completed,setCompleted,supplements,setSupplements,workouts,setWorkouts,transactions,setTransactions,journal,setJournal,books,setBooks,bills,setBills,history,bodyLog,setBodyLog,habits,setHabits,habitLog,setHabitLog,holdings,setHoldings,portfolio,cryptoHoldings,setCryptoHoldings,cryptoPortfolio,commodityHoldings,setCommodityHoldings,commodityPortfolio,altAssets,setAltAssets,properties,setProperties,budgets,setBudgets,setPage,streak,market,nwHistory:nwHistoryFull,setShowBriefing,setShowRecalibrate,syncing,isOnline,pendingSave,authUser,setShowAuth,marketTickers,setMarketTickers,subscription,setShowUpgrade};
 
   return (
@@ -12737,7 +12749,7 @@ function App(){
       {celebration&&<MilestoneCelebration milestone={celebration} onClose={()=>setCelebration(null)}/>}
       {showBriefing&&<MorningBriefing profile={liveProfile} tasks={tasks} onClose={()=>setShowBriefing(false)}/>}
       
-      {showAuth&&(
+      {showAuth&&!_mkDemo&&(
         <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:14,maxWidth:380,width:"100%",padding:28}}>
             <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:4}}>The Executive</div>
@@ -12768,7 +12780,7 @@ function App(){
             <button onClick={()=>{setAuthMode("signup");setAuthError("");setShowAuth(true);}} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:6,padding:"5px 12px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,fontWeight:700,flexShrink:0}}>Back it up</button>
           </div>
         )}
-        {!profile&&(isMobile?(
+        {!profile&&!_mkDemo&&(isMobile?(
           <div style={{margin:"0 14px",marginTop:"calc(14px + env(safe-area-inset-top))",background:t.GOLD+"14",border:"1px solid "+t.GOLD+"44",borderRadius:10,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <div style={{fontSize:11,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:600}}>Demo Mode</div>
