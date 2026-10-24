@@ -8,6 +8,8 @@
 // Set an "Authorization header value" there too, matching
 // REVENUECAT_WEBHOOK_SECRET below.
 
+import { notifyOwner, lookupEmail, money } from "../lib/notify-owner.js";
+
 const SUPABASE_URL = "https://vvnnzepagtrlvnqyqbdr.supabase.co";
 const ENTITLEMENT_ID = "pro";
 
@@ -103,6 +105,21 @@ export default async function handler(req, res) {
     }
 
     console.log(`RevenueCat webhook: user ${userId} -> ${status} (${event.type})`);
+
+    // ---- Phone notification to Josh (Pushover) for new iPhone subscribers ----
+    if (event.type === "INITIAL_PURCHASE" || event.type === "NON_RENEWING_PURCHASE") {
+      const trial = event.period_type === "TRIAL";
+      const planName = plan === "annual" ? "Annual" : plan === "monthly" ? "Monthly" : (event.product_id || "Subscription");
+      const price = event.price_in_purchased_currency != null ? event.price_in_purchased_currency : event.price;
+      const cur = event.price_in_purchased_currency != null ? event.currency : "USD";
+      const email = await lookupEmail(userId);
+      await notifyOwner({
+        title: (event.environment === "SANDBOX" ? "[TEST] " : "") + (trial ? "New free trial - " : "New subscriber - ") + planName + (!trial && price ? " " + money(price, cur) : ""),
+        message: (email || userId) + " - iPhone app (Apple)",
+        priority: trial ? 0 : 1,
+        sound: trial ? "bike" : "cashregister",
+      });
+    }
     res.status(200).json({ received: true });
   } catch (e) {
     console.error("RevenueCat webhook error:", e.message);

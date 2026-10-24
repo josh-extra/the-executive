@@ -1,4 +1,5 @@
 import { sendMetaEvent, getAttribution } from "../lib/meta-capi.js";
+import { notifyOwner, money } from "../lib/notify-owner.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -253,6 +254,16 @@ export default async function handler(req, res) {
         } catch (e) {
           console.error("Meta Purchase event failed:", e.message);
         }
+
+        // ---- Phone notification to Josh (Pushover) ----
+        const paid = session.amount_total != null ? session.amount_total / 100 : null;
+        const planName = paid && paid > 100 ? "Annual" : "Monthly";
+        await notifyOwner({
+          title: (session.livemode === false ? "[TEST] " : "") + "New subscriber - " + planName + (paid != null ? " " + money(paid, session.currency) : ""),
+          message: (email || "unknown email") + " - website (Stripe)",
+          priority: 1,
+          sound: "cashregister",
+        });
       }
       break;
     }
