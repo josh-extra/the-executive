@@ -66,7 +66,31 @@ const sbH=(token)=>({"Content-Type":"application/json","apikey":SUPABASE_KEY,"Au
 // Remembers the last cloud blob per user so saves never drop keys
 // that this app version doesn't know about (web vs iOS version drift).
 let _cloudBase={uid:null,data:{}};
-const rememberCloud=(uid,d)=>{if(uid&&d&&typeof d==="object")_cloudBase={uid,data:d};};
+// SYNC_RETRY_V1: _baseVer changes whenever the last-synced copy changes
+let _baseVer=Math.random().toString(36).slice(2)+":0";let _baseN=0;
+const rememberCloud=(uid,d)=>{if(uid&&d&&typeof d==="object"){_cloudBase={uid,data:d};_baseVer=_baseVer.split(":")[0]+":"+(++_baseN);}};
+// Unsynced marker: kept on this device until a save reaches the cloud, with the last synced
+// cloud copy (the merge base), so changes made on weak signal survive closing the app.
+const UNSYNCED_KEY="exec_unsynced";
+const readUnsynced=uid=>{try{const u=JSON.parse(localStorage.getItem(UNSYNCED_KEY)||"null");return u&&u.uid===uid?u:null;}catch{return null;}};
+const markUnsynced=uid=>{try{
+  if(!uid)return;
+  const cur=readUnsynced(uid);
+  const known=_cloudBase.uid===uid;
+  if(cur&&(!known||cur.ver===_baseVer))return; // already noted with this base
+  localStorage.setItem(UNSYNCED_KEY,JSON.stringify({uid,base:known?_cloudBase.data:(cur&&cur.base)||null,ver:known?_baseVer:null,at:Date.now()}));
+}catch{}};
+const clearUnsynced=()=>{try{localStorage.removeItem(UNSYNCED_KEY);}catch{}};
+// On open: if this device has unsynced changes for this account, merge them into the cloud copy
+const mergeUnsynced=(uid,cloud)=>{
+  if(!cloud||typeof cloud!=="object")return cloud;
+  const u=readUnsynced(uid);if(!u)return cloud;
+  const local=loadData();if(!local)return cloud;
+  const base=u.base||cloud;
+  return merge3(base,{...base,...local},cloud);
+};
+// The saved login's account id, for opening without a connection
+const jwtUser=tk=>{try{const p=JSON.parse(atob(String(tk).split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));return p&&p.sub?{id:p.sub,email:p.email||""}:null;}catch{return null;}};
 const withCloudBase=(uid,d)=>(_cloudBase.uid===uid?{..._cloudBase.data,...d}:d);
 // SAFE_MERGE_V1: three-way merge so one device can never wipe another device's changes.
 // b = the copy this device last synced, l = this device now, r = the cloud now.
@@ -98,6 +122,11 @@ const merge3=(b,l,r)=>{
   }
   return l; // both changed the same single value: this device's latest wins
 };
+// SYNC_INFLIGHT_V1: a save can take a second or two. If the person changed something while it
+// was in flight, apply the returned cloud copy on top of what is on screen NOW (3-way merge),
+// so nothing they just did is undone. _latestLocal is set by the save effect on every change.
+let _latestLocal=null;
+const _freshen=(snap,merged)=>(_latestLocal&&_J(_latestLocal)!==_J(snap))?merge3(snap,_latestLocal,merged):merged;
 const _unchanged=(base,d)=>!!base&&Object.keys(d).every(k=>_J(d[k])===_J(base[k]));
 const supabase={
   async signUp(email,password){const r=await fetch(SUPABASE_URL+"/auth/v1/signup",{method:"POST",headers:sbH(),body:JSON.stringify({email,password})});return r.json();},
@@ -116,6 +145,10 @@ const supabase={
   async getUser(token){const r=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:sbH(token)});return r.json();},
   async load(userId,token){const r=await fetch(SUPABASE_URL+"/rest/v1/user_data?user_id=eq."+userId+"&select=data",{headers:sbH(token)});const rows=await r.json();const d=rows&&rows[0]?rows[0].data:null;rememberCloud(userId,d);return d;},
   async save(userId,token,data){
+    try{const r=await this._save(userId,token,data);clearUnsynced();return r;}
+    catch(e){markUnsynced(userId);throw e;}
+  },
+  async _save(userId,token,data){
     const base=_cloudBase.uid===userId?_cloudBase.data:null;
     const local=base?{...base,...data}:data;   // keep keys this app version doesn't know about
     if(_unchanged(base,local))return {skipped:true,data:base,remoteChanged:false};
@@ -173,6 +206,16 @@ const fmt=n=>{
   return n<0?"-"+f:f;
 };
 const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
+// SUPER_AUTO_V1: fixed super contributions on a schedule
+const SUPER_FREQS={weekly:"Weekly",fortnightly:"Fortnightly",monthly:"Monthly",quarterly:"Quarterly"};
+const _ymd=(y,m,d)=>y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+const superNextDate=(ds,freq,anchor)=>{
+  const[y,m,d]=ds.split("-").map(Number);
+  if(freq==="weekly"||freq==="fortnightly"){const x=new Date(y,m-1,d,12);x.setDate(x.getDate()+(freq==="weekly"?7:14));return _ymd(x.getFullYear(),x.getMonth()+1,x.getDate());}
+  const step=freq==="quarterly"?3:1;let ny=y,nm=m+step;while(nm>12){nm-=12;ny++;}
+  const dim=new Date(ny,nm,0).getDate();return _ymd(ny,nm,Math.min(anchor||d,dim));
+};
+const superNet=a=>{const amt=parseFloat(a&&a.amount)||0;return Math.round(amt*(a&&a.taxed===false?1:0.85)*100)/100;};
 function advanceDate(ds,freq,anchorDay){
   const d=new Date(ds+"T12:00:00");
   if(freq==="weekly"){d.setDate(d.getDate()+7);}
@@ -318,7 +361,7 @@ const POPULAR_COINS=[
 
 // POLISH_OCT_V1: shared helpers
 // LINE_ICONS_V1: line icons from Lucide (lucide.dev, ISC licence)
-const ICONS={"layout-dashboard":"<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\" />","list-checks":"<path d=\"M13 5h8\" /><path d=\"M13 12h8\" /><path d=\"M13 19h8\" /><path d=\"m3 17 2 2 4-4\" /><path d=\"m3 7 2 2 4-4\" />","flame":"<path d=\"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4\" />","target":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><circle cx=\"12\" cy=\"12\" r=\"6\" /><circle cx=\"12\" cy=\"12\" r=\"2\" />","notebook-pen":"<path d=\"M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4\" /><path d=\"M2 6h4\" /><path d=\"M2 10h4\" /><path d=\"M2 14h4\" /><path d=\"M2 18h4\" /><path d=\"M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z\" />","book-open":"<path d=\"M12 5v16\" /><path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />","gem":"<path d=\"M10.5 3 8 9l4 13 4-13-2.5-6\" /><path d=\"M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z\" /><path d=\"M2 9h20\" />","building-2":"<path d=\"M10 12h4\" /><path d=\"M10 8h4\" /><path d=\"M14 21v-3a2 2 0 0 0-4 0v3\" /><path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\" /><path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\" />","arrow-left-right":"<path d=\"M8 3 4 7l4 4\" /><path d=\"M4 7h16\" /><path d=\"m16 21 4-4-4-4\" /><path d=\"M20 17H4\" />","receipt":"<path d=\"M12 17V7\" /><path d=\"M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8\" /><path d=\"M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z\" />","chart-pie":"<path d=\"M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z\" /><path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\" />","trending-down":"<path d=\"M16 17h6v-6\" /><path d=\"m22 17-8.5-8.5-5 5L2 7\" />","chart-candlestick":"<path d=\"M9 5v4\" /><rect width=\"4\" height=\"6\" x=\"7\" y=\"9\" rx=\"1\" /><path d=\"M9 15v2\" /><path d=\"M17 3v2\" /><rect width=\"4\" height=\"8\" x=\"15\" y=\"5\" rx=\"1\" /><path d=\"M17 13v3\" /><path d=\"M3 3v16a2 2 0 0 0 2 2h16\" />","telescope":"<path d=\"m10.065 12.493-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44\" /><path d=\"m13.56 11.747 4.332-.924\" /><path d=\"m16 21-3.105-6.21\" /><path d=\"M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455z\" /><path d=\"m6.158 8.633 1.114 4.456\" /><path d=\"m8 21 3.105-6.21\" /><circle cx=\"12\" cy=\"13\" r=\"2\" />","coins":"<path d=\"M13.744 17.736a6 6 0 1 1-7.48-7.48\" /><path d=\"M15 6h1v4\" /><path d=\"m6.134 14.768.866-.5 2 3.464\" /><circle cx=\"16\" cy=\"8\" r=\"6\" />","calculator":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"6\" y2=\"6\" /><line x1=\"16\" x2=\"16\" y1=\"14\" y2=\"18\" /><path d=\"M16 10h.01\" /><path d=\"M12 10h.01\" /><path d=\"M8 10h.01\" /><path d=\"M12 14h.01\" /><path d=\"M8 14h.01\" /><path d=\"M12 18h.01\" /><path d=\"M8 18h.01\" />","newspaper":"<path d=\"M15 18h-5\" /><path d=\"M18 14h-8\" /><path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2\" /><rect width=\"8\" height=\"4\" x=\"10\" y=\"6\" rx=\"1\" />","heart-pulse":"<path d=\"M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5\" /><path d=\"M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27\" />","scale":"<path d=\"M12 3v18\" /><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\" /><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M7 21h10\" />","dumbbell":"<path d=\"M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z\" /><path d=\"m2.5 21.5 1.4-1.4\" /><path d=\"m20.1 3.9 1.4-1.4\" /><path d=\"M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z\" /><path d=\"m9.6 14.4 4.8-4.8\" />","calendar-range":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M16 2v3\" /><path d=\"M3 9h18\" /><path d=\"M8 2v3\" /><path d=\"M17 13h-6\" /><path d=\"M13 17H7\" /><path d=\"M7 13h.01\" /><path d=\"M17 17h.01\" />","calendar-days":"<path d=\"M8 2v3\" /><path d=\"M16 2v3\" /><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M3 9h18\" /><path d=\"M8 13h.01\" /><path d=\"M12 13h.01\" /><path d=\"M16 13h.01\" /><path d=\"M8 17h.01\" /><path d=\"M12 17h.01\" /><path d=\"M16 17h.01\" />","sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\" /><path d=\"M20 2v4\" /><path d=\"M22 4h-4\" /><circle cx=\"4\" cy=\"20\" r=\"2\" />","graduation-cap":"<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\" /><path d=\"M22 10v6\" /><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\" />","sticky-note":"<path d=\"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" /><path d=\"M15 3v5a1 1 0 0 0 1 1h5\" />","briefcase":"<path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\" /><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\" />","user-round":"<circle cx=\"12\" cy=\"8\" r=\"5\" /><path d=\"M20 21a8 8 0 0 0-16 0\" />","menu":"<path d=\"M4 5h16\" /><path d=\"M4 12h16\" /><path d=\"M4 19h16\" />","x":"<path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" />","refresh-cw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /><path d=\"M21 3v5h-5\" /><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /><path d=\"M8 16H3v5\" />","panel-left":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /><path d=\"M9 3v18\" />","search":"<path d=\"m21 21-4.34-4.34\" /><circle cx=\"11\" cy=\"11\" r=\"8\" />","sunrise":"<path d=\"M12 2v8\" /><path d=\"m4.93 10.93 1.41 1.41\" /><path d=\"M2 18h2\" /><path d=\"M20 18h2\" /><path d=\"m19.07 10.93-1.41 1.41\" /><path d=\"M22 22H2\" /><path d=\"m8 6 4-4 4 4\" /><path d=\"M16 18a4 4 0 0 0-8 0\" />","moon":"<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />","alarm-clock":"<circle cx=\"12\" cy=\"13\" r=\"8\" /><path d=\"M12 9v4l2 2\" /><path d=\"M5 3 2 6\" /><path d=\"m22 6-3-3\" /><path d=\"M6.38 18.7 4 21\" /><path d=\"M17.64 18.67 20 21\" />","bed":"<path d=\"M2 4v16\" /><path d=\"M2 8h18a2 2 0 0 1 2 2v10\" /><path d=\"M2 17h20\" /><path d=\"M6 8v9\" />","droplet":"<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />","snowflake":"<path d=\"m10 20-1.25-2.5L6 18\" /><path d=\"M10 4 8.75 6.5 6 6\" /><path d=\"m14 20 1.25-2.5L18 18\" /><path d=\"m14 4 1.25 2.5L18 6\" /><path d=\"m17 21-3-6h-4\" /><path d=\"m17 3-3 6 1.5 3\" /><path d=\"M2 12h6.5L10 9\" /><path d=\"m20 10-1.5 2 1.5 2\" /><path d=\"M22 12h-6.5L14 15\" /><path d=\"m4 10 1.5 2L4 14\" /><path d=\"m7 21 3-6-1.5-3\" /><path d=\"m7 3 3 6h4\" />","footprints":"<path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\" /><path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\" /><path d=\"M16 17h4\" /><path d=\"M4 13h4\" />","bike":"<circle cx=\"18.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"5.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"15\" cy=\"5\" r=\"1\" /><path d=\"M12 17.5V14l-3-3 4-3 2 3h2\" />","waves":"<path d=\"M2 12q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 19q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 5q2.5 2 5 0t5 0 5 0 5 0\" />","mountain":"<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\" />","apple":"<path d=\"M12 6.528V3a1 1 0 0 1 1-1h0\" /><path d=\"M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21\" />","salad":"<path d=\"M7 21h10\" /><path d=\"M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z\" /><path d=\"M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1\" /><path d=\"m13 12 4-4\" /><path d=\"M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2\" />","pill":"<path d=\"m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z\" /><path d=\"m8.5 8.5 7 7\" />","glass-water":"<path d=\"M5.116 4.104A1 1 0 0 1 6.11 3h11.78a1 1 0 0 1 .994 1.105L17.19 20.21A2 2 0 0 1 15.2 22H8.8a2 2 0 0 1-2-1.79z\" /><path d=\"M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0\" />","coffee":"<path d=\"M10 2v2\" /><path d=\"M14 2v2\" /><path d=\"M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1\" /><path d=\"M6 2v2\" />","cigarette-off":"<path d=\"M12 12H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h13\" /><path d=\"M18 8c0-2.5-2-2.5-2-5\" /><path d=\"m2 2 20 20\" /><path d=\"M21 12a1 1 0 0 1 1 1v2a1 1 0 0 1-.5.866\" /><path d=\"M22 8c0-2.5-2-2.5-2-5\" /><path d=\"M7 12v4\" />","wine-off":"<path d=\"M8 22h8\" /><path d=\"M7 10h3m7 0h-1.343\" /><path d=\"M12 15v7\" /><path d=\"M7.307 7.307A12.33 12.33 0 0 0 7 10a5 5 0 0 0 7.391 4.391M8.638 2.981C8.75 2.668 8.872 2.34 9 2h6c1.5 4 2 6 2 8 0 .407-.05.809-.145 1.198\" /><line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\" />","brain":"<path d=\"M12 18V5\" /><path d=\"M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4\" /><path d=\"M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5\" /><path d=\"M17.997 5.125a4 4 0 0 1 2.526 5.77\" /><path d=\"M18 18a4 4 0 0 0 2-7.464\" /><path d=\"M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517\" /><path d=\"M6 18a4 4 0 0 1-2-7.464\" /><path d=\"M6.003 5.125a4 4 0 0 0-2.526 5.77\" />","pen-line":"<path d=\"M13 21h8\" /><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\" />","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /><path d=\"M9 18h6\" /><path d=\"M10 22h4\" />","languages":"<path d=\"m5 8 6 6\" /><path d=\"m4 14 6-6 2-3\" /><path d=\"M2 5h12\" /><path d=\"M7 2h1\" /><path d=\"m22 22-5-10-5 10\" /><path d=\"M14 18h6\" />","music":"<path d=\"M9 18V5l12-2v13\" /><circle cx=\"6\" cy=\"18\" r=\"3\" /><circle cx=\"18\" cy=\"16\" r=\"3\" />","flower-2":"<path d=\"M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1\" /><circle cx=\"12\" cy=\"8\" r=\"2\" /><path d=\"M12 10v12\" /><path d=\"M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z\" /><path d=\"M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z\" />","leaf":"<path d=\"M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20\" /><path d=\"M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13\" />","sprout":"<path d=\"M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3\" /><path d=\"M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4\" /><path d=\"M5 21h14\" />","trees":"<path d=\"M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z\" /><path d=\"M7 16v6\" /><path d=\"M13 19v3\" /><path d=\"M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5\" />","smile":"<path d=\"M15 10V9\" /><path d=\"M16.472 15a6 6 0 01-8.943 0\" /><path d=\"M9 10V9\" /><circle cx=\"12\" cy=\"12\" r=\"10\" />","hand-heart":"<path d=\"M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16\" /><path d=\"m14.45 13.39 5.05-4.694C20.196 8 21 6.85 21 5.75a2.75 2.75 0 0 0-4.797-1.837.276.276 0 0 1-.406 0A2.75 2.75 0 0 0 11 5.75c0 1.2.802 2.248 1.5 2.946L16 11.95\" /><path d=\"m2 15 6 6\" /><path d=\"m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a1 1 0 0 0-2.75-2.91\" />","phone-off":"<path d=\"M10.1 13.9a14 14 0 0 0 3.732 2.668 1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2 18 18 0 0 1-12.728-5.272\" /><path d=\"M22 2 2 22\" /><path d=\"M4.76 13.582A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 .244.473\" />","piggy-bank":"<path d=\"M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z\" /><path d=\"M16 10h.01\" /><path d=\"M2 8v1a2 2 0 0 0 2 2h1\" />","wallet":"<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\" /><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\" />","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /><path d=\"M16 3.128a4 4 0 0 1 0 7.744\" /><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /><circle cx=\"9\" cy=\"7\" r=\"4\" />","timer":"<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\" /><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\" /><circle cx=\"12\" cy=\"14\" r=\"8\" />","shower-head":"<path d=\"m4 4 2.5 2.5\" /><path d=\"M13.5 6.5a4.95 4.95 0 0 0-7 7\" /><path d=\"M15 5 5 15\" /><path d=\"M14 17v.01\" /><path d=\"M10 16v.01\" /><path d=\"M13 13v.01\" /><path d=\"M16 10v.01\" /><path d=\"M11 20v.01\" /><path d=\"M17 14v.01\" /><path d=\"M20 11v.01\" />"};
+const ICONS={"grip-vertical":"<circle cx=\"9\" cy=\"12\" r=\"1\" /><circle cx=\"9\" cy=\"5\" r=\"1\" /><circle cx=\"9\" cy=\"19\" r=\"1\" /><circle cx=\"15\" cy=\"12\" r=\"1\" /><circle cx=\"15\" cy=\"5\" r=\"1\" /><circle cx=\"15\" cy=\"19\" r=\"1\" />","layout-dashboard":"<rect width=\"7\" height=\"9\" x=\"3\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"14\" y=\"3\" rx=\"1\" /><rect width=\"7\" height=\"9\" x=\"14\" y=\"12\" rx=\"1\" /><rect width=\"7\" height=\"5\" x=\"3\" y=\"16\" rx=\"1\" />","list-checks":"<path d=\"M13 5h8\" /><path d=\"M13 12h8\" /><path d=\"M13 19h8\" /><path d=\"m3 17 2 2 4-4\" /><path d=\"m3 7 2 2 4-4\" />","flame":"<path d=\"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4\" />","target":"<circle cx=\"12\" cy=\"12\" r=\"10\" /><circle cx=\"12\" cy=\"12\" r=\"6\" /><circle cx=\"12\" cy=\"12\" r=\"2\" />","notebook-pen":"<path d=\"M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4\" /><path d=\"M2 6h4\" /><path d=\"M2 10h4\" /><path d=\"M2 14h4\" /><path d=\"M2 18h4\" /><path d=\"M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z\" />","book-open":"<path d=\"M12 5v16\" /><path d=\"M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z\" />","gem":"<path d=\"M10.5 3 8 9l4 13 4-13-2.5-6\" /><path d=\"M17 3a2 2 0 0 1 1.6.8l3 4a2 2 0 0 1 .013 2.382l-7.99 10.986a2 2 0 0 1-3.247 0l-7.99-10.986A2 2 0 0 1 2.4 7.8l2.998-3.997A2 2 0 0 1 7 3z\" /><path d=\"M2 9h20\" />","building-2":"<path d=\"M10 12h4\" /><path d=\"M10 8h4\" /><path d=\"M14 21v-3a2 2 0 0 0-4 0v3\" /><path d=\"M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2\" /><path d=\"M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16\" />","arrow-left-right":"<path d=\"M8 3 4 7l4 4\" /><path d=\"M4 7h16\" /><path d=\"m16 21 4-4-4-4\" /><path d=\"M20 17H4\" />","receipt":"<path d=\"M12 17V7\" /><path d=\"M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8\" /><path d=\"M4 3a1 1 0 0 1 1-1 1.3 1.3 0 0 1 .7.2l.933.6a1.3 1.3 0 0 0 1.4 0l.934-.6a1.3 1.3 0 0 1 1.4 0l.933.6a1.3 1.3 0 0 0 1.4 0l.933-.6a1.3 1.3 0 0 1 1.4 0l.934.6a1.3 1.3 0 0 0 1.4 0l.933-.6A1.3 1.3 0 0 1 19 2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1 1.3 1.3 0 0 1-.7-.2l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.934.6a1.3 1.3 0 0 1-1.4 0l-.933-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-1.4 0l-.934-.6a1.3 1.3 0 0 0-1.4 0l-.933.6a1.3 1.3 0 0 1-.7.2 1 1 0 0 1-1-1z\" />","chart-pie":"<path d=\"M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z\" /><path d=\"M21.21 15.89A10 10 0 1 1 8 2.83\" />","trending-down":"<path d=\"M16 17h6v-6\" /><path d=\"m22 17-8.5-8.5-5 5L2 7\" />","chart-candlestick":"<path d=\"M9 5v4\" /><rect width=\"4\" height=\"6\" x=\"7\" y=\"9\" rx=\"1\" /><path d=\"M9 15v2\" /><path d=\"M17 3v2\" /><rect width=\"4\" height=\"8\" x=\"15\" y=\"5\" rx=\"1\" /><path d=\"M17 13v3\" /><path d=\"M3 3v16a2 2 0 0 0 2 2h16\" />","telescope":"<path d=\"m10.065 12.493-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44\" /><path d=\"m13.56 11.747 4.332-.924\" /><path d=\"m16 21-3.105-6.21\" /><path d=\"M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455z\" /><path d=\"m6.158 8.633 1.114 4.456\" /><path d=\"m8 21 3.105-6.21\" /><circle cx=\"12\" cy=\"13\" r=\"2\" />","coins":"<path d=\"M13.744 17.736a6 6 0 1 1-7.48-7.48\" /><path d=\"M15 6h1v4\" /><path d=\"m6.134 14.768.866-.5 2 3.464\" /><circle cx=\"16\" cy=\"8\" r=\"6\" />","calculator":"<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\" /><line x1=\"8\" x2=\"16\" y1=\"6\" y2=\"6\" /><line x1=\"16\" x2=\"16\" y1=\"14\" y2=\"18\" /><path d=\"M16 10h.01\" /><path d=\"M12 10h.01\" /><path d=\"M8 10h.01\" /><path d=\"M12 14h.01\" /><path d=\"M8 14h.01\" /><path d=\"M12 18h.01\" /><path d=\"M8 18h.01\" />","newspaper":"<path d=\"M15 18h-5\" /><path d=\"M18 14h-8\" /><path d=\"M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2\" /><rect width=\"8\" height=\"4\" x=\"10\" y=\"6\" rx=\"1\" />","heart-pulse":"<path d=\"M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5\" /><path d=\"M3.22 13H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27\" />","scale":"<path d=\"M12 3v18\" /><path d=\"m19 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M3 7h1a17 17 0 0 0 8-2 17 17 0 0 0 8 2h1\" /><path d=\"m5 8 3 8a5 5 0 0 1-6 0zV7\" /><path d=\"M7 21h10\" />","dumbbell":"<path d=\"M17.596 12.768a2 2 0 1 0 2.829-2.829l-1.768-1.767a2 2 0 0 0 2.828-2.829l-2.828-2.828a2 2 0 0 0-2.829 2.828l-1.767-1.768a2 2 0 1 0-2.829 2.829z\" /><path d=\"m2.5 21.5 1.4-1.4\" /><path d=\"m20.1 3.9 1.4-1.4\" /><path d=\"M5.343 21.485a2 2 0 1 0 2.829-2.828l1.767 1.768a2 2 0 1 0 2.829-2.829l-6.364-6.364a2 2 0 1 0-2.829 2.829l1.768 1.767a2 2 0 0 0-2.828 2.829z\" /><path d=\"m9.6 14.4 4.8-4.8\" />","calendar-range":"<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M16 2v3\" /><path d=\"M3 9h18\" /><path d=\"M8 2v3\" /><path d=\"M17 13h-6\" /><path d=\"M13 17H7\" /><path d=\"M7 13h.01\" /><path d=\"M17 17h.01\" />","calendar-days":"<path d=\"M8 2v3\" /><path d=\"M16 2v3\" /><rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\" /><path d=\"M3 9h18\" /><path d=\"M8 13h.01\" /><path d=\"M12 13h.01\" /><path d=\"M16 13h.01\" /><path d=\"M8 17h.01\" /><path d=\"M12 17h.01\" /><path d=\"M16 17h.01\" />","sparkles":"<path d=\"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z\" /><path d=\"M20 2v4\" /><path d=\"M22 4h-4\" /><circle cx=\"4\" cy=\"20\" r=\"2\" />","graduation-cap":"<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\" /><path d=\"M22 10v6\" /><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\" />","sticky-note":"<path d=\"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" /><path d=\"M15 3v5a1 1 0 0 0 1 1h5\" />","briefcase":"<path d=\"M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16\" /><rect width=\"20\" height=\"14\" x=\"2\" y=\"6\" rx=\"2\" />","user-round":"<circle cx=\"12\" cy=\"8\" r=\"5\" /><path d=\"M20 21a8 8 0 0 0-16 0\" />","menu":"<path d=\"M4 5h16\" /><path d=\"M4 12h16\" /><path d=\"M4 19h16\" />","x":"<path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" />","refresh-cw":"<path d=\"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8\" /><path d=\"M21 3v5h-5\" /><path d=\"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16\" /><path d=\"M8 16H3v5\" />","panel-left":"<rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" /><path d=\"M9 3v18\" />","search":"<path d=\"m21 21-4.34-4.34\" /><circle cx=\"11\" cy=\"11\" r=\"8\" />","sunrise":"<path d=\"M12 2v8\" /><path d=\"m4.93 10.93 1.41 1.41\" /><path d=\"M2 18h2\" /><path d=\"M20 18h2\" /><path d=\"m19.07 10.93-1.41 1.41\" /><path d=\"M22 22H2\" /><path d=\"m8 6 4-4 4 4\" /><path d=\"M16 18a4 4 0 0 0-8 0\" />","moon":"<path d=\"M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401\" />","sun":"<circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />","alarm-clock":"<circle cx=\"12\" cy=\"13\" r=\"8\" /><path d=\"M12 9v4l2 2\" /><path d=\"M5 3 2 6\" /><path d=\"m22 6-3-3\" /><path d=\"M6.38 18.7 4 21\" /><path d=\"M17.64 18.67 20 21\" />","bed":"<path d=\"M2 4v16\" /><path d=\"M2 8h18a2 2 0 0 1 2 2v10\" /><path d=\"M2 17h20\" /><path d=\"M6 8v9\" />","droplet":"<path d=\"M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z\" />","snowflake":"<path d=\"m10 20-1.25-2.5L6 18\" /><path d=\"M10 4 8.75 6.5 6 6\" /><path d=\"m14 20 1.25-2.5L18 18\" /><path d=\"m14 4 1.25 2.5L18 6\" /><path d=\"m17 21-3-6h-4\" /><path d=\"m17 3-3 6 1.5 3\" /><path d=\"M2 12h6.5L10 9\" /><path d=\"m20 10-1.5 2 1.5 2\" /><path d=\"M22 12h-6.5L14 15\" /><path d=\"m4 10 1.5 2L4 14\" /><path d=\"m7 21 3-6-1.5-3\" /><path d=\"m7 3 3 6h4\" />","footprints":"<path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\" /><path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\" /><path d=\"M16 17h4\" /><path d=\"M4 13h4\" />","bike":"<circle cx=\"18.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"5.5\" cy=\"17.5\" r=\"3.5\" /><circle cx=\"15\" cy=\"5\" r=\"1\" /><path d=\"M12 17.5V14l-3-3 4-3 2 3h2\" />","waves":"<path d=\"M2 12q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 19q2.5 2 5 0t5 0 5 0 5 0\" /><path d=\"M2 5q2.5 2 5 0t5 0 5 0 5 0\" />","mountain":"<path d=\"m8 3 4 8 5-5 5 15H2L8 3z\" />","apple":"<path d=\"M12 6.528V3a1 1 0 0 1 1-1h0\" /><path d=\"M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21\" />","salad":"<path d=\"M7 21h10\" /><path d=\"M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z\" /><path d=\"M11.38 12a2.4 2.4 0 0 1-.4-4.77 2.4 2.4 0 0 1 3.2-2.77 2.4 2.4 0 0 1 3.47-.63 2.4 2.4 0 0 1 3.37 3.37 2.4 2.4 0 0 1-1.1 3.7 2.51 2.51 0 0 1 .03 1.1\" /><path d=\"m13 12 4-4\" /><path d=\"M10.9 7.25A3.99 3.99 0 0 0 4 10c0 .73.2 1.41.54 2\" />","pill":"<path d=\"m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z\" /><path d=\"m8.5 8.5 7 7\" />","glass-water":"<path d=\"M5.116 4.104A1 1 0 0 1 6.11 3h11.78a1 1 0 0 1 .994 1.105L17.19 20.21A2 2 0 0 1 15.2 22H8.8a2 2 0 0 1-2-1.79z\" /><path d=\"M6 12a5 5 0 0 1 6 0 5 5 0 0 0 6 0\" />","coffee":"<path d=\"M10 2v2\" /><path d=\"M14 2v2\" /><path d=\"M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1\" /><path d=\"M6 2v2\" />","cigarette-off":"<path d=\"M12 12H3a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h13\" /><path d=\"M18 8c0-2.5-2-2.5-2-5\" /><path d=\"m2 2 20 20\" /><path d=\"M21 12a1 1 0 0 1 1 1v2a1 1 0 0 1-.5.866\" /><path d=\"M22 8c0-2.5-2-2.5-2-5\" /><path d=\"M7 12v4\" />","wine-off":"<path d=\"M8 22h8\" /><path d=\"M7 10h3m7 0h-1.343\" /><path d=\"M12 15v7\" /><path d=\"M7.307 7.307A12.33 12.33 0 0 0 7 10a5 5 0 0 0 7.391 4.391M8.638 2.981C8.75 2.668 8.872 2.34 9 2h6c1.5 4 2 6 2 8 0 .407-.05.809-.145 1.198\" /><line x1=\"2\" x2=\"22\" y1=\"2\" y2=\"22\" />","brain":"<path d=\"M12 18V5\" /><path d=\"M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4\" /><path d=\"M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5\" /><path d=\"M17.997 5.125a4 4 0 0 1 2.526 5.77\" /><path d=\"M18 18a4 4 0 0 0 2-7.464\" /><path d=\"M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517\" /><path d=\"M6 18a4 4 0 0 1-2-7.464\" /><path d=\"M6.003 5.125a4 4 0 0 0-2.526 5.77\" />","pen-line":"<path d=\"M13 21h8\" /><path d=\"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z\" />","lightbulb":"<path d=\"M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5\" /><path d=\"M9 18h6\" /><path d=\"M10 22h4\" />","languages":"<path d=\"m5 8 6 6\" /><path d=\"m4 14 6-6 2-3\" /><path d=\"M2 5h12\" /><path d=\"M7 2h1\" /><path d=\"m22 22-5-10-5 10\" /><path d=\"M14 18h6\" />","music":"<path d=\"M9 18V5l12-2v13\" /><circle cx=\"6\" cy=\"18\" r=\"3\" /><circle cx=\"18\" cy=\"16\" r=\"3\" />","flower-2":"<path d=\"M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1\" /><circle cx=\"12\" cy=\"8\" r=\"2\" /><path d=\"M12 10v12\" /><path d=\"M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z\" /><path d=\"M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z\" />","leaf":"<path d=\"M11 20a10 10 0 0010-10 25.9 25.9 0 00-1.04-7.281 1 1 0 00-1.755-.325C15.833 5.5 13 5.5 9.8 6.1A7 7 0 0011 20\" /><path d=\"M2 21a5 5 0 012.911-4.544C7.613 15.212 8.351 15.24 11 13\" />","sprout":"<path d=\"M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3\" /><path d=\"M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4\" /><path d=\"M5 21h14\" />","trees":"<path d=\"M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z\" /><path d=\"M7 16v6\" /><path d=\"M13 19v3\" /><path d=\"M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5\" />","smile":"<path d=\"M15 10V9\" /><path d=\"M16.472 15a6 6 0 01-8.943 0\" /><path d=\"M9 10V9\" /><circle cx=\"12\" cy=\"12\" r=\"10\" />","hand-heart":"<path d=\"M11 14h2a2 2 0 0 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16\" /><path d=\"m14.45 13.39 5.05-4.694C20.196 8 21 6.85 21 5.75a2.75 2.75 0 0 0-4.797-1.837.276.276 0 0 1-.406 0A2.75 2.75 0 0 0 11 5.75c0 1.2.802 2.248 1.5 2.946L16 11.95\" /><path d=\"m2 15 6 6\" /><path d=\"m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a1 1 0 0 0-2.75-2.91\" />","phone-off":"<path d=\"M10.1 13.9a14 14 0 0 0 3.732 2.668 1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2 18 18 0 0 1-12.728-5.272\" /><path d=\"M22 2 2 22\" /><path d=\"M4.76 13.582A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 .244.473\" />","piggy-bank":"<path d=\"M11 17h3v2a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a3.16 3.16 0 0 0 2-2h1a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1a5 5 0 0 0-2-4V3a4 4 0 0 0-3.2 1.6l-.3.4H11a6 6 0 0 0-6 6v1a5 5 0 0 0 2 4v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1z\" /><path d=\"M16 10h.01\" /><path d=\"M2 8v1a2 2 0 0 0 2 2h1\" />","wallet":"<path d=\"M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1\" /><path d=\"M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4\" />","users":"<path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\" /><path d=\"M16 3.128a4 4 0 0 1 0 7.744\" /><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\" /><circle cx=\"9\" cy=\"7\" r=\"4\" />","timer":"<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\" /><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\" /><circle cx=\"12\" cy=\"14\" r=\"8\" />","shower-head":"<path d=\"m4 4 2.5 2.5\" /><path d=\"M13.5 6.5a4.95 4.95 0 0 0-7 7\" /><path d=\"M15 5 5 15\" /><path d=\"M14 17v.01\" /><path d=\"M10 16v.01\" /><path d=\"M13 13v.01\" /><path d=\"M16 10v.01\" /><path d=\"M11 20v.01\" /><path d=\"M17 14v.01\" /><path d=\"M20 11v.01\" />"};
 const Icon=({name,size="1.1em",stroke=1.6,style})=>{const d=ICONS[name];if(!d)return null;return (<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" style={{display:"block",flexShrink:0,...style}} aria-hidden="true" dangerouslySetInnerHTML={{__html:d}}/>);};
 const HABIT_ICON_CHOICES=["flame","sunrise","moon","sun","alarm-clock","bed","shower-head","droplet","glass-water","snowflake","dumbbell","footprints","bike","waves","mountain","heart-pulse","apple","salad","pill","coffee","cigarette-off","wine-off","brain","book-open","pen-line","notebook-pen","target","lightbulb","graduation-cap","languages","music","flower-2","leaf","sprout","trees","smile","hand-heart","phone-off","piggy-bank","wallet","briefcase","users","timer","sparkles"];
 const HABIT_EMOJI_TO_ICON={"\u{1F4AA}":"dumbbell","\u{1F3CB}":"dumbbell","\u{1F3C3}":"footprints","\u{1F6B6}":"footprints","\u{1F6B4}":"bike","\u{1F3CA}":"waves","\u{1F30A}":"waves","\u{1F9D8}":"flower-2","\u{1F48A}":"pill","\u{1F957}":"salad","\u{1F966}":"salad","\u{1F4A7}":"droplet","\u{1F34E}":"apple","\u2764":"heart-pulse","\u{1FAC0}":"heart-pulse","\u{1F9E0}":"brain","\u{1F4DA}":"book-open","\u{1F4D6}":"book-open","\u270D":"pen-line","\u{1F4DD}":"pen-line","\u270F":"pen-line","\u{1F3AF}":"target","\u{1F4A1}":"lightbulb","\u{1F393}":"graduation-cap","\u{1F305}":"sunrise","\u{1F319}":"moon","\u2600":"sun","\u23F0":"alarm-clock","\u{1F6CF}":"bed","\u{1F6BF}":"shower-head","\u{1F525}":"flame","\u{1F9CA}":"snowflake","\u{1F33F}":"leaf","\u{1F343}":"leaf","\u{1F333}":"trees","\u{1F3D4}":"mountain","\u{1F64F}":"hand-heart","\u2728":"sparkles","\u26A1":"sparkles"};
@@ -1235,9 +1278,9 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
   const goalsDone=goals.filter(g=>g.progress>=50).length;
   const rings=[
     {pct:todayT.length?Math.round(tDone/todayT.length*100):0,c:t.GREEN,label:"Tasks",sub:tDone+"/"+todayT.length,page:"tasks"},
-    {pct:(habits||[]).length?Math.round(hDone/(habits||[]).length*100):0,c:t.GOLD,label:"Habits",sub:hDone+"/"+((habits||[]).length),page:"habits"},
-    {pct:supplements.length?Math.round(sDone/supplements.length*100):0,c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"},
-    ...(goals.length?[{pct:Math.round(goalsDone/goals.length*100),c:"#B07EC9",label:"Goals",sub:goalsDone+"/"+goals.length,page:"goals"}]:[])
+    // SCORE_DISPLAY_V1: only the categories that make up the score, and only if set up
+    ...((habits||[]).length?[{pct:Math.round(hDone/(habits||[]).length*100),c:t.GOLD,label:"Habits",sub:hDone+"/"+((habits||[]).length),page:"habits"}]:[]),
+    ...(supplements.length?[{pct:Math.round(sDone/supplements.length*100),c:t.BLUE,label:"Supps",sub:sDone+"/"+supplements.length,page:"health"}]:[]),
   ];
   const tPct=todayT.length?tDone/todayT.length:null;
   const hbPct=(habits||[]).length?hDone/(habits||[]).length:null;
@@ -1311,7 +1354,7 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
             <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginTop:2}}>{streak+" day streak"}</div>
           </div>
           <div style={{flex:1}}>
-            {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].map(x=>(
+            {[{l:"Tasks",v:tPct,c:t.GREEN},{l:"Habits",v:hbPct,c:t.GOLD},{l:"Supps",v:sPct,c:t.BLUE}].filter(x=>x.l==="Tasks"||x.v!=null).map(x=>(
               <div key={x.l} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",width:34}}>{x.l}</div>
                 <div style={{flex:1}}><PB value={x.v!=null?Math.round(x.v*100):0} color={x.c} height={4}/></div>
@@ -1342,7 +1385,6 @@ function DashboardPage({setupCard,debts,dividends,calendarItems,setCalendarItems
               </div>
             ))}
           </div>
-          {goals.length>0&&<div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textAlign:"center",marginTop:8,fontStyle:"italic"}}>Goals tracks overall progress — it doesn't affect today's score</div>}
         </Card>}
         {/* Net Worth */}
         <Card style={{cursor:"pointer"}} onClick={()=>setPage("wealth")}>
@@ -1660,8 +1702,65 @@ function TasksPage({tasks,setTasks}){
   const priColors={high:t.RED,medium:t.GOLD,low:t.MUTED};
   const priLabels={high:"High Priority",medium:"Standard",low:"Low Priority"};
   const tasksByPri=pri=>visibleTasks.filter(tk=>tk.priority===pri);
+  // TASK_DRAG_V1: drag the grip to reorder; dropping in another group changes priority
+  const[drag,setDrag]=useState(null);
+  const dragRef=useRef(null);
+  const rootRef=useRef(null);
+  const PRIS=["high","medium","low"];
+  const findDrop=(x,y)=>{
+    const el=document.elementFromPoint(x,y);if(!el)return null;
+    const row=el.closest("[data-task-id]");
+    if(row){const r=row.getBoundingClientRect();return{id:row.getAttribute("data-task-id"),before:y<r.top+r.height/2,pri:row.getAttribute("data-task-pri")};}
+    const g=el.closest("[data-task-group]");
+    if(g)return{id:null,before:false,pri:g.getAttribute("data-task-group")};
+    return null;
+  };
+  const scrollerOf=el=>{let n=el&&el.parentElement;while(n&&n!==document.body){const s=getComputedStyle(n);if(/(auto|scroll)/.test(s.overflowY)&&n.scrollHeight>n.clientHeight)return n;n=n.parentElement;}return null;};
+  const moveTask=(id,over)=>{
+    if(!over||!PRIS.includes(over.pri))return;
+    if(over.id!==null&&over.id===String(id))return;
+    setTasks(ts=>{
+      const it=ts.find(x=>x.id===id);if(!it)return ts;
+      const moved=it.priority===over.pri?it:{...it,priority:over.pri};
+      const rest=ts.filter(x=>x.id!==id);
+      let idx;
+      if(over.id!==null){const j=rest.findIndex(x=>String(x.id)===over.id);idx=j<0?rest.length:(over.before?j:j+1);}
+      else{let last=-1;rest.forEach((x,k)=>{if(x.priority===over.pri)last=k;});idx=last<0?rest.length:last+1;}
+      const out=[...rest];out.splice(idx,0,moved);
+      return out;
+    });
+  };
+  const ghostPos=(y)=>{const d=dragRef.current;const rr=rootRef.current?rootRef.current.getBoundingClientRect():{top:0,left:0};return{top:y-d.offY-rr.top,left:d.left-rr.left};};
+  const dragStart=(e,tk)=>{
+    e.preventDefault();e.stopPropagation();
+    const row=e.currentTarget.closest("[data-task-id]");if(!row)return;
+    const r=row.getBoundingClientRect();
+    try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}
+    dragRef.current={id:tk.id,x:e.clientX,y:e.clientY,offY:e.clientY-r.top,left:r.left,sc:scrollerOf(row),raf:0};
+    const loop=()=>{
+      const d=dragRef.current;if(!d)return;
+      const H=window.innerHeight;const dy=d.y<90?-9:d.y>H-120?9:0;
+      if(dy){if(d.sc)d.sc.scrollTop+=dy;else window.scrollBy(0,dy);const over=findDrop(d.x,d.y);setDrag(s=>s?{...s,over,...ghostPos(d.y)}:s);}
+      d.raf=requestAnimationFrame(loop);
+    };
+    dragRef.current.raf=requestAnimationFrame(loop);
+    setDrag({id:tk.id,text:tk.text,w:r.width,h:r.height,over:null,...ghostPos(e.clientY)});
+  };
+  const dragMove=e=>{
+    const d=dragRef.current;if(!d)return;
+    d.x=e.clientX;d.y=e.clientY;
+    const over=findDrop(e.clientX,e.clientY);
+    setDrag(s=>s?{...s,over,...ghostPos(e.clientY)}:s);
+  };
+  const dragEnd=e=>{
+    const d=dragRef.current;if(!d)return;
+    cancelAnimationFrame(d.raf);dragRef.current=null;
+    const over=e.type==="pointerup"?findDrop(e.clientX,e.clientY):null;
+    setDrag(null);
+    if(over)moveTask(d.id,over);
+  };
   return (
-    <div data-page="true" style={{maxWidth:680,margin:"0 auto"}}>
+    <div data-page="true" ref={rootRef} style={{maxWidth:680,margin:"0 auto",position:"relative"}}>
       <div style={{marginBottom:20}}>
         <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Daily Execution</div>
         <div style={{fontSize:26,color:t.TEXT,marginBottom:4}}>Today's Actions</div>
@@ -1694,21 +1793,22 @@ function TasksPage({tasks,setTasks}){
       {["high","medium","low"].map(priority=>{
         const ts=visibleTasks.filter(tk=>tk.priority===priority);
         return (
-          <div key={priority} style={{marginBottom:18}}>
+          <div key={priority} data-task-group={priority} style={{marginBottom:18}}>
             <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
               <div style={{width:6,height:6,borderRadius:"50%",background:priColors[priority]}}/>
               <div style={{fontSize:9,letterSpacing:2,color:priColors[priority],textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif"}}>{priLabels[priority]+" ("+ts.filter(x=>x.done).length+"/"+ts.length+")"}</div>
             </div>
-            <Card style={{padding:"2px 0"}}>
+            <Card style={{padding:"2px 0",...(drag&&drag.over&&drag.over.pri===priority&&drag.over.id===null?{border:"1px solid "+t.GOLD+"88"}:{})}}>
               {ts.map((tk,i)=>(
                 <div key={tk.id}>
                   {i>0&&<Divider/>}
-                  <div onClick={()=>setTasks(ts=>ts.map(x=>x.id===tk.id?{...x,done:!x.done}:x))} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",cursor:"pointer"}}>
+                  <div data-task-id={String(tk.id)} data-task-pri={priority} onClick={()=>setTasks(ts=>ts.map(x=>x.id===tk.id?{...x,done:!x.done}:x))} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",cursor:"pointer",opacity:drag&&drag.id===tk.id?.35:1,boxShadow:drag&&drag.over&&drag.id!==tk.id&&drag.over.id===String(tk.id)?(drag.over.before?"inset 0 2px 0 "+t.GOLD:"inset 0 -2px 0 "+t.GOLD):"none"}}>
                     <div style={{width:19,height:19,borderRadius:"50%",border:"1.5px solid "+(tk.done?t.GOLD:t.BORDER2),background:tk.done?t.GOLD:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                       {tk.done&&<span style={{fontSize:9,color:"#080808",fontWeight:700}}><Tick/></span>}
                     </div>
                     <span style={{flex:1,fontSize:13,color:tk.done?t.MUTED:t.TEXT,textDecoration:tk.done?"line-through":"none",fontFamily:"'Montserrat',sans-serif"}}>{tk.text}</span>
                     {tk.recurring&&<span style={{fontSize:9,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",background:t.GOLD+"18",borderRadius:10,padding:"1px 6px",flexShrink:0}}>{tk.recurDays?.length?["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].filter((_,i)=>tk.recurDays.includes(i)).join(", "):"daily"}</span>}
+                    <span onPointerDown={e=>dragStart(e,tk)} onPointerMove={dragMove} onPointerUp={dragEnd} onPointerCancel={dragEnd} onClick={e=>e.stopPropagation()} aria-label="Drag to reorder" title="Drag to reorder" style={{touchAction:"none",cursor:drag?"grabbing":"grab",color:t.MUTED,padding:"6px 4px",display:"flex",alignItems:"center",opacity:.7,flexShrink:0}}><Icon name="grip-vertical" size={16}/></span>
                     <button onClick={e=>{e.stopPropagation();setTasks(ts=>ts.filter(x=>x.id!==tk.id));}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontSize:12,opacity:.5}}><Icon name="x"/></button>
                   </div>
                 </div>
@@ -1718,6 +1818,7 @@ function TasksPage({tasks,setTasks}){
           </div>
         );
       })}
+      {drag&&<div style={{position:"absolute",left:drag.left,top:drag.top,width:drag.w,height:drag.h,pointerEvents:"none",zIndex:50,background:t.CARD2,border:"1px solid "+t.GOLD,borderRadius:8,boxShadow:"0 10px 28px rgba(0,0,0,.55)",display:"flex",alignItems:"center",padding:"0 12px",fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{drag.text}</div>}
     </div>
   );
 }
@@ -3926,6 +4027,8 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
   const[showCashAdd,setShowCashAdd]=useState(false);
   const[cashForm,setCashForm]=useState({balance:"",date:todayStr(),note:""});
   const[superForm,setSuperForm]=useState({balance:"",type:"balance",date:todayStr(),note:""});
+  const[showSuperAuto,setShowSuperAuto]=useState(false);
+  const[autoForm,setAutoForm]=useState({amount:"",freq:"weekly",type:"employer",taxed:true,next:todayStr()});
   const[superNewBal,setSuperNewBal]=useState(null);
   const saveShareEdit=(id)=>{
     setHoldings(hs=>(hs||[]).map(h=>h.id!==id?h:{...h,ticker:editShareForm.ticker||h.ticker,shares:parseFloat(editShareForm.shares)||h.shares,avgCost:parseFloat(editShareForm.avgCost)||null,name:editShareForm.name||h.name}));
@@ -4511,6 +4614,80 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
             ))}
           </div>
 
+          {/* SUPER_AUTO_V1: automatic contributions */}
+          {(()=>{
+            const a=profile.superAuto;
+            const on=!!(a&&a.on&&parseFloat(a.amount)>0);
+            const M="'Montserrat',sans-serif";
+            const nice=ds=>{try{return new Date(ds+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short"});}catch{return ds;}};
+            const openForm=()=>{setAutoForm(a?{amount:String(a.amount||""),freq:a.freq||"weekly",type:a.type||"employer",taxed:a.taxed!==false,next:a.next||todayStr()}:{amount:"",freq:"weekly",type:"employer",taxed:true,next:todayStr()});setShowSuperAuto(true);};
+            const formNet=superNet(autoForm);
+            const c2=n=>"$"+n.toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});
+            return(
+              <div style={{marginBottom:12}}>
+                {!showSuperAuto&&(on?(
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:8,padding:"10px 12px"}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:9,color:t.GOLD,fontFamily:M,textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Automatic contributions</div>
+                      <div style={{fontSize:12,color:t.TEXT,fontFamily:M}}>{fmt(parseFloat(a.amount))+" "+SUPER_FREQS[a.freq].toLowerCase()+" ("+(a.type==="salary"?"salary sacrifice":"employer")+")"}</div>
+                      <div style={{fontSize:10,color:t.MUTED,fontFamily:M,marginTop:2}}>{(a.taxed===false?"Adds "+c2(superNet(a)):"Adds "+c2(superNet(a))+" after 15% tax")+" - next "+nice(a.next)}</div>
+                    </div>
+                    <button onClick={openForm} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:6,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontFamily:M,fontSize:10,flexShrink:0}}>Edit</button>
+                  </div>
+                ):(
+                  <button onClick={openForm} style={{background:"none",border:"1px dashed "+t.BORDER2,borderRadius:8,padding:"9px 12px",width:"100%",color:t.MUTED,cursor:"pointer",fontFamily:M,fontSize:11,textAlign:"left"}}>+ Set up automatic contributions <span style={{color:t.MUTED2}}>- if you get a fixed amount each pay</span></button>
+                ))}
+                {showSuperAuto&&(
+                  <div style={{background:t.CARD2,borderRadius:8,padding:12,border:"1px solid "+t.GOLD+"33"}}>
+                    <div style={{fontSize:9,color:t.GOLD,fontFamily:M,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Automatic contributions</div>
+                    <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                      <div style={{flex:"1 1 120px",minWidth:0}}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:3}}>Amount each time ($)</div>
+                        <Inp type="number" value={autoForm.amount} onChange={e=>setAutoForm(f=>({...f,amount:e.target.value}))} placeholder="450"/>
+                      </div>
+                      <div style={{flex:"1 1 120px",minWidth:0}}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:3}}>How often</div>
+                        <Sel value={autoForm.freq} onChange={e=>setAutoForm(f=>({...f,freq:e.target.value}))}>
+                          {Object.keys(SUPER_FREQS).map(k=><option key={k} value={k}>{SUPER_FREQS[k]}</option>)}
+                        </Sel>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                      <div style={{flex:"1 1 120px",minWidth:0}}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:3}}>Type</div>
+                        <Sel value={autoForm.type} onChange={e=>setAutoForm(f=>({...f,type:e.target.value}))}>
+                          <option value="employer">Employer</option>
+                          <option value="salary">Salary sacrifice</option>
+                        </Sel>
+                      </div>
+                      <div style={{flex:"1 1 120px",minWidth:0}}>
+                        <div style={{fontSize:9,color:t.MUTED,fontFamily:M,marginBottom:3}}>Next pay date</div>
+                        <Inp type="date" value={autoForm.next} onChange={e=>setAutoForm(f=>({...f,next:e.target.value}))}/>
+                      </div>
+                    </div>
+                    <label style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:t.TEXT,fontFamily:M,cursor:"pointer",marginBottom:6}}>
+                      <input type="checkbox" checked={autoForm.taxed} onChange={e=>setAutoForm(f=>({...f,taxed:e.target.checked}))} style={{accentColor:t.GOLD}}/>
+                      Deduct 15% contributions tax
+                    </label>
+                    <div style={{fontSize:10,color:t.MUTED,fontFamily:M,lineHeight:1.5,marginBottom:10}}>
+                      {(parseFloat(autoForm.amount)>0?"Adds "+c2(formNet)+" to your super on each pay date. ":"")+"Funds usually take 15% tax from employer and salary sacrifice contributions. A past date adds the contributions you've already had. Entering a statement balance always takes priority."}
+                    </div>
+                    <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                      <Btn onClick={()=>{
+                        const amt=parseFloat(autoForm.amount);
+                        if(!(amt>0)||!autoForm.next)return;
+                        if(onUpdateProfile)onUpdateProfile(p=>({...p,superAuto:{on:true,amount:String(amt),freq:autoForm.freq,type:autoForm.type,taxed:!!autoForm.taxed,next:autoForm.next,anchor:Number(autoForm.next.slice(8,10))}}));
+                        setShowSuperAuto(false);
+                      }} style={{fontSize:11}}>Save</Btn>
+                      <Btn onClick={()=>setShowSuperAuto(false)} variant="ghost" style={{fontSize:11}}>Cancel</Btn>
+                      {on&&<Btn onClick={()=>{if(onUpdateProfile)onUpdateProfile(p=>({...p,superAuto:{...(p.superAuto||{}),on:false}}));setShowSuperAuto(false);}} variant="ghost" style={{fontSize:11,color:t.RED}}>Turn off</Btn>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Add balance update form */}
           {showSuperAdd&&(
             <div style={{background:t.CARD2,borderRadius:8,padding:12,marginBottom:12,border:"1px solid "+t.GOLD+"33"}}>
@@ -4552,7 +4729,7 @@ function WealthPage({subscription,setShowUpgrade,dailySnaps,debtList,profile,onU
           )}
 
           <BalanceHistory log={superLog} color={t.PURPLE} gradId="sg" emptyText="Tap + Update Balance to track your super growth over time"
-            labelFor={e=>e.type==="balance"?"Balance Update":e.type==="contribution"?"Personal Contribution":e.type==="employer"?"Employer Contribution":"Investment Growth"}
+            labelFor={e=>e.type==="balance"?"Balance Update":e.type==="contribution"?"Personal Contribution":e.type==="employer"?(e.auto?(e.sac?"Salary Sacrifice (auto)":"Employer Contribution (auto)"):"Employer Contribution"):"Investment Growth"}
             onDelete={e=>{
               const next=(superLog||[]).filter(x=>x!==e);
               setSuperLog(next);
@@ -5646,6 +5823,7 @@ function BillsPage({bills,setBills,debts,setPage}){
   const openEdit=b=>{
     setForm({name:b.name,amount:b.amount,frequency:b.frequency,category:b.category,lastPaid:b.lastPaid||todayStr(),autopay:b.autopay||false});
     setEditingId(b.id);setShowAdd(true);
+    setTimeout(()=>{try{const el=document.getElementById("bill-edit-form");if(el)el.scrollIntoView({behavior:"smooth",block:"nearest"});}catch{}},60);
   };
 
   const save=()=>{
@@ -5658,6 +5836,49 @@ function BillsPage({bills,setBills,debts,setPage}){
     }
     setForm(emptyForm);setShowAdd(false);setEditingId(null);
   };
+
+  // BILLS_INLINE_EDIT_V1: one form, shown at the top for Add, or under the bill being edited
+  const billForm=(inline)=>(<div id={inline?"bill-edit-form":undefined} style={{scrollMarginBottom:96,scrollMarginTop:16}}>
+        <Card style={{margin:inline?"6px 0 10px":"0 0 14px",borderColor:t.GOLD+"44"}}>
+          <SectionLabel>{editingId?"Edit Bill":"New Bill"}</SectionLabel>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",gap:8}}>
+              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Bill name" style={{flex:2}}/>
+              <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="$0.00" style={{flex:1}}/>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))} style={{flex:1}}>
+                {freqs.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+              </Sel>
+              <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
+                {billCats.map(c=><option key={c}>{c}</option>)}
+              </Sel>
+            </div>
+            <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Last Paid / Start Date</div>
+                <Inp type="date" value={form.lastPaid} onChange={e=>setForm(f=>({...f,lastPaid:e.target.value}))} style={{flex:1}}/>
+              </div>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Next Due (auto)</div>
+                <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"0 12px",minHeight:39,display:"flex",alignItems:"center",boxSizing:"border-box",fontSize:13,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",whiteSpace:"nowrap",overflow:"hidden"}}>
+                  {form.lastPaid&&form.frequency?new Date(advanceDate(form.lastPaid,form.frequency)+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"Select date"}
+                </div>
+              </div>
+              <div style={{flexShrink:0,alignSelf:"flex-end"}}>
+                <label style={{display:"flex",alignItems:"center",gap:5,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,cursor:"pointer",padding:"9px 0"}}>
+                  <input type="checkbox" checked={form.autopay} onChange={e=>setForm(f=>({...f,autopay:e.target.checked}))} style={{accentColor:t.GOLD}}/>
+                  Auto-pay
+                </label>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <Btn onClick={save}>{editingId?"Save Changes":"Add"}</Btn>
+              <Btn onClick={()=>{setShowAdd(false);setEditingId(null);setForm(emptyForm);}} variant="ghost">Cancel</Btn>
+            </div>
+          </div>
+        </Card>
+  </div>);
 
   // Loan repayments come straight from the Debt tab (edit them there)
   const loans=(debts||[]).filter(d=>(parseFloat(d.minPayment)||0)>0&&(parseFloat(d.balance)||0)>0);
@@ -5678,7 +5899,7 @@ function BillsPage({bills,setBills,debts,setPage}){
           <div style={{fontSize:9,letterSpacing:3,color:t.GOLD,textTransform:"uppercase",fontFamily:"'Montserrat',sans-serif",marginBottom:5}}>Recurring</div>
           <div style={{fontSize:26,color:t.TEXT}}>Bills</div>
         </div>
-        <Btn onClick={()=>{setForm(emptyForm);setEditingId(null);setShowAdd(s=>!s);}}>+ Add</Btn>
+        <Btn onClick={()=>{setForm(emptyForm);setShowAdd(s=>editingId?true:!s);setEditingId(null);}}>+ Add</Btn>
       </div>
 
       {/* Summary */}
@@ -5726,48 +5947,8 @@ function BillsPage({bills,setBills,debts,setPage}){
         </Card>
       )}
 
-      {/* Add/Edit form */}
-      {showAdd&&(
-        <Card style={{marginBottom:14,borderColor:t.GOLD+"44"}}>
-          <SectionLabel>{editingId?"Edit Bill":"New Bill"}</SectionLabel>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{display:"flex",gap:8}}>
-              <Inp value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Bill name" style={{flex:2}}/>
-              <Inp type="number" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))} placeholder="$0.00" style={{flex:1}}/>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <Sel value={form.frequency} onChange={e=>setForm(f=>({...f,frequency:e.target.value}))} style={{flex:1}}>
-                {freqs.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
-              </Sel>
-              <Sel value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} style={{flex:1}}>
-                {billCats.map(c=><option key={c}>{c}</option>)}
-              </Sel>
-            </div>
-            <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
-              <div style={{flex:"1 1 140px",minWidth:0}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Last Paid / Start Date</div>
-                <Inp type="date" value={form.lastPaid} onChange={e=>setForm(f=>({...f,lastPaid:e.target.value}))} style={{flex:1}}/>
-              </div>
-              <div style={{flex:"1 1 140px",minWidth:0}}>
-                <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Next Due (auto)</div>
-                <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:7,padding:"0 12px",minHeight:39,display:"flex",alignItems:"center",boxSizing:"border-box",fontSize:13,color:t.GREEN,fontFamily:"'Montserrat',sans-serif",whiteSpace:"nowrap",overflow:"hidden"}}>
-                  {form.lastPaid&&form.frequency?new Date(advanceDate(form.lastPaid,form.frequency)+"T12:00:00").toLocaleDateString("en-AU",{day:"numeric",month:"short",year:"numeric"}):"Select date"}
-                </div>
-              </div>
-              <div style={{flexShrink:0,alignSelf:"flex-end"}}>
-                <label style={{display:"flex",alignItems:"center",gap:5,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,cursor:"pointer",padding:"9px 0"}}>
-                  <input type="checkbox" checked={form.autopay} onChange={e=>setForm(f=>({...f,autopay:e.target.checked}))} style={{accentColor:t.GOLD}}/>
-                  Auto-pay
-                </label>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <Btn onClick={save}>{editingId?"Save Changes":"Add"}</Btn>
-              <Btn onClick={()=>{setShowAdd(false);setEditingId(null);setForm(emptyForm);}} variant="ghost">Cancel</Btn>
-            </div>
-          </div>
-        </Card>
-      )}
+      {/* Add form (Edit opens under the bill) */}
+      {showAdd&&!editingId&&billForm(false)}
 
       {/* Payment history */}
       {bills.some(b=>(b.paymentHistory||[]).length>0)&&(
@@ -5857,6 +6038,7 @@ function BillsPage({bills,setBills,debts,setPage}){
                 return (
                   <div key={b.id}>
                     {i>0&&<Divider/>}
+                    {showAdd&&editingId===b.id?billForm(true):(
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:500}}>
@@ -5889,6 +6071,7 @@ function BillsPage({bills,setBills,debts,setPage}){
                         )}
                       </div>
                     </div>
+                    )}
                   </div>
                 );
               })}
@@ -9528,7 +9711,7 @@ function SetupPage({onComplete,allowDemo}){
           </div>)}
 
           {cur==="life"&&(<div>
-            {head("Your life","What else do you want to track?","Your daily score is built from tasks, habits and supplements. Pick what you'd like set up.")}
+            {head("Your life","What else do you want to track?","Your daily score is built from whatever you track: tasks, habits and supplements are all optional. Pick what you'd like set up.")}
             <div style={grid}>
               {SETUP_LIFE.map(m=>tile(life.includes(m.k),()=>tog(life,setLife,m.k),m.label,m.sub,m.k))}
             </div>
@@ -10166,6 +10349,14 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
   const allHoldings=[...(holdings||[]).map(h=>({ticker:h.ticker,name:h.name||h.ticker,shares:h.shares}))];
   // DIV_TICKER_V1: suggestion list for the ticker box - one row per holding, closes when a row is picked
   const[tickOpen,setTickOpen]=useState(false);
+  // DIV_PICK_V1: list closes on a pick or a tap outside the ticker box - not when the keyboard closes
+  const tickWrapRef=useRef(null);
+  useEffect(()=>{
+    if(!tickOpen)return;
+    const away=e=>{if(tickWrapRef.current&&!tickWrapRef.current.contains(e.target))setTickOpen(false);};
+    document.addEventListener("pointerdown",away,true);
+    return()=>document.removeEventListener("pointerdown",away,true);
+  },[tickOpen]);
   const tickQ=(form.ticker||"").trim().toUpperCase();
   const tickMatches=tickQ?allHoldings.filter((h,i,a)=>h.ticker&&a.findIndex(x=>x.ticker===h.ticker)===i&&(String(h.ticker).toUpperCase().startsWith(tickQ)||String(h.name||"").toUpperCase().includes(tickQ))).slice(0,5):[];
   const tickHeld=tickQ?allHoldings.find(h=>String(h.ticker).toUpperCase()===tickQ):null;
@@ -10268,17 +10459,17 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
             <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:8}}>
               <div>
                 <div style={{fontSize:9,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:3}}>Ticker</div>
-                <div style={{position:"relative"}}>
+                <div ref={tickWrapRef} style={{position:"relative",scrollMarginTop:72}}>
                   <input type="text" value={form.ticker} spellCheck={false} autoCapitalize="characters" autoCorrect="off" autoComplete="off"
                     onChange={e=>{const v=e.target.value.toUpperCase();setForm(f=>({...f,ticker:v,name:""}));setTickOpen(true);}}
-                    onFocus={()=>setTickOpen(true)} onBlur={()=>setTimeout(()=>setTickOpen(false),180)}
+                    onFocus={e=>{setTickOpen(true);if(isMobile){const el=tickWrapRef.current;setTimeout(()=>{try{el&&el.scrollIntoView({behavior:"smooth",block:"start"});}catch{}},350);}}}
                     onKeyDown={e=>{if(e.key==="Enter"&&tickOpen&&tickMatches.length){e.preventDefault();pickTicker(tickMatches[0]);}else if(e.key==="Escape")setTickOpen(false);}}
                     placeholder="e.g. CBA.AX"
                     style={{background:t.CARD,border:"1px solid "+t.BORDER,borderRadius:7,padding:"9px 12px",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
                   {tickOpen&&tickMatches.length>0&&(
                     <div role="listbox" style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:isMobile?"calc(-100% - 8px)":0,background:t.BG,border:"1px solid "+t.GOLD+"55",borderRadius:8,zIndex:300,boxShadow:"0 8px 24px rgba(0,0,0,.6)",overflow:"hidden",maxHeight:230,overflowY:"auto"}}>
                       {tickMatches.map((h,hi)=>(
-                        <button type="button" role="option" key={h.ticker} onPointerDown={e=>e.preventDefault()} onClick={()=>pickTicker(h)}
+                        <button type="button" role="option" key={h.ticker} onPointerDown={e=>{e.preventDefault();pickTicker(h);}} onClick={()=>pickTicker(h)}
                           style={{display:"block",width:"100%",textAlign:"left",background:"transparent",border:"none",borderBottom:hi<tickMatches.length-1?"1px solid "+t.BORDER:"none",padding:"11px 12px",cursor:"pointer",color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontSize:12,lineHeight:1.35}}>
                           <span style={{color:t.GOLD,fontWeight:700}}>{h.ticker}</span>
                           <span style={{marginLeft:8}}>{h.name&&h.name!==h.ticker?h.name:""}</span>
@@ -10359,8 +10550,13 @@ function DividendPage({holdings,cryptoHoldings,portfolio,divs:divsProp,setDivs:s
 function TaxPage({profile,transactions,deductions,setDeductions}){
   const t=T();
   const isMobile=useIsMobile();
-  const[showAdd,setShowAdd]=useState(false);
-  const[form,setForm]=useState({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
+  // TAX_SAVE_V1: a half-filled deduction is kept on this device until Add or Cancel
+  const TAX_DRAFT="exec_tax_draft";
+  const emptyTaxForm=()=>({description:"",amount:"",category:"Work from Home",date:todayStr(),receipt:false});
+  const readTaxDraft=()=>{try{const x=JSON.parse(localStorage.getItem(TAX_DRAFT)||"null");return x&&(x.description||x.amount)?{...emptyTaxForm(),...x}:null;}catch{return null;}};
+  const[showAdd,setShowAdd]=useState(()=>!!readTaxDraft());
+  const[form,setForm]=useState(()=>readTaxDraft()||emptyTaxForm());
+  useEffect(()=>{try{if(form.description||form.amount)localStorage.setItem(TAX_DRAFT,JSON.stringify(form));else localStorage.removeItem(TAX_DRAFT);}catch{}},[form]);
   const safeProfile=profile||{};
   const income=parseFloat(safeProfile.annualIncome)||0;
   const fyYear=new Date().getMonth()>=6?new Date().getFullYear()+1:new Date().getFullYear();
@@ -10502,7 +10698,7 @@ function TaxPage({profile,transactions,deductions,setDeductions}){
                 <input type="checkbox" checked={form.receipt} onChange={e=>setForm(f=>({...f,receipt:e.target.checked}))} style={{accentColor:t.GOLD}}/>
                 Receipt saved
               </label>
-              <button onClick={()=>setShowAdd(false)} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,marginLeft:"auto"}}>Cancel</button>
+              <button onClick={()=>{setShowAdd(false);setForm(emptyTaxForm());}} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:11,marginLeft:"auto"}}>Cancel</button>
             </div>
           </div>
         )}
@@ -11209,7 +11405,7 @@ function PaywallPage({onUpgrade,feature}){
       <button onClick={onUpgrade} style={{width:"100%",background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:10,padding:"14px",color:"#080808",cursor:"pointer",fontFamily:"'Montserrat',sans-serif",fontSize:13,fontWeight:700,letterSpacing:.5,marginBottom:10}}>
         Upgrade to The Executive →
       </button>
-      <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>$14/month or $139/year · Cancel anytime · Free plan always available</div>
+      <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif"}}>$14/month or $139/year · Cancel anytime</div>
     </div>
   );
 }
@@ -11221,8 +11417,8 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
     {id:"monthly",label:"Monthly",price:"$14",period:"/month",note:"Founding member price",priceId:STRIPE_PRICES.monthly,packageId:"$rc_monthly"},
     {id:"annual",label:"Annual",price:"$139",period:"/year",note:"Save $29 — 2 months free",priceId:STRIPE_PRICES.annual,packageId:"$rc_annual",popular:true},
   ];
-  const FREE_FEATURES=["Tasks & habit tracking","Goals & checkpoints","Journal & reading list","Body & workout logging","Bills & cash flow tracker","Debt payoff calculator","Wealth snapshot","Basic market tickers"];
-  const PRO_FEATURES=["Everything in Free","Executive AI — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
+  // UPGRADE_NOFREE_V1: paid plan only, no Free column
+  const PRO_FEATURES=["Executive AI — full dashboard access","Morning / Evening Briefing","Live stock, crypto & commodity prices","AI goal & supplement suggestions","AI workout & recipe generator","Weekly AI performance review","Bank statement PDF import","Invest intelligence & market insights","Tax planning (Australian brackets)"];
   return(
     <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:520,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
@@ -11235,34 +11431,16 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
             </div>
             <button onClick={onClose} style={{background:"none",border:"1px solid "+t.BORDER,borderRadius:7,padding:"4px 10px",color:t.MUTED,cursor:"pointer",fontSize:12}}>✕</button>
           </div>
-          <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Use the free version forever, or upgrade for AI-powered intelligence.</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:20}}>Unlock AI-powered intelligence across your entire dashboard.</div>
 
-          {/* Free vs Pro columns */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10,marginBottom:20}}>
-            {/* Free column */}
-            <div style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:12,padding:"16px 14px"}}>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Free</div>
-              <div style={{fontSize:26,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$0</div>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:12}}>forever</div>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:10}}>You're already on this.</div>
-              {FREE_FEATURES.map((f,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0"}}>
-                  <span style={{color:"#7A9E7E",fontSize:10,marginTop:1,flexShrink:0}}>✓</span>
-                  <span style={{fontSize:11,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",lineHeight:1.4}}>{f}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Executive column */}
-            <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"66",borderRadius:12,padding:"16px 14px",position:"relative"}}>
-              <div style={{position:"absolute",top:-1,right:-1,background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",color:"#080808",fontSize:8,fontFamily:"'Montserrat',sans-serif",fontWeight:700,padding:"3px 10px",borderRadius:"0 11px 0 7px",letterSpacing:1}}>UPGRADE</div>
-              <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>The Executive</div>
-              <div style={{fontSize:26,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",fontWeight:700,lineHeight:1,marginBottom:2}}>$14</div>
-              <div style={{fontSize:10,color:t.MUTED,fontFamily:"'Montserrat',sans-serif",marginBottom:12}}>/month</div>
+          {/* What's included */}
+          <div style={{background:t.GOLD+"12",border:"1px solid "+t.GOLD+"66",borderRadius:12,padding:"16px",marginBottom:20}}>
+            <div style={{fontSize:10,color:t.GOLD,fontFamily:"'Montserrat',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>What you unlock</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",columnGap:16}}>
               {PRO_FEATURES.map((f,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0"}}>
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0",minWidth:0}}>
                   <span style={{color:t.GOLD,fontSize:10,marginTop:1,flexShrink:0}}>✦</span>
-                  <span style={{fontSize:11,color:i===0?t.GOLD:t.TEXT,fontFamily:"'Montserrat',sans-serif",lineHeight:1.4,fontWeight:i===0?600:400}}>{f}</span>
+                  <span style={{fontSize:11,color:t.TEXT,fontFamily:"'Montserrat',sans-serif",lineHeight:1.4,minWidth:0}}>{f}</span>
                 </div>
               ))}
             </div>
@@ -11284,6 +11462,117 @@ function UpgradeModal({onClose,onCheckout,onNativePurchase,onRestorePurchases,lo
               <button onClick={onRestorePurchases} disabled={loading} style={{background:"none",border:"none",color:t.MUTED,fontFamily:"'Montserrat',sans-serif",fontSize:11,textDecoration:"underline",cursor:loading?"default":"pointer"}}>Restore Purchases</button>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// PRO_TOUR_V2: short welcome tour, shown once straight after a successful payment
+// (Stripe redirect or iPhone in-app purchase). Display only - stores nothing.
+// The pictures are real screenshots of the app with the marketing demo account,
+// in public/tour/. Re-capture them with scripts/capture_tour.py whenever those
+// pages change; it also rewrites TOUR_SHOTS below (image size + highlight box).
+const TOUR_SHOTS={"advisor":{"w":660,"h":1696,"ring":[0.1487,0.3276,0.6964,0.468]},"briefing":{"w":660,"h":1330,"ring":[0.0897,0.3016,0.8205,0.5354]},"invest":{"w":660,"h":1330,"ring":[0.0154,0.2774,0.9692,0.1412]},"cashflow":{"w":660,"h":1330,"ring":[0.0154,0.8702,0.9692,0.0929]},"tax":{"w":660,"h":1330,"ring":[0.0154,0.3957,0.9692,0.4936]}};
+function ProWelcomeTour({active,onClose,onGo}){
+  const t=T();
+  const[step,setStep]=useState(0);
+  const[f,setF]=useState(0); // animation frame for the current card (1 frame = 60ms)
+  const[fw,setFw]=useState(330);
+  const frameRef=useRef(null);
+  const touchX=useRef(null);
+  const reduce=(()=>{try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches;}catch{return false;}})();
+  const FH=(()=>{try{return Math.round(Math.min(300,Math.max(190,window.innerHeight*0.36)));}catch{return 260;}})();
+  useEffect(()=>{Object.keys(TOUR_SHOTS).forEach(n=>{try{const i=new window.Image();i.src="/tour/"+n+".webp";}catch{}});},[]);
+  useEffect(()=>{
+    const m=()=>{if(frameRef.current)setFw(frameRef.current.clientWidth);};
+    m();window.addEventListener("resize",m);
+    return()=>window.removeEventListener("resize",m);
+  },[step]);
+  useEffect(()=>{
+    setF(reduce?999:0);
+    if(reduce)return;
+    const id=setInterval(()=>setF(x=>x>=999?x:x+1),60);
+    return()=>clearInterval(id);
+  },[step]);
+  useEffect(()=>{
+    const k=e=>{if(e.key==="ArrowRight")next();else if(e.key==="ArrowLeft")back();else if(e.key==="Escape")onClose();};
+    window.addEventListener("keydown",k);
+    return()=>window.removeEventListener("keydown",k);
+  });
+  const M="'Montserrat',sans-serif";
+  const ease=(a,b)=>Math.max(0,Math.min(1,(f-a)/(b-a)));
+  const smooth=x=>x*x*(3-2*x);
+
+  const welcome=()=>{
+    const p=ease(0,14);
+    return(
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:FH}}>
+        <div style={{width:76,height:76,borderRadius:"50%",border:"1.5px solid "+t.GOLD,display:"flex",alignItems:"center",justifyContent:"center",transform:"scale("+(0.7+0.3*p)+")",opacity:p,boxShadow:"0 0 "+(30*p)+"px "+t.GOLD+"44"}}>
+          <svg width="34" height="34" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5" stroke={t.GOLD} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="12" strokeDashoffset={12-12*ease(8,20)}/></svg>
+        </div>
+        <div style={{marginTop:16,fontSize:11,fontFamily:M,letterSpacing:1,color:active?"#7A9E7E":t.MUTED,display:"flex",alignItems:"center",gap:7}}>
+          <span style={{width:7,height:7,borderRadius:"50%",background:active?"#7A9E7E":t.GOLD,animation:active?"none":"sk 1.2s infinite"}}/>
+          {active?"Your plan is active":"Activating your plan..."}
+        </div>
+      </div>
+    );
+  };
+  // A real screenshot that glides down to the feature, then spotlights it.
+  const shot=name=>{
+    const s=TOUR_SHOTS[name];
+    const H=fw*s.h/s.w;
+    const[rx,ry,rw,rh]=s.ring;
+    const ringH=rh*H;
+    const target=Math.max(0,Math.min(H-FH,ry*H-(ringH>FH-28?64:(FH-ringH)/2))); // tall highlight: keep some context above it
+    const y=target*smooth(ease(5,32));
+    const r=ease(32,40);
+    return(
+      <div>
+      <div ref={frameRef} style={{height:FH,overflow:"hidden",position:"relative",borderRadius:12,border:"1px solid "+t.BORDER,background:"#0A0A0A"}}>
+        <div style={{position:"absolute",left:0,top:0,width:"100%",height:H,transform:"translateY("+(-y)+"px)"}}>
+          <img src={"/tour/"+name+".webp"} alt="" draggable={false} style={{width:"100%",height:H,display:"block",userSelect:"none"}}/>
+          <div style={{position:"absolute",left:rx*fw,top:ry*H,width:rw*fw,height:ringH,border:"1.5px solid "+t.GOLD,borderRadius:10,opacity:r,boxShadow:"0 0 0 9999px rgba(0,0,0,"+(0.5*r)+"), 0 0 18px "+t.GOLD+"55",pointerEvents:"none"}}/>
+        </div>
+      </div>
+      <div style={{fontSize:8,color:t.MUTED,fontFamily:M,letterSpacing:1.5,textTransform:"uppercase",textAlign:"right",marginTop:6}}>Sample account</div>
+      </div>
+    );
+  };
+
+  const cards=[
+    {tag:"Welcome",title:"Welcome to The Executive",desc:"Here's a quick look at what you've just unlocked.",view:welcome,cta:null},
+    {tag:"Executive AI",title:"Ask anything, get a straight answer",desc:"Executive AI sees your whole dashboard - wealth, health and goals - and can search the web.",view:()=>shot("advisor"),cta:["Try Executive AI",()=>onGo("advisor")]},
+    {tag:"Morning Briefing",title:"Your day in one summary",desc:"Markets, the news that matters and your top priorities, one tap away each morning.",view:()=>shot("briefing"),cta:["See today's briefing",()=>onGo("briefing")]},
+    {tag:"Invest",title:"Live prices on what you watch",desc:"Track shares with live prices and target prices, and use AI to search for opportunities.",view:()=>shot("invest"),cta:["Open Invest",()=>onGo("invest")]},
+    {tag:"Bank import",title:"Import a bank statement",desc:"Drop in a PDF and every transaction is sorted into categories for you.",view:()=>shot("cashflow"),cta:["Open Cash Flow",()=>onGo("cashflow")]},
+    {tag:"Tax",title:"Know your tax position",desc:"Estimated tax, deductions and your effective rate, using Australian brackets.",view:()=>shot("tax"),cta:["Open Tax",()=>onGo("tax")]},
+  ];
+  const TOTAL=cards.length;
+  const next=()=>setStep(s=>Math.min(TOTAL-1,s+1));
+  const back=()=>setStep(s=>Math.max(0,s-1));
+  const c=cards[step];
+  const last=step===TOTAL-1;
+  return(
+    <div className="exec-overlay" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",zIndex:1150,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}
+      onTouchStart={e=>{touchX.current=e.touches[0].clientX;}}
+      onTouchEnd={e=>{if(touchX.current==null)return;const dx=e.changedTouches[0].clientX-touchX.current;touchX.current=null;if(dx<-40)next();else if(dx>40)back();}}>
+      <div role="dialog" aria-label="Welcome tour" style={{background:t.CARD,border:"1px solid "+t.GOLD+"44",borderRadius:16,maxWidth:420,width:"100%",maxHeight:"94vh",overflowY:"auto"}}>
+        <div style={{padding:"20px 20px 18px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:9,color:t.GOLD,fontFamily:M,letterSpacing:3,textTransform:"uppercase"}}>{c.tag}</div>
+            <button onClick={onClose} style={{background:"none",border:"none",color:t.MUTED,cursor:"pointer",fontFamily:M,fontSize:11,padding:"2px 0"}}>{last?"Close":"Skip"}</button>
+          </div>
+          <div key={step}>{c.view()}</div>
+          <div style={{fontSize:19,color:t.TEXT,marginTop:16,marginBottom:6}}>{c.title}</div>
+          <div style={{fontSize:12,color:t.MUTED,fontFamily:M,lineHeight:1.6,minHeight:40}}>{c.desc}</div>
+          <div style={{display:"flex",justifyContent:"center",gap:6,margin:"14px 0 16px"}}>
+            {cards.map((_,i)=>(<button key={i} onClick={()=>setStep(i)} aria-label={"Step "+(i+1)} style={{width:i===step?18:6,height:6,borderRadius:3,border:"none",padding:0,background:i===step?t.GOLD:t.BORDER2,cursor:"pointer",transition:"width .2s"}}/>))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:c.cta?"repeat(2,minmax(0,1fr))":"minmax(0,1fr)",gap:10}}>
+            {c.cta&&<button onClick={c.cta[1]} style={{background:t.CARD2,border:"1px solid "+t.BORDER,borderRadius:9,padding:"12px 8px",color:t.TEXT,cursor:"pointer",fontFamily:M,fontSize:12,fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.cta[0]}</button>}
+            <button onClick={last?onClose:next} style={{background:"linear-gradient(135deg,"+t.GOLD+","+t.GL+")",border:"none",borderRadius:9,padding:"12px 8px",color:"#080808",cursor:"pointer",fontFamily:M,fontSize:12,fontWeight:700}}>{step===0?"Show me":last?"Start exploring":"Next"}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -11615,7 +11904,15 @@ function App(){
   const[authError,setAuthError]=useState("");
   const[syncing,setSyncing]=useState(false);
   const[isOnline,setIsOnline]=useState(()=>navigator.onLine);
-  const[pendingSave,setPendingSave]=useState(false);
+  const[pendingSave,setPendingSave]=useState(()=>{try{return !!localStorage.getItem("exec_unsynced");}catch{return false;}});
+  const[retryTick,setRetryTick]=useState(0); // SYNC_RETRY_V1
+  useEffect(()=>{
+    if(!pendingSave)return;
+    const kick=()=>{if(document.visibilityState!=="hidden")setRetryTick(x=>x+1);};
+    const id=setInterval(kick,20000);
+    window.addEventListener("online",kick);window.addEventListener("focus",kick);document.addEventListener("visibilitychange",kick);
+    return()=>{clearInterval(id);window.removeEventListener("online",kick);window.removeEventListener("focus",kick);document.removeEventListener("visibilitychange",kick);};
+  },[pendingSave]);
 
   // Configure RevenueCat once we know who's logged in, native app only.
   // appUserID is set to our own Supabase user id so purchases tie back to
@@ -11636,18 +11933,18 @@ function App(){
       try{
         setSyncing(true);
         const res=await supabase.save(authUser.id,authToken,dataToSave);
-        if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res.data}));
+        if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:_freshen(dataToSave,res.data)}));
         setPendingSave(false);
         setLastSaved(Date.now());
       }catch{}
       finally{setSyncing(false);}
     })();
-  },[isOnline]);
+  },[isOnline,retryTick,readyToSave]);
   useEffect(()=>{
     const goOnline=()=>{
       setIsOnline(true);
-      // Flush any pending save when coming back online
-      if(pendingSave)setPendingSave(false);
+      // Retry any pending save when coming back online (SYNC_RETRY_V1)
+      setRetryTick(x=>x+1);
     };
     const goOffline=()=>setIsOnline(false);
     window.addEventListener("online",goOnline);
@@ -11731,6 +12028,7 @@ function App(){
 
   const[subscription,setSubscription]=useState(null);
   const[showUpgrade,setShowUpgrade]=useState(false);
+  const[showProTour,setShowProTour]=useState(false); // PRO_TOUR_V2
   const[upgradeLoading,setUpgradeLoading]=useState(false);
   useEffect(()=>{
     const tid=setTimeout(()=>{
@@ -11879,6 +12177,25 @@ function App(){
   const[altAssets,setAltAssets]=useState([]);
   const[properties,setProperties]=useState([]);
   const[superLog,setSuperLog]=useState([]);
+  // SUPER_AUTO_V1: add any automatic super contributions that are due (catches up on missed pay dates)
+  useEffect(()=>{
+    if(!readyToSave||!profile)return;
+    const a=profile.superAuto;
+    if(!a||!a.on||!a.next||!(parseFloat(a.amount)>0)||!SUPER_FREQS[a.freq])return;
+    const today=todayStr();
+    if(a.next>today)return;
+    const net=superNet(a);
+    const have=new Set((superLog||[]).map(e=>String(e.id)));
+    let d=a.next,bal=parseFloat(profile.superBalance)||0,guard=0;
+    const add=[];
+    while(d<=today&&guard<400){
+      const id="autosuper-"+d;
+      if(!have.has(id)){bal=Math.round((bal+net)*100)/100;add.push({id,date:d,balance:bal,amount:net,change:net,type:"employer",auto:true,...(a.type==="salary"?{sac:true}:{}),note:"Automatic - "+(a.type==="salary"?"salary sacrifice":"employer")+(a.taxed===false?"":" (after 15% tax)")});}
+      d=superNextDate(d,a.freq,a.anchor);guard++;
+    }
+    if(add.length)setSuperLog(sl=>{const ids=new Set((sl||[]).map(e=>String(e.id)));return [...add.filter(e=>!ids.has(e.id)).reverse(),...(sl||[])];});
+    setProfile(p=>p?{...p,...(add.length?{superBalance:String(bal)}:{}),superAuto:{...(p.superAuto||a),next:d}}:p);
+  },[readyToSave,profile&&profile.superAuto,todayStr()]);
   const[advisorMessages,setAdvisorMessages]=useState([]);
   const[lastSaved,setLastSaved]=useState(null);
   const[nwHistory,setNwHistory]=useState({});
@@ -11915,7 +12232,11 @@ function App(){
               user = refreshed.user;
             }
           }
-        }catch{ token=null; }
+        }catch{
+          // SYNC_RETRY_V1: no connection - keep the saved login and work from this device's copy
+          const ju=jwtUser(token);
+          if(ju)user=ju;else token=null;
+        }
       }
 
       if(token && user?.id){
@@ -11927,7 +12248,8 @@ function App(){
           if(subData?.[0])setSubscription(subData[0]);
         }catch{}
         try{
-          const cloudData = await supabase.load(user.id, token);
+          let cloudData = await supabase.load(user.id, token);
+          cloudData=mergeUnsynced(user.id,cloudData); // SYNC_RETRY_V1
           const hasCloudData = cloudData && Object.keys(cloudData).length > 0 && (cloudData.profile || cloudData.tasks || cloudData.habits || cloudData.supplements || cloudData.journal || cloudData.holdings || cloudData.history);
           if(hasCloudData){
             const d = applyDailyReset(cloudData, today);
@@ -11982,6 +12304,7 @@ function App(){
 
       // Fall back to localStorage
       let saved=loadData();
+      if(token&&user?.id&&saved&&_cloudBase.uid!==user.id){const u=readUnsynced(user.id);rememberCloud(user.id,(u&&u.base)||saved);} // SYNC_RETRY_V1
       if(saved){
         saved=applyDailyReset(saved,today);
         if(saved.theme){const k=THEME_ALIASES[saved.theme]||saved.theme;_themeKey=k;setThemeState(k);}
@@ -11997,6 +12320,7 @@ function App(){
         if(saved.readingGoal)setReadingGoal(saved.readingGoal);
         if(saved.marketTickers)setMarketTickers(saved.marketTickers);
         if(saved.superLog)setSuperLog(saved.superLog);
+        if(saved.taxDeductions)setTaxDeductions(saved.taxDeductions); // TAX_SAVE_V1
         if(saved.bills!==undefined)setBills(saved.bills);
         if(saved.debts!==undefined)setDebts(saved.debts);
         if(saved.history)setHistory(saved.history);
@@ -12054,6 +12378,7 @@ function App(){
   useEffect(()=>{
     if(!readyToSave)return;
     const dataToSave = {lastSavedDate:todayStr(),theme,bgPhoto,profile,tasks,goals,completed,supplements,workouts,transactions,journal,books,bills,debts,calendarItems,dividends,watchlist,taxDeductions,notes,services,learnData,commodityHoldings,altAssets,properties,readingGoal,dailySnaps,marketTickers,superLog,history,bodyLog,habits,habitLog,holdings,cryptoHoldings,nwHistory,seenMilestones,sidebarCollapsed,advisorMessages:advisorMessages.slice(-40),budgets,weeklyReflections};
+    _latestLocal=dataToSave;
     const timer=setTimeout(()=>{
       (async()=>{
         // Always save to localStorage — works offline
@@ -12061,6 +12386,7 @@ function App(){
         if(authToken && authUser?.id && profile){
           if(!navigator.onLine){
             // Mark as pending — will sync when back online
+            markUnsynced(authUser.id);
             setPendingSave(true);
             setLastSaved(Date.now());
             return;
@@ -12068,7 +12394,7 @@ function App(){
           try{
             setSyncing(true);
             const res=await supabase.save(authUser.id, authToken, dataToSave);
-            if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res.data}));
+            if(res&&res.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:_freshen(dataToSave,res.data)}));
             setPendingSave(false);
           }catch(e){
             console.error("[Save failed]",e?.message);
@@ -12085,7 +12411,7 @@ function App(){
                     setAuthToken(newToken);
                     // Retry save with new token
                     const res2=await supabase.save(authUser.id,newToken,dataToSave);
-                    if(res2&&res2.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:res2.data}));
+                    if(res2&&res2.remoteChanged)window.dispatchEvent(new CustomEvent("exec-cloud-merged",{detail:_freshen(dataToSave,res2.data)}));
                     setPendingSave(false);
                   }
                 }catch(re){console.error("[Token refresh failed]",re?.message);setPendingSave(true);}
@@ -12317,6 +12643,7 @@ function App(){
     const params=new URLSearchParams(window.location.search);
     if(params.get("stripe")==="success"){
       setShowUpgrade(false);
+      setShowProTour(true);
       window.history.replaceState({},"","/app");
       // Retry subscription check up to 8 times over 30 seconds
       // Webhook can take 5-15s to fire and update Supabase
@@ -12506,7 +12833,8 @@ function App(){
         setAuthLoading(false);
         // Load cloud data separately — don't let this affect sign in result
         try{
-          const cloudData = await supabase.load(res.user.id, res.access_token);
+          let cloudData = await supabase.load(res.user.id, res.access_token);
+          cloudData=mergeUnsynced(res.user.id,cloudData); // SYNC_RETRY_V1
           const hasCloudData = cloudData && Object.keys(cloudData).length > 0 && (cloudData.profile || cloudData.tasks || cloudData.habits || cloudData.supplements || cloudData.journal || cloudData.holdings || cloudData.history);
           if(hasCloudData){
             const d = applyDailyReset(cloudData, todayStr());
@@ -12635,6 +12963,7 @@ function App(){
     // token - so the next person on this device (e.g. a family member sharing it)
     // never sees this account's profile, finances, health data, etc.
     localStorage.removeItem(SK);
+    try{localStorage.removeItem("exec_tax_draft");localStorage.removeItem("exec_unsynced");}catch{}
     setProfile(null);
     setTasks(D_TASKS);setGoals(D_GOALS);setCompleted([]);
     setSupplements(D_SUPPS);setWorkouts([]);setTransactions([]);setJournal([]);
@@ -12681,6 +13010,7 @@ function App(){
         // server-side checks like api/claude.js).
         setSubscription(s=>({...(s||{}),status:"active",provider:"revenuecat"}));
         setShowUpgrade(false);
+        setShowProTour(true);
       }
     }catch(e){
       // User cancelling the purchase sheet also lands here - not a real error
@@ -12738,6 +13068,7 @@ function App(){
       <BgPhotoLayer photoId={shownBg}/>
       <style>{`@keyframes shimmer{0%,100%{opacity:.4}50%{opacity:.8}}`}</style>
       <style>{"*{box-sizing:border-box;margin:0;padding:0;} html,body,#root{width:100%;min-height:100vh;} ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:"+t.BORDER2+";border-radius:2px;} @keyframes sk{0%,100%{opacity:.4}50%{opacity:.8}} button:hover{opacity:.85;} input::placeholder,textarea::placeholder{color:"+t.MUTED2+";} @media(max-width:767px){[data-page]{max-width:100%!important;margin:0!important;}} /* exec-no-spill */ body,#root{overflow-x:hidden;} .exec-main{overflow-wrap:break-word;} .exec-main [data-page]{min-width:0;max-width:100%;} .exec-main [style*=\"display: grid\"]>*{min-width:0;} .exec-main input,.exec-main select,.exec-main textarea{min-width:0;max-width:100%;}"}</style>
+      {showProTour&&<ProWelcomeTour active={isPro(subscription)} onClose={()=>setShowProTour(false)} onGo={id=>{setShowProTour(false);if(id==="briefing"){if(isPro(subscription))setShowBriefing(true);else setPage("dashboard");}else setPage(id);}}/>}
       {showUpgrade&&<UpgradeModal onClose={()=>setShowUpgrade(false)} onCheckout={handleCheckout} onNativePurchase={handleNativePurchase} onRestorePurchases={handleRestorePurchases} loading={upgradeLoading}/>}
       {sessionExpired&&(
         <div style={{background:t.GOLD+"18",borderBottom:"1px solid "+t.GOLD+"44",padding:"7px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
