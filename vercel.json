@@ -16,6 +16,8 @@
     { "src": "/", "dest": "/landing/index.html" },
     { "src": "/privacy", "dest": "/landing/privacy.html" },
     { "src": "/terms", "dest": "/landing/terms.html" },
+    { "src": "/privacy.html", "dest": "/landing/privacy.html" },
+    { "src": "/terms.html", "dest": "/landing/terms.html" },
     { "src": "/(.*)", "dest": "/$1" }
   ],
   "buildCommand": "npm run build",
